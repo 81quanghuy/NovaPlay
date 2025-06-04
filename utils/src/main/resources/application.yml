@@ -1,0 +1,2 @@
+jwt:
+  public-key-path: classpath:keys/public.pem

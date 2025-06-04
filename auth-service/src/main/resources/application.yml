@@ -1,0 +1,9 @@
+spring:
+  application:
+    name: auth-service
+  profiles:
+    active: dev
+logging:
+  level:
+    org.springframework: DEBUG
+    org.springframework.jdbc: DEBUG
