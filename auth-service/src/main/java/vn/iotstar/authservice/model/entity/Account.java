@@ -35,12 +35,10 @@ public class Account extends AbstractMappedEntity implements Serializable {
     @Column(name = Constants.EMAIL, unique = true)
     private String email;
 
-    @Column(name = Constants.USERNAME, unique = true)
-    private String username;
-
     @Column(name = Constants.PASSWORD)
     private String password;
 
+    // Xác định xem tài khoản đã được xác minh hay chưa
     @Column(name = Constants.IS_ACTIVE)
     private Boolean isActive;
 

@@ -17,6 +17,7 @@ import java.util.Date;
 @Getter
 @Setter
 @Builder
+@Table(name = Constants.TOKEN_TABLE)
 public class Token extends AbstractMappedEntity implements Serializable {
 
     @Id

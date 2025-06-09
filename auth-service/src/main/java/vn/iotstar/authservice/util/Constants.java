@@ -7,6 +7,8 @@ public class Constants {
     // table name account
     public static final String ACCOUNT_TABLE = "accounts";
 
+    // table Email
+    public static final String EMAIL_TABLE = "emails";
     // account id
     public static final String ACCOUNT_ID = "account_id";
 
@@ -37,7 +39,7 @@ public class Constants {
     public static final String PROVIDER_URL = "provider_url";
 
     // table name tokens
-    public static final String TOKENS_TABLE = "tokens";
+    public static final String TOKEN_TABLE = "tokens";
 
     // token id
     public static final String TOKEN_ID = "token_id";

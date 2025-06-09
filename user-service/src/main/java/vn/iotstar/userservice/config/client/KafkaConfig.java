@@ -1,4 +1,4 @@
-//package vn.iotstar.authservice.config.client;
+package vn.iotstar.userservice.config.client;//package vn.iotstar.authservice.config.client;
 //
 //import org.apache.kafka.clients.admin.NewTopic;
 //import org.springframework.context.annotation.Bean;

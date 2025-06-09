@@ -1,5 +1,6 @@
 package vn.iotstar.authservice.model.dto;
 
+import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
@@ -10,10 +11,7 @@ import static vn.iotstar.authservice.util.MessageProperties.*;
 @Data
 public class AccountDTO {
 
-    @NotBlank(message = USERNAME_NOT_BLANK)
-    @Size(min = 4, max = 20, message = USERNAME_SIZE)
-    private String username;
-
+    private String accountId;
     @NotBlank(message = PASSWORD_NOT_BLANK)
     @Size(min = 6, max = 100, message = PASSWORD_SIZE)
     @Pattern(
@@ -21,6 +19,11 @@ public class AccountDTO {
             message = PASSWORD_COMPLEXITY
     )
     private String password;
+
+    @Email(message = EMAIL_INVALID)
+    @NotBlank(message = EMAIL_NOT_BLANK)
+    @Size(max = 50, message = EMAIL_SIZE)
+    private String email;
 
     private String ipAddress;
 }

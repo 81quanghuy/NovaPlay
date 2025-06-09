@@ -1,0 +1,15 @@
+package vn.iotstar.authservice.service.client;
+
+import org.springframework.cloud.openfeign.FeignClient;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import vn.iostar.utils.constants.GenericResponse;
+import vn.iotstar.authservice.model.dto.AccountDTO;
+
+@FeignClient(name = "user-service", contextId = "userClientService", path = "/api/v1")
+public interface UserClient {
+
+    @PostMapping("/user/create")
+    ResponseEntity<GenericResponse> createUser(@RequestBody AccountDTO pAccountDTO);
+}

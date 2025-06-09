@@ -1,4 +1,4 @@
-package vn.iotstar.authservice.config.client;
+package vn.iotstar.userservice.config.client;
 
 import io.swagger.v3.oas.annotations.OpenAPIDefinition;
 import io.swagger.v3.oas.models.OpenAPI;
