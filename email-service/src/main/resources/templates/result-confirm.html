@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>JOB POST - Auth</title>
+  <style>
+    /* CSS cho phần header */
+    header {
+      text-align: center;
+      padding: 20px;
+      /*background-color: #007BFF;*/
+      color: green;
+      font-size: 24px;
+      font-weight: bold;
+    }
+
+    /* CSS cho phần content */
+    .content {
+      padding: 20px;
+    }
+
+    /* CSS cho nút xác thực */
+    .verify-button {
+      display: block;
+      width: 200px;
+      padding: 10px;
+      margin: 20px auto;
+      background-color: green;
+      color: #fff;
+      text-align: center;
+      text-decoration: none;
+      font-weight: bold;
+      border-radius: 5px;
+    }
+  </style>
+</head>
+<body>
+<!-- Phần header -->
+<header>
+  JOB POST
+</header>
+
+<!-- Phần content -->
+<div class="content">
+  <p style="text-align: center">[[${result}]]</p>
+<!--  <p>Hãy nhấn vào nút bên dưới để tiếp tục sử dụng dịch vụ của chúng tôi:</p>-->
+  <a class="verify-button" href="http://localhost:5173/auth/login">Login Page</a>
+</div>
+</body>
+</html>

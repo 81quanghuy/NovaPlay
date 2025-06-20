@@ -1,11 +1,9 @@
-package vn.iotstar.authservice.util;
+package vn.iotstar.emailservice.util;
 /**
  * Constants class to hold all the constant values used in the application.
  * This class is not meant to be instantiated.
  */
 public class Constants {
-    // table name account
-    public static final String ACCOUNT_TABLE = "accounts";
 
     // table Email
     public static final String EMAIL_TABLE = "emails";

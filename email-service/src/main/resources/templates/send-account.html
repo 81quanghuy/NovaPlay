@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>JobPost</title>
+    <style>
+        /* CSS cho phần header */
+        header {
+            text-align: left;
+            padding: 20px;
+            /*background-color: #007BFF;*/
+            color: green;
+            font-size: 24px;
+            font-weight: bold;
+        }
+
+    </style>
+</head>
+<body>
+    <header>
+        JOB POST
+    </header>
+    <p>Dear <strong>[[${name}]]</strong>,</p>
+
+    <p>Confirmation of Job Post registration by our administrator with the email address: <strong>[[${account}]]</strong></p>
+
+    <p>To use your account, please follow the instructions below:</p>
+
+    <p><strong>Step 1:</strong> Click on the link below to confirm the registration is not compulsory: <a th:href="${token}">registration-confirm</a></p>
+
+    <p><strong>Step 2:</strong> Log in to your account</p>
+    <ul>
+      <li>Login link: http://localhost:5173/auth/login</li>
+      <li>Your account:</li>
+      <ul>
+        <li>Email: [[${account}]]</li>
+        <li>Password: [[${password}]]</li>
+      </ul>
+    </ul>
+    <p><strong>Step 3:</strong> Access the website to use</p>
+
+    <p>For any support requests, please contact our technical support email:</p>
+    <ul>
+      <li>Email: catphong2002@gmail.com</li>
+      <li>Phone: 0365817754</li>
+    </ul>
+
+    <p>Thank you and Best Regards!</p>
+</body>
+</html>

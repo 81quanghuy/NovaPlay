@@ -33,6 +33,8 @@
         <module>user-service</module>
         <module>report-service</module>
         <module>auth-service</module>
+        <module>email-service</module>
+        <module>media-service</module>
         <module>utils</module>
     </modules>
     <dependencies>

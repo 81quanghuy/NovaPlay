@@ -3,3 +3,7 @@ spring:
     name: user-service
   profiles:
     active: dev
+logging:
+  level:
+    org.springframework: DEBUG
+    org.springframework.jdbc: DEBUG
