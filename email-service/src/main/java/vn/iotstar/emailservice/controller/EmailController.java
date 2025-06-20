@@ -16,7 +16,7 @@ import java.io.UnsupportedEncodingException;
 @RequiredArgsConstructor
 @Slf4j
 @RequestMapping("/api/v1/auth")
-public class AuthController {
+public class EmailController {
 
     private final IEmailService emailService;
 
