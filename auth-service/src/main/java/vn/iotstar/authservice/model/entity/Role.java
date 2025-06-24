@@ -2,7 +2,7 @@ package vn.iotstar.authservice.model.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
-import vn.iostar.utils.AbstractMappedEntity;
+import vn.iostar.utils.AbstractBaseEntity;
 import vn.iotstar.authservice.util.Constants;
 import vn.iotstar.authservice.util.RoleName;
 
@@ -16,7 +16,7 @@ import java.io.Serializable;
 @Entity
 @Builder
 @Table(name = Constants.ROLE_TABLE)
-public class Role extends AbstractMappedEntity implements Serializable {
+public class Role extends AbstractBaseEntity implements Serializable {
 
     @Serial
     private static final long serialVersionUID = 1L;

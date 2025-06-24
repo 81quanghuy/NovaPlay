@@ -4,7 +4,7 @@ package vn.iotstar.authservice.model.entity;
 import jakarta.persistence.*;
 import lombok.*;
 
-import vn.iostar.utils.AbstractMappedEntity;
+import vn.iostar.utils.AbstractBaseEntity;
 import vn.iotstar.authservice.util.Constants;
 import vn.iotstar.authservice.util.TokenType;
 
@@ -18,7 +18,7 @@ import java.util.Date;
 @Setter
 @Builder
 @Table(name = Constants.TOKEN_TABLE)
-public class Token extends AbstractMappedEntity implements Serializable {
+public class Token extends AbstractBaseEntity implements Serializable {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)

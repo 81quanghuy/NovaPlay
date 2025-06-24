@@ -16,7 +16,7 @@ import vn.iostar.utils.constants.GenericResponse;
 import vn.iostar.utils.constants.HttpResponseMessages;
 import vn.iostar.utils.exceptions.wrapper.BadRequestException;
 import vn.iostar.utils.exceptions.wrapper.ForbiddenException;
-import vn.iostar.utils.exceptions.wrapper.NotFoundException;
+import vn.iostar.utils.exceptions.wrapper.ResourceNotFoundException;
 import vn.iostar.utils.exceptions.wrapper.UnsupportedMediaTypeException;
 
 import java.util.HashMap;
@@ -26,14 +26,14 @@ import java.util.Map;
 @ControllerAdvice
 @Slf4j
 @RequiredArgsConstructor
-public class ApiExceptionHandler {
+public class GlobalExceptionHandler {
 
     @ExceptionHandler(value = {
             MethodArgumentNotValidException.class,
             HttpMessageNotReadableException.class
     })
     public <T extends BindException> ResponseEntity<GenericResponse> handleValidationException(final T e) {
-        log.info("ApiExceptionHandler, ResponseEntity<GenericResponse> handleValidationException");
+        log.info("GlobalExceptionHandler, ResponseEntity<GenericResponse> handleValidationException");
         final var badRequest = HttpStatus.BAD_REQUEST;
         List<ObjectError> objectErrors = e.getBindingResult().getAllErrors();
         Map<String, String> errors = new HashMap<>();
@@ -56,7 +56,7 @@ public class ApiExceptionHandler {
             BadRequestException.class
     })
     public <T extends RuntimeException> ResponseEntity<GenericResponse> handleBadRequestException(final T e) {
-        log.info("ApiExceptionHandler, ResponseEntity<GenericResponse> handleApiRequestException");
+        log.info("GlobalExceptionHandler, ResponseEntity<GenericResponse> handleApiRequestException");
         return ResponseEntity.badRequest().body(
                 GenericResponse.builder()
                         .success(false)
@@ -67,10 +67,10 @@ public class ApiExceptionHandler {
     }
 
     @ExceptionHandler(value = {
-            NotFoundException.class
+            ResourceNotFoundException.class
     })
     public <T extends RuntimeException> ResponseEntity<GenericResponse> handleNotFoundException(final T e) {
-        log.info("ApiExceptionHandler, ResponseEntity<GenericResponse> handleNotFoundException");
+        log.info("GlobalExceptionHandler, ResponseEntity<GenericResponse> handleNotFoundException");
         final var notFound = HttpStatus.NOT_FOUND;
 
         return new ResponseEntity<>(
@@ -86,7 +86,7 @@ public class ApiExceptionHandler {
             UnsupportedMediaTypeException.class
     })
     public <T extends RuntimeException> ResponseEntity<GenericResponse> handleUnsupportedMediaTypeException(final T e) {
-        log.info("ApiExceptionHandler, ResponseEntity<GenericResponse> handleUnsupportedMediaTypeException");
+        log.info("GlobalExceptionHandler, ResponseEntity<GenericResponse> handleUnsupportedMediaTypeException");
         final var unsupportedMediaType = HttpStatus.UNSUPPORTED_MEDIA_TYPE;
 
         return new ResponseEntity<>(
@@ -102,7 +102,7 @@ public class ApiExceptionHandler {
             ForbiddenException.class
     })
     public <T extends RuntimeException> ResponseEntity<GenericResponse> handleForbiddenException(final T e) {
-        log.info("ApiExceptionHandler, ResponseEntity<GenericResponse> handleForbiddenException");
+        log.info("GlobalExceptionHandler, ResponseEntity<GenericResponse> handleForbiddenException");
         final var forbidden = HttpStatus.FORBIDDEN;
 
         return new ResponseEntity<>(
@@ -121,7 +121,7 @@ public class ApiExceptionHandler {
             IllegalArgumentException.class
     })
     public ResponseEntity<GenericResponse> handleServerException(final RuntimeException e) {
-        log.info("ApiExceptionHandler, ResponseEntity<GenericResponse> handleServerException");
+        log.info("GlobalExceptionHandler, ResponseEntity<GenericResponse> handleServerException");
         final var internalServerError = HttpStatus.INTERNAL_SERVER_ERROR;
 
         return new ResponseEntity<>(
@@ -137,7 +137,7 @@ public class ApiExceptionHandler {
             MissingRequestHeaderException.class
     })
     public <T extends MissingRequestHeaderException> ResponseEntity<GenericResponse> handleMissingRequestHeaderException(final T e) {
-        log.info("ApiExceptionHandler, ResponseEntity<GenericResponse> handleMissingRequestHeaderException");
+        log.info("GlobalExceptionHandler, ResponseEntity<GenericResponse> handleMissingRequestHeaderException");
         final var unauthorized = HttpStatus.UNAUTHORIZED;
 
         return new ResponseEntity<>(

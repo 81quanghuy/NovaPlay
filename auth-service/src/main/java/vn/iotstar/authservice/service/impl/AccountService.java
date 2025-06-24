@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 import org.thymeleaf.TemplateEngine;
 import org.thymeleaf.context.Context;
 import vn.iostar.utils.constants.GenericResponse;
+import vn.iostar.utils.exceptions.wrapper.ResourceNotFoundException;
 import vn.iostar.utils.jwt.service.JwtService;
 import vn.iotstar.authservice.model.dto.AccountDTO;
 import vn.iotstar.authservice.model.entity.Account;
@@ -23,7 +24,6 @@ import vn.iotstar.authservice.model.entity.Role;
 import vn.iotstar.authservice.model.entity.Token;
 import vn.iotstar.authservice.repository.AccountRepository;
 import vn.iotstar.authservice.service.IAccountService;
-import vn.iotstar.authservice.service.client.UserClient;
 import vn.iotstar.authservice.util.RoleName;
 import vn.iotstar.authservice.util.TokenType;
 
@@ -45,7 +45,6 @@ public class AccountService implements IAccountService {
     private final Environment env;
     private final TokenService tokenService;
     private final JwtService jwtService;
-    private final UserClient userClient;
     private final PasswordEncoder passwordEncoder;
     private static final long REFRESH_TOKEN_EXPIRATION_MS = 30L * 24 * 60 * 60 * 1000; // 30 days
     public static final int OTP_LENGTH = 6; // Length of the OTP
@@ -148,7 +147,7 @@ public class AccountService implements IAccountService {
      */
     @Override
     public ResponseEntity<GenericResponse> register(AccountDTO registerRequest) {
-        return userClient.createUser(registerRequest);
+        return null;
     }
 
     /**
@@ -202,7 +201,7 @@ public class AccountService implements IAccountService {
     private void validateAccountLogin(Account pAccount, String pPassword) {
         // Check if account exists
         if (pAccount == null) {
-            throw new RuntimeException(ACCOUNT_NOT_FOUND);
+            throw new ResourceNotFoundException(ACCOUNT_NOT_FOUND);
         }
         // Check if password matches
         if (!passwordEncoder.matches(pPassword, pAccount.getPassword())) {

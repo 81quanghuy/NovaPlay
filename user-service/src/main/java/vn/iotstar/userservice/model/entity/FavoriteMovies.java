@@ -5,7 +5,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import lombok.*;
-import vn.iostar.utils.AbstractMappedEntity;
+import vn.iostar.utils.AbstractBaseEntity;
 
 import java.io.Serial;
 import java.io.Serializable;
@@ -20,7 +20,7 @@ import static vn.iotstar.userservice.util.Constants.*;
 @Setter
 @Builder
 @Table(name = FAVORITE_MOVIES_TABLE_NAME)
-public class FavoriteMovies extends AbstractMappedEntity implements Serializable {
+public class FavoriteMovies extends AbstractBaseEntity implements Serializable {
 
     @Serial
     private static final long serialVersionUID = 1L;

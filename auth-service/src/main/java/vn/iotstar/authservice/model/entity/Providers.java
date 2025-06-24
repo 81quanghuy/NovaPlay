@@ -3,7 +3,7 @@ package vn.iotstar.authservice.model.entity;
 import jakarta.persistence.*;
 import lombok.*;
 
-import vn.iostar.utils.AbstractMappedEntity;
+import vn.iostar.utils.AbstractBaseEntity;
 import vn.iotstar.authservice.util.Constants;
 
 
@@ -17,7 +17,7 @@ import java.io.Serializable;
 @Builder
 @Entity
 @Table(name = Constants.PROVIDERS_TABLE)
-public class Providers extends AbstractMappedEntity implements Serializable {
+public class Providers extends AbstractBaseEntity implements Serializable {
 
     @Serial
     private static final long serialVersionUID = 1L;

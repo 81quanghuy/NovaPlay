@@ -11,4 +11,6 @@ spring:
       server:
         git:
           uri: https://github.com/81quanghuy/cloud_config_NovaPlay.git
-          basedir: /opt/cloud-config-repo
+          basedir: /opt/cloud-config-repo-novaPlay
+          username: ${GITHUB_USERNAME}
+          password: ${GITHUB_TOKEN}

@@ -5,7 +5,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import lombok.*;
-import vn.iostar.utils.AbstractMappedEntity;
+import vn.iostar.utils.AbstractBaseEntity;
 import vn.iotstar.userservice.util.Constants;
 import vn.iotstar.userservice.util.Gender;
 
@@ -22,7 +22,7 @@ import static vn.iotstar.userservice.util.Constants.*;
 @Setter
 @Builder
 @Table(name = USER_TABLE_NAME)
-public class User extends AbstractMappedEntity implements Serializable {
+public class User extends AbstractBaseEntity implements Serializable {
 
     @Serial
     private static final long serialVersionUID = 1L;

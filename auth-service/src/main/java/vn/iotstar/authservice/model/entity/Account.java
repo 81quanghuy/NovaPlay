@@ -4,7 +4,7 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
 import lombok.*;
 
-import vn.iostar.utils.AbstractMappedEntity;
+import vn.iostar.utils.AbstractBaseEntity;
 import vn.iotstar.authservice.util.Constants;
 
 import java.io.Serial;
@@ -18,7 +18,7 @@ import java.util.Set;
 @Entity
 @Builder
 @Table(name = Constants.ACCOUNT_TABLE)
-public class Account extends AbstractMappedEntity implements Serializable {
+public class Account extends AbstractBaseEntity implements Serializable {
 
     @Serial
     private static final long serialVersionUID = 1L;
