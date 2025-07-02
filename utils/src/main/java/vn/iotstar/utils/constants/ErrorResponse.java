@@ -1,6 +1,5 @@
-package vn.iostar.utils.constants;
+package vn.iotstar.utils.constants;
 
-import lombok.AllArgsConstructor;
 import lombok.Data;
 import org.springframework.http.HttpStatus;
 

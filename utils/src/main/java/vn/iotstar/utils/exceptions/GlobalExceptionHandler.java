@@ -1,4 +1,4 @@
-package vn.iostar.utils.exceptions;
+package vn.iotstar.utils.exceptions;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -12,12 +12,12 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingRequestHeaderException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
-import vn.iostar.utils.constants.GenericResponse;
-import vn.iostar.utils.constants.HttpResponseMessages;
-import vn.iostar.utils.exceptions.wrapper.BadRequestException;
-import vn.iostar.utils.exceptions.wrapper.ForbiddenException;
-import vn.iostar.utils.exceptions.wrapper.ResourceNotFoundException;
-import vn.iostar.utils.exceptions.wrapper.UnsupportedMediaTypeException;
+import vn.iotstar.utils.constants.GenericResponse;
+import vn.iotstar.utils.constants.HttpResponseMessages;
+import vn.iotstar.utils.exceptions.wrapper.BadRequestException;
+import vn.iotstar.utils.exceptions.wrapper.ForbiddenException;
+import vn.iotstar.utils.exceptions.wrapper.ResourceNotFoundException;
+import vn.iotstar.utils.exceptions.wrapper.UnsupportedMediaTypeException;
 
 import java.util.HashMap;
 import java.util.List;

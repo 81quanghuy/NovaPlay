@@ -1,9 +1,9 @@
-package vn.iostar.utils.exceptions.wrapper;
+package vn.iotstar.utils.exceptions.wrapper;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.ResponseStatus;
 
-import static vn.iostar.utils.constants.AppConst.MESSAGE_NOT_FOUND;
+import static vn.iotstar.utils.constants.AppConst.MESSAGE_NOT_FOUND;
 
 @ResponseStatus(value = HttpStatus.NOT_FOUND)
 public class ResourceNotFoundException extends RuntimeException {

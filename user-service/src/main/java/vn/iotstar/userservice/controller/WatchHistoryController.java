@@ -5,7 +5,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import vn.iostar.utils.constants.GenericResponse;
+import vn.iotstar.utils.constants.GenericResponse;
 import vn.iotstar.userservice.model.dto.WatchHistoryRequest;
 import vn.iotstar.userservice.model.dto.GetWatchHistoryRequest;
 import vn.iotstar.userservice.service.impl.WatchHistoryService;

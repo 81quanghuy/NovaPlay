@@ -4,7 +4,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import lombok.*;
-import vn.iostar.utils.AbstractBaseEntity;
+import vn.iotstar.utils.AbstractBaseEntity;
 import vn.iotstar.emailservice.util.Constants;
 
 import java.io.Serializable;

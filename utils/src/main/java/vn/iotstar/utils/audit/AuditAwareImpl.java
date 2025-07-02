@@ -1,11 +1,11 @@
-package vn.iostar.utils.audit;
+package vn.iotstar.utils.audit;
 
 import org.springframework.data.domain.AuditorAware;
 import org.springframework.stereotype.Component;
 
 import java.util.Optional;
 
-import static vn.iostar.utils.constants.AppConst.AUDIT_AWARE_AUDITOR;
+import static vn.iotstar.utils.constants.AppConst.AUDIT_AWARE_AUDITOR;
 
 @Component("auditAwareImpl")
 public class AuditAwareImpl implements AuditorAware<String> {

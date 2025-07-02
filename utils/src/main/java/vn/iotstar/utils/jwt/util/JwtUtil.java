@@ -1,5 +1,4 @@
-package vn.iostar.utils.jwt.service;
-
+package vn.iotstar.utils.jwt.util;
 
 import io.jsonwebtoken.Claims;
 
@@ -7,7 +6,7 @@ import java.util.Date;
 import java.util.Map;
 import java.util.function.Function;
 
-public interface JwtService {
+public interface JwtUtil {
 
     String extractUserId(final String token);
 
@@ -20,15 +19,4 @@ public interface JwtService {
     String generateAccessToken(Map<String, Object> claim, String userId) throws Exception;
 
     String generateRefreshToken(Map<String, Object> claim, String userId) throws Exception;
-
 }
-
-
-
-
-
-
-
-
-
-

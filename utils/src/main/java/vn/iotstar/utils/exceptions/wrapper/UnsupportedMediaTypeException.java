@@ -1,4 +1,4 @@
-package vn.iostar.utils.exceptions.wrapper;
+package vn.iotstar.utils.exceptions.wrapper;
 
 public class UnsupportedMediaTypeException extends RuntimeException {
     public UnsupportedMediaTypeException(String message) {

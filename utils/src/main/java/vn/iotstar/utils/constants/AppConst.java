@@ -1,4 +1,4 @@
-package vn.iostar.utils.constants;
+package vn.iotstar.utils.constants;
 
 public final class AppConst {
 

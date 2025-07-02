@@ -1,4 +1,4 @@
-package vn.iostar.utils.constants;
+package vn.iotstar.utils.constants;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;

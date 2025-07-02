@@ -1,4 +1,4 @@
-package vn.iostar.utils;
+package vn.iotstar.utils;
 import static java.lang.System.out;
 
 public class Main {

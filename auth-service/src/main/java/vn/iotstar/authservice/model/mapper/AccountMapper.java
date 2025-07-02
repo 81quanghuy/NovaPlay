@@ -5,6 +5,9 @@ import vn.iotstar.authservice.model.entity.Account;
 
 public class AccountMapper {
 
+    private AccountMapper() {
+        throw new IllegalStateException("Utility class");
+    }
     /**
      * Converts an Account entity to an AccountDTO.
      *

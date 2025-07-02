@@ -4,7 +4,7 @@ package vn.iotstar.authservice.service;
 import jakarta.mail.MessagingException;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
-import vn.iostar.utils.constants.GenericResponse;
+import vn.iotstar.utils.constants.GenericResponse;
 import vn.iotstar.authservice.model.dto.AccountDTO;
 
 import java.io.UnsupportedEncodingException;

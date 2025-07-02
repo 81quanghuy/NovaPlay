@@ -1,4 +1,4 @@
-package vn.iostar.utils.config;
+package vn.iotstar.utils.config;
 
 import lombok.SneakyThrows;
 import org.springframework.beans.factory.annotation.Value;

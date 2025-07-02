@@ -11,7 +11,7 @@ import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 import org.thymeleaf.TemplateEngine;
 import org.thymeleaf.context.Context;
-import vn.iostar.utils.constants.GenericResponse;
+import vn.iotstar.utils.constants.GenericResponse;
 import vn.iotstar.emailservice.model.dto.EmailDTO;
 import vn.iotstar.emailservice.model.entity.Email;
 import vn.iotstar.emailservice.repository.EmailRepository;

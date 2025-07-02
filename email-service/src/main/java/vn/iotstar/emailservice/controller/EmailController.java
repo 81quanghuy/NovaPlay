@@ -6,7 +6,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import vn.iostar.utils.constants.GenericResponse;
+import vn.iotstar.utils.constants.GenericResponse;
 import vn.iotstar.emailservice.model.dto.EmailDTO;
 import vn.iotstar.emailservice.service.IEmailService;
 

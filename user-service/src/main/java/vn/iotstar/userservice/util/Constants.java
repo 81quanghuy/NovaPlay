@@ -4,6 +4,10 @@ package vn.iotstar.userservice.util;
  * This class is not meant to be instantiated.
  */
 public class Constants {
+
+    private Constants() {
+        throw  new UnsupportedOperationException("Utility class");
+    }
     // User Table Constants
     public static final String PARAM_USER_ID = "userId";
     // link avatar default

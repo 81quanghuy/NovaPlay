@@ -4,10 +4,10 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
-import vn.iostar.utils.constants.GenericResponse;
 import vn.iotstar.userservice.model.entity.FavoriteMovies;
 import vn.iotstar.userservice.repository.IFavoriteMoviesRepository;
 import vn.iotstar.userservice.service.IFavoriteMoviesService;
+import vn.iotstar.utils.constants.GenericResponse;
 
 import java.util.Date;
 

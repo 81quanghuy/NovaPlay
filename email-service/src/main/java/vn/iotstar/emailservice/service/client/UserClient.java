@@ -5,7 +5,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import vn.iostar.utils.constants.GenericResponse;
+import vn.iotstar.utils.constants.GenericResponse;
 import vn.iotstar.emailservice.model.dto.EmailDTO;
 
 @Component

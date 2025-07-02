@@ -3,7 +3,7 @@ package vn.iotstar.authservice.model.entity;
 import jakarta.persistence.*;
 import lombok.*;
 
-import vn.iostar.utils.AbstractBaseEntity;
+import vn.iotstar.utils.AbstractBaseEntity;
 import vn.iotstar.authservice.util.Constants;
 
 

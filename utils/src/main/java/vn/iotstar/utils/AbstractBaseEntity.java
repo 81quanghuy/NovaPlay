@@ -1,11 +1,8 @@
-package vn.iostar.utils;
+package vn.iotstar.utils;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 import jakarta.persistence.*;
-import lombok.AccessLevel;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 import org.springframework.data.annotation.CreatedBy;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedBy;
@@ -15,12 +12,13 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 import java.io.Serializable;
 import java.util.Date;
 
-import static vn.iostar.utils.constants.AppConst.*;
+import static vn.iotstar.utils.constants.AppConst.*;
 
 @MappedSuperclass
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor(access = AccessLevel.PROTECTED)
-@Data
+@Getter
+@Setter
 @EntityListeners(AuditingEntityListener.class)
 public abstract class AbstractBaseEntity implements Serializable {
 

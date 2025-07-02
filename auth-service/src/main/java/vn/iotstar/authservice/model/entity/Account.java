@@ -4,7 +4,7 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
 import lombok.*;
 
-import vn.iostar.utils.AbstractBaseEntity;
+import vn.iotstar.utils.AbstractBaseEntity;
 import vn.iotstar.authservice.util.Constants;
 
 import java.io.Serial;
