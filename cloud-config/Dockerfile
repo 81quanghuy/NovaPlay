@@ -1,17 +1,22 @@
 # Dockerfile for Cloud Config Service
 FROM openjdk:21-jdk-slim
 
-# Set maintainer label
 LABEL maintainer="81quanghuy"
 
-# Set the working directory
+# --- THAY ĐỔI ---
+# Cài đặt thêm 'git' bên cạnh 'curl'
+RUN apt-get update && apt-get install -y curl git --no-install-recommends && \
+    rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
-# Copy the JAR file into the container
 COPY target/cloud-config-v0.0.1.jar /app.jar
 
-#entrypoint to run the application
-ENTRYPOINT ["java", "-jar", "/app.jar"]
+# Sao chép và cấp quyền thực thi cho entrypoint script
+COPY entrypoint.sh .
+RUN chmod +x entrypoint.sh
 
-# Expose the port the app runs on
+# Sử dụng script làm ENTRYPOINT
+ENTRYPOINT ["./entrypoint.sh"]
+
 EXPOSE 8888

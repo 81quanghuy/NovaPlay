@@ -2,6 +2,8 @@ package vn.iotstar.userservice.service.impl;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import vn.iotstar.utils.constants.GenericResponse;
@@ -134,10 +136,11 @@ public class WatchHistoryService implements IWatchHistoryService {
     @Override
     public ResponseEntity<GenericResponse> getPaginatedWatchHistory(GetWatchHistoryRequest pWatchHistoryRequest) {
         log.info("Retrieving paginated watch history for user: {}", pWatchHistoryRequest.getUserId());
-        var watchHistoryPage = watchHistoryRepository.findPaginatedByUserId(
-                pWatchHistoryRequest.getUserId(),
-                pWatchHistoryRequest.getPageNumber(),
-                pWatchHistoryRequest.getPageSize());
+
+        Pageable pageable = Pageable.ofSize(pWatchHistoryRequest.getPageSize())
+                .withPage(pWatchHistoryRequest.getPageNumber());
+        Page<WatchHistory> watchHistoryPage = watchHistoryRepository.findByUserId(
+                pWatchHistoryRequest.getUserId(),pageable);
 
         if (watchHistoryPage.isEmpty()) {
             return ResponseEntity.ok(GenericResponse.builder()

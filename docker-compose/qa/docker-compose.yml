@@ -1,0 +1,146 @@
+# docker-compose.yml
+version: '3.8'
+
+services:
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.6.1 # Cố định phiên bản
+    container_name: zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+    networks:
+      - nova-play-network
+
+  kafka:
+    image: confluentinc/cp-kafka:7.6.1 # Cố định phiên bản
+    container_name: kafka
+    depends_on:
+      - zookeeper
+    ports: # Giữ lại port để tiện debug từ máy host
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_INTERNAL:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092,PLAINTEXT_INTERNAL://kafka:29092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    networks:
+      - nova-play-network
+
+  postgres:
+    image: postgres:16.3 # Cố định phiên bản
+    container_name: postgres-server
+    environment:
+      # Vẫn cần user và password để tạo superuser ban đầu
+      POSTGRES_USER_FILE: /run/secrets/db_user
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_password
+      # KHÔNG cần POSTGRES_DB_FILE nữa vì script sẽ tạo DB
+    secrets:
+      - db_user
+      - db_password
+      # KHÔNG cần secret db_name ở đây
+    ports: # Giữ lại port để tiện debug từ máy host
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ../init-db:/docker-entrypoint-initdb.d
+    healthcheck:
+      # <<< THAY ĐỔI: Healthcheck chỉ cần kiểm tra user là đủ, không cần db cụ thể
+      test: [ "CMD-SHELL", "pg_isready -U $$(cat /run/secrets/db_user)" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - nova-play-network
+
+  cloud-config:
+    build: ../../cloud-config
+    container_name: cloud-config
+    extends:
+      file: common-config.yml
+      service: microservice-base
+    secrets: # Khai báo secrets để Docker mount vào container
+      - github_username
+      - github_token
+    healthcheck:
+      test: "curl --fail --silent localhost:8888/actuator/health/readiness | grep UP || exit 1" #
+      interval: 15s #
+      timeout: 5s #
+      retries: 10 #
+      start_period: 10s #
+
+  discovery-server:
+    build: ../../discovery-server
+    container_name: discovery-server
+    extends:
+      file: common-config.yml
+      service: microservice-base
+    # <<< THÊM VÀO: Cấu hình để Eureka Server không tự đăng ký chính nó
+    environment:
+      EUREKA_CLIENT_REGISTER_WITH_EUREKA: 'false'
+      EUREKA_CLIENT_FETCH_REGISTRY: 'false'
+    depends_on:
+      cloud-config:
+        condition: service_healthy
+    healthcheck:
+      test: "curl --fail --silent localhost:8761/actuator/health/readiness | grep UP || exit 1"
+      interval: 15s
+      timeout: 5s
+      retries: 10
+
+  api-gateway:
+    build: ../../api-gateway
+    container_name: api-gateway
+    ports: # Chỉ public port cho API Gateway
+      - "9000:9000"
+    extends:
+      file: common-config.yml
+      service: microservice-base
+    environment:
+      SPRING_APPLICATION_NAME: api-gateway # Ghi đè biến môi trường nếu cần
+    depends_on:
+      discovery-server:
+        condition: service_healthy
+
+  user-service:
+    build: ../../user-service
+    container_name: user-service
+    extends:
+      file: common-config.yml
+      service: microservice-base
+    secrets: # Cung cấp DB secrets cho user-service
+      - db_user
+      - db_password
+      - db_name
+    environment:
+      # Các biến này sẽ được ứng dụng Spring đọc để kết nối DB
+      # LƯU Ý: code của bạn phải được cập nhật để đọc từ file secrets
+      DB_HOST: postgres
+      DB_NAME_FILE: /run/secrets/db_name
+      DB_USERNAME_FILE: /run/secrets/db_user
+      DB_PASSWORD_FILE: /run/secrets/db_password
+    depends_on:
+      discovery-server:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+
+# Định nghĩa các network và volume sử dụng chung
+networks:
+  nova-play-network:
+    driver: bridge
+
+volumes:
+  pgdata:
+
+# Định nghĩa các file secret sẽ được Docker quản lý
+secrets:
+  db_user:
+    file: ../secrets/db_user.txt
+  db_password:
+    file: ../secrets/db_password.txt
+  db_name:
+    file: ../secrets/db_name.txt
+  github_username:
+    file: ../secrets/github_username.txt
+  github_token:
+    file: ../secrets/github_token.txt

@@ -14,9 +14,6 @@
     <name>discovery-server</name>
     <description>discovery-server</description>
     <packaging>jar</packaging>
-    <properties>
-        <spring-cloud.version>2025.0.0</spring-cloud.version>
-    </properties>
 
     <dependencies>
 
