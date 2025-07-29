@@ -12,7 +12,7 @@ public class MessageController {
     @Value("${app.message}") // Lấy giá trị từ file config trên Git
     private String message;
 
-    @GetMapping("/message")
+    @GetMapping("/api/v1/users/message")
     public String getMessage() {
         return this.message;
     }
