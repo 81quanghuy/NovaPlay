@@ -78,14 +78,14 @@ services:
     environment:
       EUREKA_CLIENT_REGISTER_WITH_EUREKA: 'false'
       EUREKA_CLIENT_FETCH_REGISTRY: 'false'
-    depends_on:
-      cloud-config:
-        condition: service_healthy
-    healthcheck:
-      test: "curl --fail --silent localhost:8761/actuator/health/readiness | grep UP || exit 1"
-      interval: 15s
-      timeout: 5s
-      retries: 10
+#    depends_on:
+#      cloud-config:
+#        condition: service_healthy
+#    healthcheck:
+#      test: "curl --fail --silent localhost:8761/actuator/health/readiness | grep UP || exit 1"
+#      interval: 15s
+#      timeout: 5s
+#      retries: 10
 
   api-gateway:
     build: ../../api-gateway
@@ -97,9 +97,9 @@ services:
       service: microservice-base
     environment:
       SPRING_APPLICATION_NAME: api-gateway # Ghi đè biến môi trường nếu cần
-    depends_on:
-      discovery-server:
-        condition: service_healthy
+#    depends_on:
+#      discovery-server:
+#        condition: service_healthy
 
   user-service:
     build: ../../user-service
@@ -118,11 +118,11 @@ services:
       DB_NAME_FILE: /run/secrets/db_name
       DB_USERNAME_FILE: /run/secrets/db_user
       DB_PASSWORD_FILE: /run/secrets/db_password
-    depends_on:
-      discovery-server:
-        condition: service_healthy
-      postgres:
-        condition: service_healthy
+#    depends_on:
+#      discovery-server:
+#        condition: service_healthy
+#      postgres:
+#        condition: service_healthy
 
 # Định nghĩa các network và volume sử dụng chung
 networks:

@@ -1,7 +1,6 @@
 package vn.iotstar.utils.config;
 
 import lombok.SneakyThrows;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
@@ -18,7 +17,7 @@ import java.util.Base64;
 public class JwtConfig {
 
     @SneakyThrows
-    public PrivateKey getPrivateKey() throws Exception {
+    public PrivateKey getPrivateKey() {
         ClassPathResource privateKeyPath = new ClassPathResource("keys/private.pem");
         String key = new String(privateKeyPath.getInputStream().readAllBytes())
                 .replace("-----BEGIN PRIVATE KEY-----", "")
@@ -31,7 +30,7 @@ public class JwtConfig {
         return kf.generatePrivate(keySpec);
     }
     @SneakyThrows
-    public PublicKey getPublicKey() throws Exception {
+    public PublicKey getPublicKey() {
         Resource publicKeyPath = new ClassPathResource("keys/public.pem");
         String key = new String(publicKeyPath.getInputStream().readAllBytes(), StandardCharsets.UTF_8)
                 .replace("-----BEGIN PUBLIC KEY-----", "")
