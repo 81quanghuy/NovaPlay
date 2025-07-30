@@ -9,6 +9,8 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpHeaders;
 import reactor.core.publisher.Mono;
 
+import static vn.iotstar.apigateway.constants.GateWayContants.CORRELATION_ID;
+
 @Configuration
 @RequiredArgsConstructor
 public class ResponseTraceFilter {
@@ -24,7 +26,7 @@ public class ResponseTraceFilter {
                 HttpHeaders requestHeaders = exchange.getRequest().getHeaders();
                 String correlationId = filterUtility.getCorrelationId(requestHeaders);
                 logger.debug("Updated the correlation id to the outbound headers: {}", correlationId);
-                exchange.getResponse().getHeaders().add(FilterUtility.CORRELATION_ID, correlationId);
+                exchange.getResponse().getHeaders().add(CORRELATION_ID, correlationId);
             }));
         };
     }

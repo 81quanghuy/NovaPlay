@@ -5,17 +5,16 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
 
 import java.util.List;
-import java.util.Objects;
+
+import static vn.iotstar.apigateway.constants.GateWayContants.CORRELATION_ID;
 
 @Component
 public class FilterUtility {
 
-    public static final String CORRELATION_ID = "novaPlay-correlation-id";
-
     public String getCorrelationId(HttpHeaders requestHeaders) {
-        if (requestHeaders.get(CORRELATION_ID) != null) {
-            List<String> requestHeaderList = requestHeaders.get(CORRELATION_ID);
-            return Objects.requireNonNull(requestHeaderList).stream().findFirst().get();
+        List<String> requestHeaderList = requestHeaders.get(CORRELATION_ID);
+        if (requestHeaderList != null) {
+            return requestHeaderList.stream().findFirst().orElse(null);
         } else {
             return null;
         }
