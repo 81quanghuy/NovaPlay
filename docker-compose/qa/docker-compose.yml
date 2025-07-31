@@ -2,6 +2,17 @@
 version: '3.8'
 
 services:
+  redis:
+    image: redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: [ "CMD-SHELL", "redis-cli ping | grep PONG" ]
+      timeout: 10s
+      retries: 10
+    extends:
+      file: common-config.yml
+      service: microservice-base
   zookeeper:
     image: confluentinc/cp-zookeeper:7.6.1 # Cố định phiên bản
     container_name: zookeeper
@@ -27,7 +38,7 @@ services:
       - nova-play-network
 
   postgres:
-    image: postgres:16.3 # Cố định phiên bản
+    image: postgres:latest # Cố định phiên bản
     container_name: postgres-server
     environment:
       # Vẫn cần user và password để tạo superuser ban đầu
@@ -55,12 +66,16 @@ services:
   cloud-config:
     build: ../../cloud-config
     container_name: cloud-config
+    ports:
+      - "8888:8888"
     extends:
       file: common-config.yml
       service: microservice-base
     secrets: # Khai báo secrets để Docker mount vào container
       - github_username
       - github_token
+    environment:
+      SPRING_APPLICATION_NAME: "cloud-config" # Ghi đè biến môi trường nếu cần
     healthcheck:
       test: "curl --fail --silent localhost:8888/actuator/health/readiness | grep UP || exit 1" #
       interval: 15s #
@@ -71,21 +86,48 @@ services:
   discovery-server:
     build: ../../discovery-server
     container_name: discovery-server
+    ports:
+      - "8761:8761"
     extends:
       file: common-config.yml
       service: microservice-base
-    # <<< THÊM VÀO: Cấu hình để Eureka Server không tự đăng ký chính nó
+    depends_on:
+      cloud-config:
+        condition: service_healthy
+    healthcheck:
+      test: "curl --fail --silent localhost:8761/actuator/health/readiness | grep UP || exit 1"
+      interval: 15s
+      timeout: 5s
+      retries: 10
     environment:
-      EUREKA_CLIENT_REGISTER_WITH_EUREKA: 'false'
-      EUREKA_CLIENT_FETCH_REGISTRY: 'false'
-#    depends_on:
-#      cloud-config:
-#        condition: service_healthy
-#    healthcheck:
-#      test: "curl --fail --silent localhost:8761/actuator/health/readiness | grep UP || exit 1"
-#      interval: 15s
-#      timeout: 5s
-#      retries: 10
+      SPRING_APPLICATION_NAME: "discovery-server"
+
+  user-service:
+    build: ../../user-service
+    container_name: user-service
+    ports:
+      - "8700:8700"
+    extends:
+      file: common-config.yml
+      service: microservice-base
+    secrets: # Cung cấp DB secrets cho user-service
+      - db_user
+      - db_password
+      - db_name
+    environment:
+      # Các biến này sẽ được ứng dụng Spring đọc để kết nối DB
+      DB_HOST: postgres
+      DB_NAME_FILE: /run/secrets/db_name
+      DB_USERNAME_FILE: /run/secrets/db_user
+      DB_PASSWORD_FILE: /run/secrets/db_password
+      SPRING_APPLICATION_NAME: "user-service" # Ghi đè biến môi trường nếu cần
+    depends_on:
+      discovery-server:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      cloud-config:
+        condition: service_healthy
 
   api-gateway:
     build: ../../api-gateway
@@ -96,33 +138,12 @@ services:
       file: common-config.yml
       service: microservice-base
     environment:
-      SPRING_APPLICATION_NAME: api-gateway # Ghi đè biến môi trường nếu cần
-#    depends_on:
-#      discovery-server:
-#        condition: service_healthy
-
-  user-service:
-    build: ../../user-service
-    container_name: user-service
-    extends:
-      file: common-config.yml
-      service: microservice-base
-    secrets: # Cung cấp DB secrets cho user-service
-      - db_user
-      - db_password
-      - db_name
-    environment:
-      # Các biến này sẽ được ứng dụng Spring đọc để kết nối DB
-      # LƯU Ý: code của bạn phải được cập nhật để đọc từ file secrets
-      DB_HOST: postgres
-      DB_NAME_FILE: /run/secrets/db_name
-      DB_USERNAME_FILE: /run/secrets/db_user
-      DB_PASSWORD_FILE: /run/secrets/db_password
-#    depends_on:
-#      discovery-server:
-#        condition: service_healthy
-#      postgres:
-#        condition: service_healthy
+      SPRING_APPLICATION_NAME: "api-gateway" # Ghi đè biến môi trường nếu cần
+    depends_on:
+      discovery-server:
+        condition: service_healthy
+      cloud-config:
+        condition: service_healthy
 
 # Định nghĩa các network và volume sử dụng chung
 networks:
