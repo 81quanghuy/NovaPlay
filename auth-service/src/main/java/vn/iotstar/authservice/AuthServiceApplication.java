@@ -11,7 +11,7 @@ import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 @EnableDiscoveryClient
 @ComponentScan(basePackages = {
 		"vn.iotstar.authservice",  // package chính
-		"vn.iostar.utils", // package Utils,
+		"vn.iotstar.utils", // package Utils,
 })
 public class AuthServiceApplication {
 

@@ -221,8 +221,9 @@ services:
     container_name: zookeeper
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
-    networks:
-      - novaPLay
+    extends:
+      file: common-config.yml
+      service: network-deploy-service
 
   kafka:
     image: confluentinc/cp-kafka:7.6.1 # Cố định phiên bản
@@ -237,54 +238,53 @@ services:
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_INTERNAL:PLAINTEXT
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092,PLAINTEXT_INTERNAL://kafka:29092
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-    networks:
-      - novaPLay
+    extends:
+      file: common-config.yml
+      service: network-deploy-service
 
   postgres:
-    image: postgres:latest # Cố định phiên bản
+    image: postgres:latest
     container_name: postgres-server
     environment:
-      # Vẫn cần user và password để tạo superuser ban đầu
       POSTGRES_USER_FILE: /run/secrets/db_user
       POSTGRES_PASSWORD_FILE: /run/secrets/db_password
-      # KHÔNG cần POSTGRES_DB_FILE nữa vì script sẽ tạo DB
     secrets:
       - db_user
       - db_password
-      # KHÔNG cần secret db_name ở đây
-    ports: # Giữ lại port để tiện debug từ máy host
+    ports:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ../init-db:/docker-entrypoint-initdb.d
     healthcheck:
-      # <<< THAY ĐỔI: Healthcheck chỉ cần kiểm tra user là đủ, không cần db cụ thể
       test: [ "CMD-SHELL", "pg_isready -U $$(cat /run/secrets/db_user)" ]
       interval: 10s
       timeout: 5s
       retries: 5
-    networks:
-      - novaPLay
+    extends:
+      file: common-config.yml
+      service: network-deploy-service
 
   cloud-config:
-    build: ../../cloud-config
+    image: "novaplay/cloudconfig:v1.0.0"
     container_name: cloud-config
     ports:
       - "8888:8888"
     healthcheck:
       test: "curl --fail --silent localhost:8888/actuator/health/readiness | grep UP || exit 1" #
-      interval: 15s #
-      timeout: 5s #
-      retries: 10 #
-      start_period: 10s #
+      interval: 20s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
     extends:
       file: common-config.yml
       service: microservice-base-config
     environment:
       SPRING_APPLICATION_NAME: "cloud-config" # Ghi đè biến môi trường nếu cần
+      OTEL_SERVICE_NAME: "cloud-config"
 
   discovery-server:
-    build: ../../discovery-server
+    image: "novaplay/discoveryserver:v1.0.0"
     container_name: discovery-server
     ports:
       - "8761:8761"
@@ -293,21 +293,23 @@ services:
         condition: service_healthy
     healthcheck:
       test: "curl --fail --silent localhost:8761/actuator/health/readiness | grep UP || exit 1"
-      interval: 15s
+      interval: 20s
       timeout: 5s
-      retries: 10
+      retries: 20
+      start_period: 10s
     extends:
       file: common-config.yml
       service: microservice-configserver-config
     environment:
       SPRING_APPLICATION_NAME: "discovery-server"
+      OTEL_SERVICE_NAME: "discovery-server"
 
   user-service:
-    build: ../../user-service
+    image: "novaplay/userservice:v1.0.0"
     container_name: user-service
     ports:
       - "8700:8700"
-    secrets: # Cung cấp DB secrets cho user-service
+    secrets:
       - db_user
       - db_password
       - db_name
@@ -318,17 +320,25 @@ services:
         condition: service_healthy
       cloud-config:
         condition: service_healthy
+    healthcheck:
+      test: "curl --fail --silent localhost:8700/actuator/health/readiness | grep UP || exit 1"
+      interval: 20s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
     environment:
       SPRING_DATASOURCE_USERNAME_FILE: /run/secrets/db_user
       SPRING_DATASOURCE_PASSWORD_FILE: /run/secrets/db_password
       DB_NAME_FILE: /run/secrets/db_name
-      SPRING_APPLICATION_NAME: "user-service" # Ghi đè biến môi trường nếu cần
+      DB_HOST: postgres
+      SPRING_APPLICATION_NAME: "user-service"
+      OTEL_SERVICE_NAME: "user-service"
     extends:
       file: common-config.yml
       service: microservice-eureka-config
 
   api-gateway:
-    build: ../../api-gateway
+    image: "novaplay/apigateway:v1.0.0"
     container_name: api-gateway
     ports: # Chỉ public port cho API Gateway
       - "8072:8072"
@@ -339,8 +349,15 @@ services:
         condition: service_healthy
       cloud-config:
         condition: service_healthy
+    healthcheck:
+      test: "curl --fail --silent localhost:8072/actuator/health/readiness | grep UP || exit 1"
+      interval: 20s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
     environment:
       SPRING_APPLICATION_NAME: "api-gateway" # Ghi đè biến môi trường nếu cần
+      OTEL_SERVICE_NAME: "api-gateway"
     extends:
       file: common-config.yml
       service: microservice-eureka-config

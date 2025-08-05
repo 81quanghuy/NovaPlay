@@ -9,9 +9,9 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>api-gateway</artifactId>
+    <artifactId>apigateway</artifactId>
     <name>api-gateway</name>
-    <version>0.0.1</version>
+    <version>1.0.0</version>
     <description>api-gateway</description>
     <dependencyManagement>
         <dependencies>
@@ -25,7 +25,16 @@
         </dependencies>
     </dependencyManagement>
 
+    <properties>
+        <otelVersion>2.11.0</otelVersion>
+    </properties>
     <dependencies>
+        <dependency>
+            <groupId>io.opentelemetry.javaagent</groupId>
+            <artifactId>opentelemetry-javaagent</artifactId>
+            <version>${otelVersion}</version>
+            <scope>runtime</scope>
+        </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-webflux</artifactId>
@@ -78,6 +87,29 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                            <version>${lombok.version}</version>
+                        </path>
+                    </annotationProcessorPaths>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>com.google.cloud.tools</groupId>
+                <artifactId>jib-maven-plugin</artifactId>
+                <version>3.4.2</version>
+                <configuration>
+                    <to>
+                        <image>novaplay/${project.artifactId}:v${project.version}</image>
+                    </to>
+                </configuration>
             </plugin>
         </plugins>
     </build>
