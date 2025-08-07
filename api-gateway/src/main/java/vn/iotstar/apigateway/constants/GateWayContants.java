@@ -28,4 +28,10 @@ public class GateWayContants {
 
     // Message for contact support
     public static final String CONTACT_SUPPORT_MESSAGE = "An error occurred. Please try after some time or contact support team!!!";
+
+// PATCH SETTING SPRING SECURITY
+    public static final String USER_SERVICE_PATH = "novaplay/user-service/**";
+
+    public static final String MOVIE_SERVICE_PATH = "novaplay/movie-service/**";
+
 }

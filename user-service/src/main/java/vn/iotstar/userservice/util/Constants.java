@@ -13,7 +13,7 @@ public class Constants {
     // link avatar default
     public static final String DEFAULT_AVATAR_URL = "https://i.imgur.com/iP4sAgI.png";
 
-    public static final String USER_TABLE_NAME = "users";
+    public static final String USER_TABLE_NAME = "user_profiles";
     public static final String USER_ID_COLUMN = "user_id";
     public static final String ACCOUNT_ID_COLUMN = "account_id";
     public static final String AVATAR_COLUMN = "avatar";

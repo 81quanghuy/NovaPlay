@@ -9,7 +9,6 @@ import vn.iotstar.utils.AbstractBaseEntity;
 
 import java.io.Serial;
 import java.io.Serializable;
-import java.util.Date;
 
 import static vn.iotstar.userservice.util.Constants.*;
 
@@ -26,16 +25,12 @@ public class FavoriteMovies extends AbstractBaseEntity implements Serializable {
     private static final long serialVersionUID = 1L;
 
     @Id
-    @Column(name = FAVORITE_MOVIES_ID_COLUMN, columnDefinition = "nvarchar(255)")
+    @Column(name = FAVORITE_MOVIES_ID_COLUMN)
     private String favoriteMovieId;
 
-    @Column(name = FAVORITE_MOVIES_USER_ID_COLUMN, columnDefinition = "nvarchar(255)")
+    @Column(name = FAVORITE_MOVIES_USER_ID_COLUMN)
     private String userId;
 
-    @Column(name = FAVORITE_MOVIES_MOVIE_ID_COLUMN, columnDefinition = "nvarchar(255)")
+    @Column(name = FAVORITE_MOVIES_MOVIE_ID_COLUMN)
     private String movieId;
-
-    @Column(name =FAVORITE_MOVIES_ADDED_AT_COLUMN, columnDefinition = "datetime")
-    private Date addedAt;
-
 }

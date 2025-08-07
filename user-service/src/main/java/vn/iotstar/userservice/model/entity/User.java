@@ -1,17 +1,15 @@
 package vn.iotstar.userservice.model.entity;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import com.fasterxml.jackson.annotation.JsonFormat;
+import jakarta.persistence.*;
 import lombok.*;
-import vn.iotstar.utils.AbstractBaseEntity;
 import vn.iotstar.userservice.util.Constants;
 import vn.iotstar.userservice.util.Gender;
+import vn.iotstar.utils.AbstractBaseEntity;
 
 import java.io.Serial;
 import java.io.Serializable;
-import java.time.LocalDate;
+import java.util.Date;
 
 import static vn.iotstar.userservice.util.Constants.*;
 
@@ -34,22 +32,23 @@ public class User extends AbstractBaseEntity implements Serializable {
     @Column(name = Constants.ACCOUNT_ID_COLUMN, unique = true, nullable = false)
     private String accountId;
 
-    @Column(name = USER_NAME_COLUMN, columnDefinition = "nvarchar(255)")
+    @Column(name = USER_NAME_COLUMN)
     private String username;
 
-    @Column(name = AVATAR_COLUMN, columnDefinition = "nvarchar(255)")
+    @Column(name = AVATAR_COLUMN)
     private String avatar;
 
-    @Column(name = ADDRESS_COLUMN, columnDefinition = "nvarchar(255)")
+    @Column(name = ADDRESS_COLUMN)
     private String address;
 
-    @Column(name= DOB_COLUMN, columnDefinition = "date")
-    private LocalDate dayOfBirth;
+    @Column(name= DOB_COLUMN)
+    private Date dayOfBirth;
 
+    @JsonFormat(shape = JsonFormat.Shape.STRING)
     @Column(name = GENDER_COLUMN)
     private Gender gender;
 
-    @Column(name=IS_ONLINE_COLUMN, columnDefinition = "boolean default false")
+    @Column(name=IS_ONLINE_COLUMN)
     @Builder.Default
     private Boolean isOnline = false;
 }

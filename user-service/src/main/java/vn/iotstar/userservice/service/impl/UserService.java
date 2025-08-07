@@ -14,6 +14,7 @@ import vn.iotstar.userservice.util.Constants;
 import vn.iotstar.userservice.util.Gender;
 
 import java.time.LocalDate;
+import java.util.Date;
 
 import static vn.iotstar.userservice.util.MessageProperties.*;
 
@@ -73,7 +74,8 @@ public class UserService implements IUserSerivce {
             user.setAddress(pUserDTO.getAddress());
         }
         if( pUserDTO.getDayOfBirth() != null) {
-            user.setDayOfBirth(LocalDate.parse(pUserDTO.getDayOfBirth()));
+            Date dayOfBirth = Date.from(LocalDate.parse(pUserDTO.getDayOfBirth()).atStartOfDay().toInstant(java.time.ZoneOffset.UTC));
+            user.setDayOfBirth(dayOfBirth);
         }
         if( pUserDTO.getGender() != null) {
             user.setGender(Gender.valueOf(pUserDTO.getGender()));

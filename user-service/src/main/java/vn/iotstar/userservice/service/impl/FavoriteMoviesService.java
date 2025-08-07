@@ -41,7 +41,6 @@ public class FavoriteMoviesService implements IFavoriteMoviesService {
         FavoriteMovies favoriteMovie = FavoriteMovies.builder()
                 .userId(userId)
                 .movieId(movieId)
-                .addedAt(new Date())
                 .build();
         favoriteMoviesRepository.save(favoriteMovie);
         return ResponseEntity.ok(GenericResponse.builder()

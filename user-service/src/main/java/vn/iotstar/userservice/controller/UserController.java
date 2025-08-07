@@ -19,7 +19,7 @@ import static vn.iotstar.userservice.util.Constants.PARAM_USER_ID;
 @RestController
 @RequiredArgsConstructor
 @Slf4j
-@RequestMapping("/api/v1/user")
+@RequestMapping("/api/v1/users")
 public class UserController {
 
     private final UserService userService;
