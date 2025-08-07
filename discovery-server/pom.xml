@@ -9,14 +9,29 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>discovery-server</artifactId>
+    <artifactId>discoveryserver</artifactId>
     <version>0.0.1</version>
     <name>discovery-server</name>
     <description>discovery-server</description>
     <packaging>jar</packaging>
-
+<properties>
+    <otelVersion>2.11.0</otelVersion>
+</properties>
     <dependencies>
-
+        <dependency>
+            <groupId>io.opentelemetry.javaagent</groupId>
+            <artifactId>opentelemetry-javaagent</artifactId>
+            <version>${otelVersion}</version>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-registry-prometheus</artifactId>
+        </dependency>
         <dependency>
             <groupId>org.springframework.cloud</groupId>
             <artifactId>spring-cloud-starter-netflix-eureka-server</artifactId>
@@ -43,10 +58,28 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
                 <configuration>
-                    <image>
-                        <name>81quanghuy/${project.artifactId}:v1</name>
-                    </image>
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                            <version>${lombok.version}</version>
+                        </path>
+                    </annotationProcessorPaths>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>com.google.cloud.tools</groupId>
+                <artifactId>jib-maven-plugin</artifactId>
+                <version>3.4.2</version>
+                <configuration>
+                    <to>
+                        <image>novaplay/${project.artifactId}:v1.0.0</image>
+                    </to>
                 </configuration>
             </plugin>
         </plugins>

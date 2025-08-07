@@ -1,28 +1,30 @@
-# common-config.yml
-version: '3.8'
-
 services:
-  # Cấu hình cơ sở cho tất cả microservices
-  microservice-base:
-    # Tất cả các microservice đều tham gia vào mạng chung
+  network-deploy-service:
     networks:
-      - nova-play-network
-    # Áp dụng giới hạn tài nguyên để tránh một service làm sập toàn bộ hệ thống
+      - novaPLay
+
+  microservice-base-config:
+    extends:
+      service: network-deploy-service
     deploy:
       resources:
         limits:
           memory: 700m
-        reservations:
-          memory: 256m
-    # Các biến môi trường chung cho các ứng dụng Spring Boot
     environment:
-      # Kết nối tới Spring Cloud Config Server, dùng tên service 'cloud-config'
-      SPRING_CONFIG_IMPORT: "optional:configserver:http://cloud-config:8888/"
-      # Kết nối tới Kafka
-      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
-      # Kết nối tới Eureka Server
-      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-server:8761/eureka/
+      JAVA_TOOL_OPTIONS: "-javaagent:/app/libs/opentelemetry-javaagent-2.11.0.jar"
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://tempo:4318
+      OTEL_METRICS_EXPORTER: none
+      OTEL_LOGS_EXPORTER: none
 
-networks:
-  nova-play-network:
-    driver: bridge
+  microservice-configserver-config:
+    extends:
+      service: microservice-base-config
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      SPRING_CONFIG_IMPORT: configserver:http://cloud-config:8888/
+
+  microservice-eureka-config:
+    extends:
+      service: microservice-configserver-config
+    environment:
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-server:8761/eureka/
