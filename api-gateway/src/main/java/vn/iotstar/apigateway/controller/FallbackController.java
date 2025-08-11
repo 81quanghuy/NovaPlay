@@ -1,13 +1,12 @@
 package vn.iotstar.apigateway.controller;
 
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
 import reactor.core.publisher.Mono;
 import vn.iotstar.apigateway.constants.GenericResponse;
 
 import static vn.iotstar.apigateway.constants.GateWayContants.CONTACT_SUPPORT_MESSAGE;
 
-@RestController
+@RequestMapping
 public class FallbackController {
 
     /**
@@ -24,5 +23,4 @@ public class FallbackController {
         response.setSuccess(Boolean.TRUE);
         return Mono.just(response);
     }
-
 }

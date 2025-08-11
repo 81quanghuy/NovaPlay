@@ -30,11 +30,10 @@ public class JwtUtilImpl implements JwtUtil {
         try {
             return jwtConfig.getPublicKey();
         } catch (Exception e) {
-            log.error("Failed to load public key", e);
-            throw new RuntimeException("Cannot load public key", e);
+            log.error("Error retrieving public key: {}", e.getMessage());
+            throw new IllegalStateException("Failed to retrieve public key for JWT validation", e);
         }
     }
-
     @Override
     public String extractUserId(final String token) {
         return this.extractClaims(token, Claims::getSubject);
@@ -89,7 +88,7 @@ public class JwtUtilImpl implements JwtUtil {
      * @return A string representing the generated access token.
      */
     @Override
-    public String generateAccessToken(Map<String, Object> claim, String userId) throws Exception {
+    public String generateAccessToken(Map<String, Object> claim, String userId) {
         return Jwts.builder()
                 .setClaims(claim)
                 .setSubject(userId)
@@ -108,7 +107,7 @@ public class JwtUtilImpl implements JwtUtil {
      * @return A string representing the generated refresh token.
      */
     @Override
-    public String generateRefreshToken(Map<String, Object> claim, String userId) throws Exception {
+    public String generateRefreshToken(Map<String, Object> claim, String userId){
         return Jwts.builder()
                 .setClaims(claim)
                 .setSubject(userId)

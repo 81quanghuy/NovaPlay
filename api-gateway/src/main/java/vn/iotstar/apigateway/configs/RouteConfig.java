@@ -56,7 +56,7 @@ public class RouteConfig {
             String serviceName = entry.getKey();
             RouteConfigItem item = entry.getValue();
 
-            routes.route(serviceName + "-route", r -> r
+            routes.route(serviceName, r -> r
                     .path(item.path())
                     .filters(f -> {
                         // Thêm thời gian phản hồi

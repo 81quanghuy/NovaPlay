@@ -235,32 +235,26 @@ services:
     extends:
       file: common-config.yml
       service: network-deploy-service
-  zookeeper:
-    image: confluentinc/cp-zookeeper:7.6.1 # Cố định phiên bản
-    container_name: zookeeper
-    environment:
-      ZOOKEEPER_CLIENT_PORT: 2181
-    extends:
-      file: common-config.yml
-      service: network-deploy-service
 
   kafka:
-    image: confluentinc/cp-kafka:7.6.1 # Cố định phiên bản
-    container_name: kafka
-    depends_on:
-      - zookeeper
-    ports: # Giữ lại port để tiện debug từ máy host
+    image: docker.io/bitnami/kafka:3.9
+    ports:
       - "9092:9092"
+    volumes:
+      - "kafka_data:/bitnami"
     environment:
-      KAFKA_BROKER_ID: 1
-      KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_INTERNAL:PLAINTEXT
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092,PLAINTEXT_INTERNAL://kafka:29092
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      - KAFKA_CFG_NODE_ID=1
+      - KAFKA_CFG_PROCESS_ROLES=broker,controller
+      - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092,PLAINTEXT_INTERNAL://:29092,CONTROLLER://:9093
+      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://localhost:9092,PLAINTEXT_INTERNAL://kafka:29092
+      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=PLAINTEXT:PLAINTEXT,PLAINTEXT_INTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT
+      - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
+      - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=1@kafka:9093
+      - KAFKA_INTER_BROKER_LISTENER_NAME=PLAINTEXT_INTERNAL
+      - ALLOW_PLAINTEXT_LISTENER=yes
     extends:
       file: common-config.yml
       service: network-deploy-service
-
   postgres:
     image: postgres:latest
     container_name: postgres-server
@@ -273,7 +267,6 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - pgdata:/var/lib/postgresql/data
       - ../init-db:/docker-entrypoint-initdb.d
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U $$(cat /run/secrets/db_user)" ]
@@ -335,8 +328,6 @@ services:
     depends_on:
       discovery-server:
         condition: service_healthy
-      postgres:
-        condition: service_healthy
       cloud-config:
         condition: service_healthy
     healthcheck:
@@ -377,6 +368,8 @@ services:
     environment:
       SPRING_APPLICATION_NAME: "api-gateway" # Ghi đè biến môi trường nếu cần
       OTEL_SERVICE_NAME: "api-gateway"
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK-SET-URI: "http://keycloak:8080/realms/novaplay/protocol/openid-connect/certs"
+
     extends:
       file: common-config.yml
       service: microservice-eureka-config
@@ -387,7 +380,8 @@ networks:
     driver: bridge
 
 volumes:
-  pgdata:
+  kafka_data:
+    driver: local
 
 # Định nghĩa các file secret sẽ được Docker quản lý
 secrets:
