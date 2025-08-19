@@ -17,9 +17,9 @@ public interface JwtService {
 
     Boolean validateToken(final String token);
 
-    String generateAccessToken(Map<String, Object> claim, String userId) throws Exception;
+    String generateAccessToken(Map<String, Object> claim, String userId);
 
-    String generateRefreshToken(Map<String, Object> claim, String userId) throws Exception;
+    String generateRefreshToken(Map<String, Object> claim, String userId);
 
 }
 

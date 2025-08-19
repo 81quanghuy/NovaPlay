@@ -1,8 +1,0 @@
-spring:
-  config:
-    import: optional:configserver:http://localhost:8888/
-    activate:
-      on-profile: dev
-jwt:
-  private-key-path: classpath:keys/private.pem
-  public-key-path: classpath:keys/public.pem

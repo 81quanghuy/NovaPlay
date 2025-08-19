@@ -41,17 +41,6 @@ public abstract class AbstractBaseEntity implements Serializable {
     @Column(name = UPDATED_BY, insertable = false)
     @JsonFormat(shape = JsonFormat.Shape.STRING)
     private String updatedBy;
-
-    @PrePersist
-    void createdAt() {
-        this.createdAt = new Date();
-    }
-
-    @PreUpdate
-    void updatedAt() {
-        this.updatedAt = new Date();
-    }
-
 }
 
 

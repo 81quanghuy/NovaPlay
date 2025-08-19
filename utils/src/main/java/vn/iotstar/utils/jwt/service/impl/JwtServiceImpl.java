@@ -44,13 +44,13 @@ public class JwtServiceImpl implements JwtService {
     }
 
     @Override
-    public String generateAccessToken(Map<String, Object> claim, String userId) throws Exception {
+    public String generateAccessToken(Map<String, Object> claim, String userId) {
         log.info("JwtServiceImpl, String, generateAccessToken");
         return this.jwtUtil.generateAccessToken(claim, userId);
     }
 
     @Override
-    public String generateRefreshToken(Map<String, Object> claim, String userId) throws Exception {
+    public String generateRefreshToken(Map<String, Object> claim, String userId){
         log.info("JwtServiceImpl, String, generateRefreshToken");
         return this.jwtUtil.generateRefreshToken(claim, userId);
     }

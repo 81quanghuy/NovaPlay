@@ -11,18 +11,12 @@ spring:
         git:
           uri: https://github.com/81quanghuy/cloud_config_NovaPlay.git
           basedir: /opt/cloud-config-repo-novaPlay
-
-          # --- THAY ĐỔI ĐỂ GỠ LỖI ---
-          # Thêm dòng này để yêu cầu JGit bỏ qua việc xác thực chứng chỉ SSL.
-          # Đây là bước để kiểm tra xem vấn đề có phải do kết nối bảo mật hay không.
-          skip-ssl-validation: true
-
-          # Vẫn giữ lại cài đặt này, không ảnh hưởng gì
-          preferred-git-implementation: NATIVE
-
-          # Sử dụng lại biến môi trường
-          username: ${GITHUB_USERNAME}
-          password: ${GITHUB_TOKEN}
+          default-label: main
+          timeout: 5
+          clone-on-start: true
+          force-pull: true
+  kafka:
+    bootstrap-servers: localhost:9092
 
 debug: true
 management:
@@ -31,11 +25,17 @@ management:
       exposure:
         include: "*"
   health:
-    readinessstate:
+    readiness-state:
       enabled: true
-    livenessstate:
+    liveness-state:
       enabled: true
   endpoint:
     health:
       probes:
         enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}
+logging:
+  pattern:
+    level: "%5p [${spring.application.name},%X{trace_id},%X{span_id}]"
