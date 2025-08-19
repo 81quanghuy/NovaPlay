@@ -3,33 +3,37 @@ package vn.iotstar.authservice.model.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
-
-import vn.iotstar.utils.AbstractBaseEntity;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 import vn.iotstar.authservice.util.Constants;
 import vn.iotstar.authservice.util.TokenType;
+import vn.iotstar.utils.AbstractBaseEntity;
 
 import java.io.Serializable;
+import java.time.Instant;
 import java.util.Date;
+import java.util.UUID;
 
 @Entity
-@NoArgsConstructor
-@AllArgsConstructor
-@Getter
-@Setter
-@Builder
-@Table(name = Constants.TOKEN_TABLE)
+@Table(name = Constants.TOKEN_TABLE,
+        uniqueConstraints = {
+                @UniqueConstraint(name = Constants.UK_TOKEN_VALUE, columnNames = Constants.TOKEN)
+        },
+        indexes = {
+                @Index(name = Constants.IDX_TOKEN_USER_ID, columnList = Constants.USER_ID),
+                @Index(name = Constants.IDX_TOKEN_IS_REVOKED, columnList = Constants.IS_REVOKED)
+        }
+)
+@EntityListeners(AuditingEntityListener.class)
+@Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class Token extends AbstractBaseEntity implements Serializable {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     @Column(name = Constants.TOKEN_ID)
-    private String id;
+    private UUID id;
 
     @Column(name = Constants.TOKEN, unique = true, length = 700)
     private String tokenValue;
-
-    @Column(name = Constants.ACCOUNT_ID)
-    private String accountId;
 
     @Enumerated(EnumType.STRING)
     @Column(name = Constants.TOKEN_TYPE)
@@ -39,12 +43,12 @@ public class Token extends AbstractBaseEntity implements Serializable {
     @Column(name = Constants.IS_REVOKED)
     private Boolean isRevoked = false;
 
-    @Column(name = Constants.ISSUED_AT)
-    private Date issuedAt;
-
     @Column(name = Constants.EXPIRED_AT)
-    private Date expiredAt;
+    private Instant expiredAt;
 
-    @Column(name = Constants.IP_ADDRESS)
-    private String ipAddress;
+    // --- Relationships ---
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = Constants.TOKEN_COLUMN_USER_ID, nullable = false)
+    private User user;
 }

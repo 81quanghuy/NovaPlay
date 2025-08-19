@@ -15,6 +15,8 @@ spring:
           timeout: 5
           clone-on-start: true
           force-pull: true
+  kafka:
+    bootstrap-servers: localhost:9092
 
 debug: true
 management:

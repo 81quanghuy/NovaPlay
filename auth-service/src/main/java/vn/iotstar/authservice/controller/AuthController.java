@@ -1,85 +1,48 @@
 package vn.iotstar.authservice.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.media.Content;
-import io.swagger.v3.oas.annotations.media.Schema;
-import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.mail.MessagingException;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import vn.iotstar.utils.constants.GenericResponse;
-import vn.iotstar.authservice.model.dto.AccountDTO;
-import vn.iotstar.authservice.service.IAccountService;
+import vn.iotstar.authservice.model.dto.*;
+import vn.iotstar.authservice.service.IAuthService;
 
-import java.io.UnsupportedEncodingException;
-
-@Tag(
-        name = "Authentication",
-        description = "CRUD operations for user authentication and registration"
-)
 @RestController
-@RequiredArgsConstructor
-@Slf4j
 @RequestMapping("/api/v1/auth")
+@RequiredArgsConstructor
+@Tag(name = "Authentication API", description = "Endpoints for user registration, login, logout, and token refresh")
 public class AuthController {
 
-    private final IAccountService accountService;
+    private final IAuthService authService;
 
-    /**
-     * Login method for user authentication
-     *
-     * @param accountDTO contains username and password
-     * @return ResponseEntity with GenericResponse containing login information
-     */
-    @Operation(
-            summary = "Login",
-            description = "Authenticate user with email and password"
-    )
-    @PostMapping("/login")
-    @ApiResponses({
-            @ApiResponse(
-                    responseCode = "200",
-                    description = "Login successful",
-                    content = @Content(
-                            schema = @Schema(implementation = GenericResponse.class),
-                            mediaType = "application/json"
-                    )
-            ),
-            @ApiResponse(
-                    responseCode = "400",
-                    description = "Invalid request parameters"
-
-            ),
-    })
-    public ResponseEntity<GenericResponse> login(@Valid @RequestBody AccountDTO accountDTO) throws Exception {
-        log.info("Login request received for user: {}", accountDTO.getEmail());
-        return accountService.login(accountDTO);
-    }
-
-    /**
-     * Endpoint to send OTP for user registration
-     *
-     * @param pRegisterRequest contains user registration details
-     * @return ResponseEntity with GenericResponse containing OTP information
-     * @throws MessagingException if there is an error sending the email
-     * @throws UnsupportedEncodingException if there is an error with character encoding
-     */
-    @PostMapping("/send-otp")
-    public ResponseEntity<GenericResponse> sendOTP(@Valid @RequestBody AccountDTO pRegisterRequest)
-            throws MessagingException, UnsupportedEncodingException {
-        log.info("Send OTP for email register: {}", pRegisterRequest.getEmail());
-        return accountService.sendOTP(pRegisterRequest);
-    }
-
-    // Register endpoint for user registration
+    @Operation(summary = "Register a new user account")
     @PostMapping("/register")
-    public ResponseEntity<GenericResponse> register(@Valid @RequestBody AccountDTO accountDTO) {
-        log.info("Register request received for user: {}", accountDTO.getEmail());
-        return accountService.register(accountDTO);
+    public ResponseEntity<UserResponse> register(@Valid @RequestBody UserCreationRequest request) {
+        UserResponse registeredUser = authService.register(request);
+        return new ResponseEntity<>(registeredUser, HttpStatus.CREATED);
+    }
+
+    @Operation(summary = "Authenticate a user and get tokens")
+    @PostMapping("/login")
+    public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
+        AuthResponse authResponse = authService.login(request);
+        return ResponseEntity.ok(authResponse);
+    }
+
+    @Operation(summary = "Refresh the access token")
+    @PostMapping("/refresh-token")
+    public ResponseEntity<AuthResponse> refreshToken(@Valid @RequestBody RefreshTokenRequest request) {
+        AuthResponse authResponse = authService.refreshToken(request.getRefreshToken());
+        return ResponseEntity.ok(authResponse);
+    }
+
+    @Operation(summary = "Logout the user")
+    @PostMapping("/logout")
+    public ResponseEntity<String> logout(@Valid @RequestBody RefreshTokenRequest request) {
+        authService.logout(request.getRefreshToken());
+        return ResponseEntity.ok("User logged out successfully.");
     }
 }

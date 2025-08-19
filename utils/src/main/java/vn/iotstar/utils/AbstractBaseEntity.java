@@ -10,7 +10,7 @@ import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.io.Serializable;
-import java.util.Date;
+import java.time.Instant;
 
 import static vn.iotstar.utils.constants.AppConst.*;
 
@@ -23,43 +23,20 @@ import static vn.iotstar.utils.constants.AppConst.*;
 public abstract class AbstractBaseEntity implements Serializable {
 
     @CreatedDate
-    @JsonFormat(shape = JsonFormat.Shape.STRING)
     @Column(name = CREATED_AT, updatable = false)
-    private Date createdAt;
+    @JsonFormat(shape = JsonFormat.Shape.STRING)
+    private Instant createdAt;
 
     @CreatedBy
     @Column(name = CREATED_BY, updatable = false)
-    @JsonFormat(shape = JsonFormat.Shape.STRING)
     private String createdBy;
 
     @LastModifiedDate
-    @JsonFormat(shape = JsonFormat.Shape.STRING)
     @Column(name = UPDATED_AT, insertable = false)
-    private Date updatedAt;
+    @JsonFormat(shape = JsonFormat.Shape.STRING)
+    private Instant updatedAt;
 
     @LastModifiedBy
     @Column(name = UPDATED_BY, insertable = false)
-    @JsonFormat(shape = JsonFormat.Shape.STRING)
     private String updatedBy;
-
-    @PrePersist
-    void createdAt() {
-        this.createdAt = new Date();
-    }
-
-    @PreUpdate
-    void updatedAt() {
-        this.updatedAt = new Date();
-    }
-
 }
-
-
-
-
-
-
-
-
-
-
