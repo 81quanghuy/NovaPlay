@@ -27,7 +27,8 @@ public class FavoriteItem extends AbstractBaseEntity implements Serializable {
     private static final long serialVersionUID = 1L;
 
     @Id
-    @Column(name = FAVORITE_ITEM_ID_COLUMN, columnDefinition = UUID_CONST)
+    @GeneratedValue(strategy = GenerationType.UUID)
+    @Column(name = FAVORITE_ITEM_ID_COLUMN)
     private UUID favoriteMovieId;
 
     @Column(name = FAVORITE_ITEM_USER_ID_COLUMN, nullable = false, columnDefinition = UUID_CONST)

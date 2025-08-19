@@ -10,6 +10,4 @@ public final class AppConst {
     public static final String UPDATED_AT = "updated_at";
     // column updated_by
     public static final String UPDATED_BY = "updated_by";
-    // auditawre auditor
-    public static final String AUDIT_AWARE_AUDITOR = "ADMIN_SYSTEM";
 }

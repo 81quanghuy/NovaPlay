@@ -1,19 +1,14 @@
 package vn.iotstar.userservice.model.entity;
 
-import com.fasterxml.jackson.annotation.JsonFormat;
 import jakarta.persistence.*;
-import jakarta.validation.constraints.Email;
-import jakarta.validation.constraints.Size;
 import lombok.*;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 import vn.iotstar.userservice.util.Constants;
-import vn.iotstar.userservice.util.Gender;
 import vn.iotstar.utils.AbstractBaseEntity;
 
 import java.io.Serial;
 import java.io.Serializable;
 import java.time.Instant;
-import java.util.Date;
 import java.util.Locale;
 import java.util.UUID;
 
@@ -21,7 +16,7 @@ import static vn.iotstar.userservice.util.Constants.*;
 
 @Entity
 @Table(
-        name = USER_TABLE_NAME,
+        name = USER_PROFILE_TABLE_NAME,
         uniqueConstraints = {
                 @UniqueConstraint(name = UK_USER_PROFILE_EMAIL, columnNames = EMAIL_COLUMN)
         },
@@ -37,7 +32,8 @@ public class UserProfile extends AbstractBaseEntity implements Serializable {
     private static final long serialVersionUID = 1L;
 
     @Id
-    @Column(name = Constants.USER_ID_COLUMN, unique = true, nullable = false,columnDefinition = UUID_CONST)
+    @GeneratedValue(strategy = GenerationType.UUID)
+    @Column(name = Constants.USER_ID_COLUMN)
     private UUID userId;
 
     @Column(name = EMAIL_COLUMN, nullable = false, length = 255)

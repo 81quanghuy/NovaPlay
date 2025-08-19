@@ -30,7 +30,8 @@ public class WatchProgress extends AbstractBaseEntity implements Serializable {
     private static final long serialVersionUID = 1L;
 
     @Id
-    @Column(name = WATCH_PROGRESS_ID_COLUMN, nullable = false, unique = true, columnDefinition = UUID_CONST)
+    @GeneratedValue(strategy = GenerationType.UUID)
+    @Column(name = WATCH_PROGRESS_ID_COLUMN)
     private UUID watchHistoryId;
 
     @Column(name = WATCH_PROGRESS_USER_ID_COLUMN , nullable = false, columnDefinition = UUID_CONST)
