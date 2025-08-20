@@ -3,15 +3,17 @@ package vn.iotstar.authservice.model.entity;
 import jakarta.persistence.*;
 import lombok.*;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.userdetails.UserDetails;
 import vn.iotstar.authservice.util.Constants;
 import vn.iotstar.utils.AbstractBaseEntity;
 
 
 import java.io.Serial;
 import java.io.Serializable;
-import java.util.Date;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Entity
 @Table(name = Constants.USER_TABLE,
@@ -25,7 +27,7 @@ import java.util.UUID;
 )
 @EntityListeners(AuditingEntityListener.class)
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
-public class User extends AbstractBaseEntity implements Serializable {
+public class User extends AbstractBaseEntity implements Serializable, UserDetails {
 
     @Serial
     private static final long serialVersionUID = 1L;
@@ -48,7 +50,7 @@ public class User extends AbstractBaseEntity implements Serializable {
     private Boolean isActive;
 
     @Column(name = Constants.USER_COLUMN_IS_EMAIL_VERIFIED, nullable = false)
-    private boolean isEmailVerified = false;
+    private Boolean isEmailVerified;
 
     @Column(name = Constants.USER_COLUMN_LAST_LOGIN_AT)
     private Date lastLoginAt;
@@ -63,4 +65,21 @@ public class User extends AbstractBaseEntity implements Serializable {
 
     @OneToMany(mappedBy = Constants.PROVIDERS_COLUMN_USER, cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<Provider> providers;
+
+    @Override
+    public Collection<? extends GrantedAuthority> getAuthorities() {
+        return this.roles.stream()
+                .map(role -> new SimpleGrantedAuthority("ROLE_" + role.getRoleName().name()))
+                .collect(Collectors.toSet());
+    }
+
+    @Override
+    public boolean isEnabled() {
+        return this.isActive != null && this.isActive;
+    }
+
+    @Override
+    public boolean isAccountNonLocked() {
+        return this.isEmailVerified != null && this.isEmailVerified;
+    }
 }

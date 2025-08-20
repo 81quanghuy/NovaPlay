@@ -1,14 +1,14 @@
-package vn.iotstar.authservice.jwt.service.impl;
+package vn.iotstar.authservice.service.impl;
 
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import vn.iotstar.authservice.jwt.service.JwtService;
 import vn.iotstar.authservice.model.entity.User;
-import vn.iotstar.utils.config.JwtConfig;
+import vn.iotstar.authservice.service.IJwtService;
 
+import java.security.interfaces.RSAPrivateKey;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
@@ -16,11 +16,11 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
-public class JwtServiceImpl implements JwtService {
+public class JwtServiceImpl implements IJwtService {
 
-    private final JwtConfig jwtConfig;
+    private final RSAPrivateKey rsaPrivateKey;
 
-    @Value("${application.security.jwt.expiration}")
+    @Value("${spring.application.security.jwt.expiration}")
     private long accessTokenExpiration;
 
     @Override
@@ -28,7 +28,7 @@ public class JwtServiceImpl implements JwtService {
         Map<String, Object> claims = new HashMap<>();
         var roles = user.getRoles().stream()
                 .map(role -> "ROLE_" + role.getRoleName().name())
-                .collect(Collectors.toList());
+                .collect(Collectors.toSet());
         claims.put("roles", roles);
 
         return Jwts.builder()
@@ -36,7 +36,7 @@ public class JwtServiceImpl implements JwtService {
                 .setSubject(user.getEmail())
                 .setIssuedAt(new Date(System.currentTimeMillis()))
                 .setExpiration(new Date(System.currentTimeMillis() + accessTokenExpiration))
-                .signWith(jwtConfig.getPrivateKey(), SignatureAlgorithm.RS256)
+                .signWith(this.rsaPrivateKey, SignatureAlgorithm.RS256)
                 .compact();
     }
 

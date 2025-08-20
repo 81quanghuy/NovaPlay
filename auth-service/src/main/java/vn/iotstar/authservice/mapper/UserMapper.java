@@ -21,7 +21,7 @@ public class UserMapper {
                 user.getUsername(),
                 user.getEmail(),
                 user.getIsActive(),
-                user.isEmailVerified(),
+                user.getIsEmailVerified(),
                 user.getLastLoginAt(),
                 user.getRoles().stream()
                         .map(RoleMapper::toRoleDTO)
@@ -43,7 +43,7 @@ public class UserMapper {
         user.setEmail(request.email());
         user.setPassword(request.password());
         user.setIsActive(true);
-        user.setEmailVerified(false);
+        user.setIsEmailVerified(false);
         return user;
     }
 }

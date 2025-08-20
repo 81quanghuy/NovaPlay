@@ -37,9 +37,6 @@ public class Provider extends AbstractBaseEntity implements Serializable {
     @Column(name = Constants.PROVIDER_NAME)
     private String providerName;
 
-    @Column(name = Constants.PROVIDER_COLUMN_USER_ID)
-    private String userId;
-
     @Column(name = Constants.PROVIDER_URL)
     private String providerUrl;
 
@@ -47,6 +44,6 @@ public class Provider extends AbstractBaseEntity implements Serializable {
 
     @JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = Constants.USER_ID, nullable = false)
+    @JoinColumn(name = Constants.PROVIDER_COLUMN_USER_ID, nullable = false)
     private User user;
 }

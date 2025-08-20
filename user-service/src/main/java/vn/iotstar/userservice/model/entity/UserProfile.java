@@ -36,7 +36,7 @@ public class UserProfile extends AbstractBaseEntity implements Serializable {
     @Column(name = Constants.USER_ID_COLUMN)
     private UUID userId;
 
-    @Column(name = EMAIL_COLUMN, nullable = false, length = 255)
+    @Column(name = EMAIL_COLUMN, nullable = false)
     private String email;
 
     @Column(name = PREFERRED_USERNAME, length = 100)
