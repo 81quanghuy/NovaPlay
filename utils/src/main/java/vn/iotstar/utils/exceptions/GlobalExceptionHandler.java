@@ -45,7 +45,7 @@ public class GlobalExceptionHandler {
                         .build(), badRequest);
     }
 
-    @ExceptionHandler(value = {BadRequestException.class, IllegalArgumentException.class})
+    @ExceptionHandler(value = {BadRequestException.class})
     public ResponseEntity<GenericResponse> handleBadRequestException(final RuntimeException e) {
         log.warn("Bad request received: {}", e.getMessage());
         final var badRequest = HttpStatus.BAD_REQUEST;
@@ -138,20 +138,5 @@ public class GlobalExceptionHandler {
                         .message(e.getMessage())
                         .statusCode(conflict.value())
                         .build(), conflict);
-    }
-
-    @ExceptionHandler(value = {Exception.class})
-    public ResponseEntity<GenericResponse> handleServerException(final Exception e) {
-        log.error("An unexpected server error occurred: {}", e.getMessage(), e);
-        final var internalServerError = HttpStatus.INTERNAL_SERVER_ERROR;
-
-        String message = "An internal server error occurred. Please try again later.";
-
-        return new ResponseEntity<>(
-                GenericResponse.builder()
-                        .success(false)
-                        .message(message)
-                        .statusCode(internalServerError.value())
-                        .build(), internalServerError);
     }
 }

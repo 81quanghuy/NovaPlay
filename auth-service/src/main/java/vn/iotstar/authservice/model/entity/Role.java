@@ -9,7 +9,6 @@ import vn.iotstar.utils.AbstractBaseEntity;
 
 import java.io.Serial;
 import java.io.Serializable;
-import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
 
@@ -35,9 +34,8 @@ public class Role extends AbstractBaseEntity implements Serializable {
     @Column(name = Constants.ROLE_NAME)
     private RoleName roleName;
 
-    @Builder.Default
     @Column(name = Constants.ROLE_DESCRIPTION)
-    private String description = "";
+    private String description;
 
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
@@ -45,5 +43,5 @@ public class Role extends AbstractBaseEntity implements Serializable {
             joinColumns = @JoinColumn(name = Constants.ROLE_ID),
             inverseJoinColumns = @JoinColumn(name = Constants.PERMISSION_ID)
     )
-    private Set<Permission> permissions = new HashSet<>();
+    private Set<Permission> permissions;
 }

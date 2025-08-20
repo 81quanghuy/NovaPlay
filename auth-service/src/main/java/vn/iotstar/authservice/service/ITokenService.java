@@ -22,7 +22,8 @@ public interface ITokenService {
 
     /**
      * Revokes a token (e.g., during logout).
+     * @param object jwt subject or user identifier, used to identify the user or session.
      * @param tokenValue The value of the token to revoke.
      */
-    void revokeToken(String tokenValue);
+    void revokeToken(String tokenValue,String object);
 }

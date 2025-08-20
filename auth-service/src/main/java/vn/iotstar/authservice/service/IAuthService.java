@@ -1,9 +1,7 @@
 package vn.iotstar.authservice.service;
 
-import vn.iotstar.authservice.model.dto.AuthResponse; // DTO containing access & refresh tokens
-import vn.iotstar.authservice.model.dto.LoginRequest; // DTO containing email/password
-import vn.iotstar.authservice.model.dto.UserCreationRequest;
-import vn.iotstar.authservice.model.dto.UserResponse;
+import jakarta.validation.Valid;
+import vn.iotstar.authservice.model.dto.*;
 
 public interface IAuthService {
 
@@ -26,7 +24,7 @@ public interface IAuthService {
      * @param refreshTokenValue The value of the refresh token.
      * @return an AuthResponse containing the new Access Token.
      */
-    AuthResponse refreshToken(String refreshTokenValue);
+    AuthResponse refreshToken(String refreshTokenValue, String subject);
 
     /**
      * Processes an OAuth2 login flow.
@@ -38,7 +36,27 @@ public interface IAuthService {
 
     /**
      * Handles the logout process by revoking the refresh token.
+     * @param subject The subject of the access token, typically the user ID or username.
      * @param refreshTokenValue The refresh token to be revoked.
      */
-    void logout(String refreshTokenValue);
+    void logout(String refreshTokenValue, String subject);
+
+    /**
+     * Sends an OTP (One-Time Password) to the user's email for verification.
+     * @param emailRequest A DTO containing the user's email address.
+     */
+    void forgotPassword(@Valid EmailRequest emailRequest);
+
+    /**
+     * Resets the user's password using the provided reset token and new password.
+     * @param resetPasswordRequest A DTO containing the reset token and new password.
+     */
+    void resetPassword(@Valid ResetPasswordRequest resetPasswordRequest);
+
+    /**
+     * Changes the user's password.
+     * @param changePasswordRequest A DTO containing the current password and new password.
+     * @param subject The subject of the access token, typically the user ID or username.
+     */
+    void changePassword(@Valid ChangePasswordRequest changePasswordRequest, String subject);
 }

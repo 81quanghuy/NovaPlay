@@ -10,7 +10,6 @@ import vn.iotstar.utils.AbstractBaseEntity;
 
 import java.io.Serializable;
 import java.time.Instant;
-import java.util.Date;
 import java.util.UUID;
 
 @Entity
@@ -48,7 +47,7 @@ public class Token extends AbstractBaseEntity implements Serializable {
 
     // --- Relationships ---
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = Constants.TOKEN_COLUMN_USER_ID, nullable = false)
     private User user;
 }

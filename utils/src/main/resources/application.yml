@@ -1,2 +1,4 @@
-jwt:
-  public-key-path: classpath:keys/public.pem
+# Đường dẫn đến public key
+rsa:
+  public:
+    key-location: classpath:certs/public.pem

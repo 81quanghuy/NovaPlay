@@ -50,13 +50,13 @@ public class WatchProgress extends AbstractBaseEntity implements Serializable {
     private String episodeId;
 
     @Column(name = WATCH_PROGRESS_POSITION_MS_COLUMN, nullable = false)
-    private long positionMs; // vị trí hiện tại
+    private long positionMs;
 
     @Column(name = WATCH_PROGRESS_DURATION_MS_COLUMN)
-    private Long durationMs;  // độ dài nội dung
+    private Long durationMs;
 
     @Column(name = WATCH_PROGRESS_PERCENT_COLUMN)
-    private Integer percent;  // 0..100
+    private Integer percent;
 
     @Column(name = WATCH_PROGRESS_COMPLETED_COLUMN, nullable = false)
     private boolean completed;

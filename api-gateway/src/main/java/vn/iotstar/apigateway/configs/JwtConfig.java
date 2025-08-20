@@ -1,4 +1,4 @@
-package vn.iotstar.utils.config;
+package vn.iotstar.apigateway.configs;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;

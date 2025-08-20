@@ -1,4 +1,4 @@
-package vn.iotstar.utils.jwt.impl;
+package vn.iotstar.apigateway.jwt.impl;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
@@ -7,7 +7,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
-import vn.iotstar.utils.jwt.JwtUtil;
+import vn.iotstar.apigateway.jwt.JwtUtil;
 
 import java.security.interfaces.RSAPublicKey;
 import java.util.Date;

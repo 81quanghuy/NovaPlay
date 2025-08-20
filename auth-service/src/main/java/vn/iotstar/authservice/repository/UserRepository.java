@@ -37,4 +37,12 @@ public interface UserRepository extends JpaRepository<User, UUID> {
      * @return true if the username already exists, false otherwise.
      */
     boolean existsByUsername(String username);
+
+    /**
+     * Checks if a user exists with the given email and username.
+     * @param email The email address to check.
+     * @param username The username to check.
+     * @return true if both the email and username already exist, false otherwise.
+     */
+    boolean existsByEmailOrUsername(String email, String username);
 }
