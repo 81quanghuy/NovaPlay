@@ -1,78 +1,33 @@
 package vn.iotstar.emailservice.util;
+
 /**
  * Constants class to hold all the constant values used in the application.
  * This class is not meant to be instantiated.
  */
-public class Constants {
+public final class Constants {
+    private Constants() {}
 
-    // table Email
-    public static final String EMAIL_TABLE = "emails";
-    // account id
-    public static final String ACCOUNT_ID = "account_id";
+    // Table & columns
+    public static final String EMAIL_TABLE = "email";
+    public static final String EMAIL_COLUMN_RECIPIENT = "recipient_email";
+    public static final String EMAIL_COLUMN_OTP = "otp";
+    public static final String EMAIL_COLUMN_EXPIRATION_TIME = "expiration_time";
+    public static final String EMAIL_COLUMN_IS_VERIFIED = "is_verified";
 
-    // user id
-    public static final String USER_ID = "user_id";
+    // Indexes
+    public static final String IDX_EMAIL_EXPIRATION_TIME = "idx_email_expiration_time";
+    public static final String ID_EMAIL_RECIPIENT = "idx_email_recipient_email";
 
-    // email
-    public static final String EMAIL = "email";
+    // EMAIL_INVALID_FORMAT
+    public static final String EMAIL_INVALID_FORMAT = "Invalid email format";
 
-    // password
-    public static final String PASSWORD = "password";
-
-    // is active
-    public static final String IS_ACTIVE = "is_active";
-
-    // table name providers
-    public static final String PROVIDERS_TABLE = "providers";
-
-    // provider id
-    public static final String PROVIDER_ID = "provider_id";
-
-    // provider name
-    public static final String PROVIDER_NAME = "provider_name";
-
-    // provider url
-    public static final String PROVIDER_URL = "provider_url";
-
-    // table name tokens
-    public static final String TOKEN_TABLE = "tokens";
-
-    // token id
-    public static final String TOKEN_ID = "token_id";
-
-    // token value
-    public static final String TOKEN = "token";
-
-    // token type
-    public static final String TOKEN_TYPE = "token_type";
-
-    // issued at
-    public static final String ISSUED_AT = "issued_at";
-
-    // expired at
-    public static final String EXPIRED_AT = "expired_at";
-
-    // is revoked
-    public static final String IS_REVOKED = "is_revoked";
-
-    //ip address
-    public static final String IP_ADDRESS = "ip_address";
-
-    // role table name
-    public static final String ROLE_TABLE = "roles";
-
-    // role id
-    public static final String ROLE_ID = "role_id";
-
-    // role description
-    public static final String ROLE_DESCRIPTION = "role_description";
-
-    // role name
-    public static final String ROLE_NAME = "role_name";
-
-    // account_role
-    public static final String ACCOUNT_ROLE = "account_roles";
-
-    private Constants() {
-    }
+    // Table Logging
+    public static final String EMAIL_LOGGING_TABLE = "email_logging";
+    public static final String EMAIL_LOGGING_COLUMN_ACTION = "action";
+    public static final String EMAIL_LOGGING_COLUMN_STATUS = "status";
+    public static final String EMAIL_LOGGING_COLUMN_MESSAGE = "message";
+    public static final String EMAIL_LOGGING_COLUMN_TIMESTAMP = "timestamp";
+    public static final String EMAIL_LOGGING_COLUMN_RECIPIENT = "recipient_email";
+    public static final String EMAIL_LOGGING_KAFKA_TOPIC = "email_kafka_topic";
+    public static final String EMAIL_LOGGING_KAFKA_STATUS = "email_kafka_status";
 }

@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 import vn.iotstar.authservice.model.dto.*;
 import vn.iotstar.authservice.service.IAuthService;
 import vn.iotstar.utils.constants.GenericResponse;
+import vn.iotstar.utils.dto.EmailRequest;
 
 @RestController
 @RequestMapping("/api/v1/auth")
@@ -46,10 +47,8 @@ public class AuthController {
             "This endpoint is idempotent: calling it multiple times will return the same response as long as the refresh token is valid.",
             security = { @SecurityRequirement(name = "bearerAuth") })
     @PostMapping("/refresh-token")
-    @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<AuthResponse> refreshToken(@Valid @RequestBody RefreshTokenRequest request,
-                                                     @AuthenticationPrincipal Jwt jwt) {
-        AuthResponse authResponse = authService.refreshToken(request.refreshToken(), jwt.getSubject());
+    public ResponseEntity<AuthResponse> refreshToken(@Valid @RequestBody RefreshTokenRequest request) {
+        AuthResponse authResponse = authService.refreshToken(request.refreshToken());
         return ResponseEntity.ok(authResponse);
     }
 
@@ -69,12 +68,8 @@ public class AuthController {
     @Operation(summary = "Send OTP to user's email for password reset",
             description = "This endpoint sends a One-Time Password (OTP) to the user's registered email address for password reset purposes.")
     @PostMapping("/forgot-password")
-    public ResponseEntity<GenericResponse> forgotPassword(@Valid @RequestBody EmailRequest emailRequest) {
-        authService.forgotPassword(emailRequest);
-        return ResponseEntity.ok(new GenericResponse(true,
-                "OTP sent successfully",
-                null,
-                HttpStatus.OK.value()));
+    public ResponseEntity<GenericResponse> forgotPassword(@RequestBody EmailRequest emailRequest) {
+        return authService.forgotPassword(emailRequest);
     }
 
     @Operation(summary = "Reset password using OTP",
@@ -100,6 +95,4 @@ public class AuthController {
                 null,
                 HttpStatus.OK.value()));
     }
-
-
 }
