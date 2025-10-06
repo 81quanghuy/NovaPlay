@@ -1,7 +1,10 @@
 package vn.iotstar.authservice.service;
 
 import jakarta.validation.Valid;
+import org.springframework.http.ResponseEntity;
 import vn.iotstar.authservice.model.dto.*;
+import vn.iotstar.utils.constants.GenericResponse;
+import vn.iotstar.utils.dto.EmailRequest;
 
 public interface IAuthService {
 
@@ -24,7 +27,7 @@ public interface IAuthService {
      * @param refreshTokenValue The value of the refresh token.
      * @return an AuthResponse containing the new Access Token.
      */
-    AuthResponse refreshToken(String refreshTokenValue, String subject);
+    AuthResponse refreshToken(String refreshTokenValue);
 
     /**
      * Processes an OAuth2 login flow.
@@ -43,9 +46,11 @@ public interface IAuthService {
 
     /**
      * Sends an OTP (One-Time Password) to the user's email for verification.
+     *
      * @param emailRequest A DTO containing the user's email address.
+     * @return A ResponseEntity with a GenericResponse indicating success or failure.
      */
-    void forgotPassword(@Valid EmailRequest emailRequest);
+    ResponseEntity<GenericResponse> forgotPassword(@Valid EmailRequest emailRequest);
 
     /**
      * Resets the user's password using the provided reset token and new password.

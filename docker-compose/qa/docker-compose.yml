@@ -83,6 +83,20 @@ services:
       - KAFKA_CFG_TRANSACTION_STATE_LOG_MIN_ISR=1
       - ALLOW_PLAINTEXT_LISTENER=yes
 
+  kafka-ui:
+    image: provectuslabs/kafka-ui:v0.7.2
+    container_name: kafka-ui
+    depends_on: [kafka-services]
+    networks: [novaPLay]           # phải cùng network với kafka-services
+    ports:
+      - "8080:8080"                # mở UI ra host
+    environment:
+      - KAFKA_CLUSTERS_0_NAME=local
+      - KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS=kafka-services:29092
+      # (tuỳ chọn) bật login cho UI
+      - AUTH_TYPE=LOGIN_FORM
+      - SPRING_SECURITY_USER_NAME=admin
+      - SPRING_SECURITY_USER_PASSWORD=admin
   # ===================================================================
   # OBSERVABILITY STACK (Loki, Prometheus, Grafana, etc.)
   # ===================================================================

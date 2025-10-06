@@ -2,17 +2,14 @@ package vn.iotstar.authservice.util;
 
 public class MessageProperties {
 
-    public static final String PASSWORD_NOT_BLANK = "Password không được để trống";
-    public static final String PASSWORD_SIZE = "Password phải có ít nhất 6 ký tự";
-    public static final String PASSWORD_COMPLEXITY = "Password phải chứa ít nhất một chữ hoa, một chữ thường và một chữ số";
-
-    public static final String ACCOUNT_NOT_FOUND = "Tài khoản không tồn tại ";
-    public static final String INVALID_PASSWORD = "Mật khẩu không hợp lệ";
-    public static final String ACCOUNT_INACTIVE = "Tài khoản đã bị vô hiệu hóa";
-    public static final String LOGIN_SUCCESS = "Đăng nhập thành công";
     public static final String EMAIL_NOT_BLANK = "Email không được để trống";
-    public static final String EMAIL_SIZE = "Email phải có từ 5 đến 50 ký tự";
+    public static final String EMAIL_NOT_FOUND = "Email không tồn tại";
     public static final String EMAIL_INVALID = "Email không hợp lệ";
-    public static final String EMAIL_ALREADY_EXISTS = "Email đã tồn tại";
-    public static final String SEND_OTP_SUCCESS = "Gửi mã OTP thành công";
+    public static final String EMAIL_ALREADY_VERIFIED = "Email đã được xác thực";
+    public static final String EMAIL_VERIFICATION_SUCCESS = "Xác thực email thành công";
+    public static final String EMAIL_VERIFICATION_FAILED = "Xác thực email thất bại";
+
+    // "Vui lòng đợi một lát trước khi gửi lại OTP."
+    public static final String OTP_COOLDOWN_MESSAGE = "Vui lòng đợi một lát trước khi gửi lại OTP.";
+
 }
