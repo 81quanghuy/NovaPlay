@@ -28,7 +28,7 @@ public class Email extends AuditableDocument implements Serializable {
     @Field(Constants.EMAIL_COLUMN_OTP)
     private String otp;
 
-    @Indexed(name = Constants.IDX_EMAIL_EXPIRATION_TIME)
+    @Indexed(name = Constants.IDX_EMAIL_EXPIRATION_TIME, expireAfter = "0s")
     @Field(Constants.EMAIL_COLUMN_EXPIRATION_TIME)
     private Instant expirationTime;
 

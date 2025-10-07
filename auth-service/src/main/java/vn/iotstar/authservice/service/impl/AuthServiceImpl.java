@@ -202,4 +202,13 @@ public class AuthServiceImpl implements IAuthService {
         userRepository.save(user);
     }
 
+    @Override
+    public void verifyEmail(String email) {
+        log.info("Verifying email for user: {}", email);
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new BadRequestException("Email not found"));
+        user.setIsEmailVerified(true);
+        userRepository.save(user);
+    }
+
 }

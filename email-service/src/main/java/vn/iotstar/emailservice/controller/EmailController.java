@@ -31,15 +31,4 @@ public class EmailController {
         log.info("Verify OTP for email: {}", emailDTO.email());
         return emailService.verifyOTP(emailDTO);
     }
-
-    @PostMapping("/resend-otp")
-    @Operation(
-            summary = "Resend OTP for user registration",
-            description = "This endpoint resends a One-Time Password (OTP) to the user's email for registration purposes."
-    )
-    public ResponseEntity<GenericResponse> resendOTP(@Valid @RequestBody EmailRequest emailRequest)
-            throws MessagingException, UnsupportedEncodingException {
-        log.info("Resend OTP for email: {}", emailRequest.recipientEmail());
-        return emailService.sendOTP(emailRequest);
-    }
 }
