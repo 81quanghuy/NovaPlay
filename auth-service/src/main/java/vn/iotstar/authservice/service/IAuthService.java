@@ -64,4 +64,10 @@ public interface IAuthService {
      * @param subject The subject of the access token, typically the user ID or username.
      */
     void changePassword(@Valid ChangePasswordRequest changePasswordRequest, String subject);
+
+    /**
+     * Verifies the user's email address.
+     * @param email The email address to be verified.
+     */
+    void verifyEmail(String email);
 }

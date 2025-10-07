@@ -16,9 +16,8 @@ public interface IEmailService {
      * Sends an OTP to the specified email address.
      *
      * @param emailRequest the request containing the email address and other details
-     * @return a ResponseEntity containing a GenericResponse with the result of the operation
      */
-    ResponseEntity<GenericResponse> sendOTP(EmailRequest emailRequest)
+    void sendOTP(EmailRequest emailRequest)
             throws MessagingException, UnsupportedEncodingException;
     /**
      * Verifies the OTP for the given email address.
