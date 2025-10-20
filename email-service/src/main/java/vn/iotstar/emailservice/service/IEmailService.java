@@ -1,17 +1,15 @@
 package vn.iotstar.emailservice.service;
 
 
-import jakarta.validation.Valid;
-import org.springframework.http.ResponseEntity;
-import vn.iotstar.utils.constants.GenericResponse;
-import vn.iotstar.emailservice.model.dto.EmailDTO;
-import vn.iotstar.emailservice.model.entity.Email;
-
 public interface IEmailService {
 
-    Email findByEmail(String email);
-
-    Email save(Email email);
-
-    ResponseEntity<GenericResponse> sendOTP(@Valid EmailDTO pRegisterRequest);
+    /**
+     * Sends an email with the specified parameters.
+     *
+     * @param email      The recipient's email address.
+     * @param otp        The subject of the email.
+     * @param expire     The body content of the email.
+     * @param locale     The locale for the email content.
+     */
+    void sendOTP(String email, String otp, String expire, String locale);
 }

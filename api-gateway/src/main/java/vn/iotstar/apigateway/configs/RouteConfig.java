@@ -14,30 +14,33 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import reactor.core.publisher.Mono;
+import vn.iotstar.apigateway.constants.RouteConfigItem;
+import vn.iotstar.apigateway.filters.AuthenticationFilter;
 
 import java.time.Duration;
-import java.time.LocalDateTime;
 import java.util.Map;
+import java.util.Objects;
 
-import static vn.iotstar.apigateway.constants.GateWayContants.*;
+import static vn.iotstar.apigateway.constants.GateWayConstants.*;
 
 @Configuration
 @RequiredArgsConstructor
 public class RouteConfig {
+
+    private final AuthenticationFilter authFilter;
 
     /**
      * This class is used to configure routes for the API Gateway.
      * It defines the services and their respective routes,
      * along with filters for rate limiting, circuit breaking, and path rewriting.
      */
-    private final Map<String,RouteConfigItem> services = Map.of(
+    private final Map<String, RouteConfigItem> services = Map.of(
             USER_SERVICE,
-            new RouteConfigItem(API_V1 + "users/**", true, true,true)
-            ,
+            new RouteConfigItem(API_V1 + "users/**", true, true,true),
             MOVIE_SERVICE,
-            new RouteConfigItem(API_V1 + "movies/**", true, true,false)
-            // Thêm service khác tương tự tại đây
-
+            new RouteConfigItem(API_V1 + "movies/**", true, true,false),
+            AUTH_SERVICE,
+            new RouteConfigItem(API_V1 + "auth/**", true, true,true)
     );
 
     /**
@@ -60,7 +63,7 @@ public class RouteConfig {
                     .path(item.path())
                     .filters(f -> {
                         // Thêm thời gian phản hồi
-                        f.addResponseHeader(X_RESPONSE_TIME, LocalDateTime.now().toString());
+                        f.filter(authFilter);
 
                         // Circuit breaker (ngắt mạch nếu lỗi nhiều)
                         if (item.useCircuitBreaker()) {
@@ -82,7 +85,7 @@ public class RouteConfig {
                         if (item.useRateLimiter()) {
                             f.requestRateLimiter(config -> config
                                     .setRateLimiter(redisRateLimiter())
-                                    .setKeyResolver(userKeyResolver()));
+                                    .setKeyResolver(userEmailOrIpKeyResolver()));
                         }
 
                         return f;
@@ -90,14 +93,24 @@ public class RouteConfig {
                     .uri(LB + serviceName)
             );
         }
-
+        for (String serviceName : services.keySet()) {
+            String shortName = serviceName.replace("-service", "");
+            routes.route(serviceName + "-swagger", r -> r
+                    // 1. Lắng nghe trên path mà Swagger UI sẽ gọi
+                    .path("/swagger/" + shortName + "/v3/api-docs")
+                    .filters(f -> f
+                            // 2. Viết lại path trước khi chuyển đến microservice
+                            .rewritePath("/swagger/" + shortName + "/(?<segment>.*)", "/${segment}")
+                    )
+                    // 3. Chuyển tiếp đến microservice tương ứng
+                    .uri(LB + serviceName)
+            );
+        }
         return routes.build();
     }
 
-    // Redis Rate Limiter Bean
     @Bean
     public RedisRateLimiter redisRateLimiter() {
-        // Giới hạn 1 request mỗi giây, với burst capacity là 1
         return new RedisRateLimiter(1, 1, 1);
     }
 
@@ -109,16 +122,16 @@ public class RouteConfig {
                         .build()).build());
     }
 
-    /**
-     * Key Resolver for user-based rate limiting.
-     * It extracts the "user" header from the request to use as the key for rate limiting.
-     *
-     * @return KeyResolver that resolves the user key
-     */
     @Bean
-    KeyResolver userKeyResolver() {
-        return exchange ->
-                Mono.justOrEmpty(exchange.getRequest().getHeaders().getFirst("user"))
-                .defaultIfEmpty("anonymous");
+    public KeyResolver userEmailOrIpKeyResolver() {
+        return exchange -> {
+            // Try to get the user email from the header added by AuthenticationFilter.
+            String userEmail = exchange.getRequest().getHeaders().getFirst("X-User-Email");
+            if (userEmail != null && !userEmail.isEmpty()) {
+                return Mono.just(userEmail);
+            }
+            // Fallback to IP address for anonymous users.
+            return Mono.just(Objects.requireNonNull(exchange.getRequest().getRemoteAddress()).getAddress().getHostAddress());
+        };
     }
 }

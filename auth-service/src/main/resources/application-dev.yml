@@ -1,0 +1,8 @@
+spring:
+  config:
+    import: optional:configserver:http://localhost:8888/
+    activate:
+      on-profile: dev
+rsa:
+  public:
+    key-location: classpath:certs/private.pem

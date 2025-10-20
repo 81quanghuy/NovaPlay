@@ -1,26 +1,32 @@
 package vn.iotstar.apigateway.controller;
 
-import org.springframework.web.bind.annotation.RequestMapping;
+import lombok.RequiredArgsConstructor;
+import org.springdoc.core.properties.AbstractSwaggerUiConfigProperties;
+import org.springdoc.core.properties.SwaggerUiConfigParameters;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RestController;
 import reactor.core.publisher.Mono;
-import vn.iotstar.apigateway.constants.GenericResponse;
 
-import static vn.iotstar.apigateway.constants.GateWayContants.CONTACT_SUPPORT_MESSAGE;
+import java.util.Set;
+import java.util.stream.Collectors;
 
-@RequestMapping
+@RestController
+@RequiredArgsConstructor
 public class FallbackController {
 
-    /**
-     * This method is used to handle fallback for all services.
-     * It returns a generic response indicating that the user should contact support.
-     *
-     * @return Mono<GenericResponse> - A reactive response containing the message and status code.
-     */
-    @RequestMapping("/contactSupport")
-    public Mono<GenericResponse> contactSupport() {
-        GenericResponse response = new GenericResponse();
-        response.setMessage(CONTACT_SUPPORT_MESSAGE);
-        response.setStatusCode(500);
-        response.setSuccess(Boolean.TRUE);
-        return Mono.just(response);
+    private final SwaggerUiConfigParameters swaggerUiConfigParameters;
+
+    @GetMapping("/fallback/message")
+    public Mono<String> fallbackMessage() {
+        return Mono.just("Service is temporarily unavailable. Please try again later.");
+    }
+    @GetMapping("/debug-swagger-urls")
+    public ResponseEntity<Set<String>> getSwaggerUrls() {
+        // Lấy ra danh sách các URL đã được cấu hình và trả về
+        Set<String> urls = swaggerUiConfigParameters.getUrls().stream()
+                .map(AbstractSwaggerUiConfigProperties.SwaggerUrl::getUrl)
+                .collect(Collectors.toSet());
+        return ResponseEntity.ok(urls);
     }
 }

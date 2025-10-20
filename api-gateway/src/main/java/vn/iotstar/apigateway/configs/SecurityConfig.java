@@ -1,99 +1,80 @@
 package vn.iotstar.apigateway.configs;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.core.convert.converter.Converter;
-import org.springframework.http.HttpMethod;
-import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
-import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
-import org.springframework.security.oauth2.server.resource.authentication.ReactiveJwtAuthenticationConverterAdapter;
 import org.springframework.security.web.server.SecurityWebFilterChain;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.reactive.CorsConfigurationSource;
 import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource;
-import org.springframework.web.util.pattern.PathPatternParser;
-import reactor.core.publisher.Mono;
 
+import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
-
-import static vn.iotstar.apigateway.constants.GateWayContants.*;
 
 @Configuration
 @EnableWebFluxSecurity
 public class SecurityConfig {
 
-    private final Map<String, SecurityConfigItem> services = Map.of(
-            USER_SERVICE,
-            new SecurityConfigItem(API_V1 + "users/**", true, true, true),
-            MOVIE_SERVICE,
-            new SecurityConfigItem(API_V1 + "movies/**", true, true, false)
-    );
+    // Load the list of allowed origins from the application.properties file
+    @Value("${application.cors.allowed-origins}")
+    private List<String> allowedOrigins;
 
     @Bean
     public SecurityWebFilterChain springSecurityFilterChain(ServerHttpSecurity http) {
+        return http
+                // Disable CSRF as the API is stateless (using JWT)
+                .csrf(ServerHttpSecurity.CsrfSpec::disable)
 
-        http.csrf(ServerHttpSecurity.CsrfSpec::disable);
-        http.cors(cors ->
-                cors.configurationSource(configurationSource())
-        );
+                // Configure CORS using the `corsConfigurationSource` bean
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
 
-        http.authorizeExchange(auth -> {
-
-            auth.pathMatchers(HttpMethod.OPTIONS, "/**").permitAll();
-            services.forEach((serviceName, config) -> {
-                String path = config.getPathPattern();
-
-                if (!config.isAuthRequired()) {
-                    auth.pathMatchers(path).permitAll();
-                } else {
-                    if (config.isAdminAllowed()) {
-                        auth.pathMatchers(path.replace("**", "admin/**")).hasRole("ADMIN");
-                    }
-                    if (config.isUserAllowed()) {
-                        auth.pathMatchers(path).hasRole("USER");
-                    }
-                }
-            });
-
-            auth.anyExchange().authenticated();
-        });
-
-        http.oauth2ResourceServer(oauth2 ->
-                oauth2.jwt(jwt -> jwt.jwtAuthenticationConverter(grantedAuthoritiesExtractor()))
-        );
-        return http.build();
-    }
-
-    private Converter<Jwt, Mono<AbstractAuthenticationToken>> grantedAuthoritiesExtractor() {
-        JwtAuthenticationConverter jwtAuthenticationConverter =
-                new JwtAuthenticationConverter();
-        jwtAuthenticationConverter.setJwtGrantedAuthoritiesConverter
-                (new KeycloakRoleConverter());
-        return new ReactiveJwtAuthenticationConverterAdapter(jwtAuthenticationConverter);
+                // Configure authorization rules
+                .authorizeExchange(exchange -> exchange
+                        // Permit all requests at the Spring Security level.
+                        // Reason: Authentication is handled entirely by
+                        // our custom GatewayFilter (AuthenticationFilter).
+                        .anyExchange().permitAll()
+                )
+                .build();
     }
 
     @Bean
-    public CorsConfigurationSource configurationSource() {
-        CorsConfiguration cfg = new CorsConfiguration();
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuration = new CorsConfiguration();
 
-        cfg.setAllowCredentials(false);
+        // Allow sending credentials (e.g., cookies, authorization headers)
+        configuration.setAllowCredentials(true);
 
-        cfg.setAllowedOrigins(List.of(
-                "http://localhost:5173",
-                "http://127.0.0.1:5173"
+        // Set the allowed origins from the configuration file
+        configuration.setAllowedOrigins(allowedOrigins);
+
+        // Restrict allowed HTTP methods for enhanced security
+        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
+
+        // Restrict allowed headers
+        configuration.setAllowedHeaders(Arrays.asList(
+                "Authorization",
+                "Content-Type",
+                "Accept",
+                "X-Requested-With",
+                "Origin",
+                "Access-Control-Request-Method",
+                "Access-Control-Request-Headers"
         ));
-        cfg.addAllowedHeader(CorsConfiguration.ALL);
-        cfg.addAllowedMethod(CorsConfiguration.ALL);
-        cfg.addExposedHeader("Authorization");
-        cfg.setMaxAge(3600L);
 
-        UrlBasedCorsConfigurationSource source =
-                new UrlBasedCorsConfigurationSource(new PathPatternParser());
-        source.registerCorsConfiguration("/**", cfg);
+        // Allow the client to read these headers from the response
+        configuration.setExposedHeaders(Arrays.asList(
+                "Authorization",
+                "Content-Type"
+        ));
+
+        // The cache duration for pre-flight requests (in seconds)
+        configuration.setMaxAge(3600L);
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
         return source;
     }
 }

@@ -1,389 +1,253 @@
-# docker-compose.yml
 version: '3.8'
 
+# ===================================================================
+# EXTENSION FIELDS (x-) FOR REUSABLE BLOCKS (DRY PRINCIPLE)
+# ===================================================================
+x-healthcheck-microservice: &healthcheck-microservice
+  # A reusable health check for custom Spring Boot microservices.
+  test: "curl --fail --silent localhost:${PORT:-8080}/actuator/health/readiness | grep UP || exit 1"
+  interval: 20s
+  timeout: 5s
+  retries: 20
+  start_period: 10s
+
+x-microservice-base: &microservice-base
+  # Base configuration inherited by all custom microservices.
+  extends:
+    file: common-config.yml
+    service: microservice-eureka-config
+  healthcheck: *healthcheck-microservice
+  networks: [novaPLay]
+
+x-loki-common: &loki-common
+  # Common configuration for all Loki components.
+  image: grafana/loki:${LOKI_VERSION:-3.1.2}
+  volumes:
+    # Mount the Loki configuration file.
+    - ../observability/loki/loki-config.yaml:/etc/loki/config.yaml
+  networks:
+    - novaPLay
+  healthcheck:
+    test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3100/ready || exit 1"]
+    interval: 10s
+    timeout: 5s
+    retries: 5
+  depends_on:
+    - minio
+
 services:
-  redis:
-    image: redis:7-alpine
-    container_name: redis-service
-    ports:
-      - "6379:6379"
-    restart: always
-  keycloak:
-    image: quay.io/keycloak/keycloak:26.0.7
-    container_name: keycloak
-    ports:
-      - "7080:8080"
-    environment:
-      KEYCLOAK_ADMIN: "admin"
-      KEYCLOAK_ADMIN_PASSWORD: "admin"
-    command: "start-dev"
-    extends:
-      file: common-config.yml
-      service: network-deploy-service
-
-  read:
-    image: grafana/loki:3.1.2
-    command: "-config.file=/etc/loki/config.yaml -target=read"
-    ports:
-      - "3101:3100"
-      - "7946"
-      - "9095"
-    volumes:
-      - ../observability/loki/loki-config.yaml:/etc/loki/config.yaml
-    depends_on:
-      - minio
-    healthcheck:
-      test: [ "CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3100/ready || exit 1" ]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks: &loki-dns
-      novaPLay:
-        aliases:
-          - loki
-
-  write:
-    image: grafana/loki:3.1.2
-    command: "-config.file=/etc/loki/config.yaml -target=write"
-    ports:
-      - "3102:3100"
-      - "7946"
-      - "9095"
-    volumes:
-      - ../observability/loki/loki-config.yaml:/etc/loki/config.yaml
-    healthcheck:
-      test: [ "CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3100/ready || exit 1" ]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    depends_on:
-      - minio
-    networks:
-      <<: *loki-dns
-
-  alloy:
-    image: grafana/alloy:v1.5.1
-    volumes:
-      - ../observability/alloy/alloy-local-config.yaml:/etc/alloy/config.alloy:ro
-      - /var/run/docker.sock:/var/run/docker.sock
-    command: run --server.http.listen-addr=0.0.0.0:12345 --storage.path=/var/lib/alloy/data /etc/alloy/config.alloy
-    ports:
-      - 12345:12345
-    depends_on:
-      - gateway
-    extends:
-      file: common-config.yml
-      service: network-deploy-service
-
-  minio:
-    image: minio/minio:RELEASE.2024-12-18T13-15-44Z
-    entrypoint:
-      - sh
-      - -euc
-      - |
-        mkdir -p /data/loki-data && \
-        mkdir -p /data/loki-ruler && \
-        minio server /data
-    environment:
-      - MINIO_ROOT_USER=loki
-      - MINIO_ROOT_PASSWORD=supersecret
-      - MINIO_PROMETHEUS_AUTH_TYPE=public
-      - MINIO_UPDATE=off
-    ports:
-      - 9000
-    volumes:
-      - ./.data/minio:/data
-    healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:9000/minio/health/live" ]
-      interval: 15s
-      timeout: 20s
-      retries: 5
-    extends:
-      file: common-config.yml
-      service: network-deploy-service
-
-  prometheus:
-    image: prom/prometheus:v3.1.0
-    container_name: prometheus
-    ports:
-      - "9090:9090"
-    volumes:
-      - ../observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
-    extends:
-      file: common-config.yml
-      service: network-deploy-service
-
-  tempo:
-    image: grafana/tempo:2.6.1
-    container_name: tempo
-    command: -config.file /etc/tempo-config.yml
-    ports:
-      - "3110:3100"
-      - "4318:4318"
-    volumes:
-      - ../observability/tempo/tempo.yml:/etc/tempo-config.yml
-    extends:
-      file: common-config.yml
-      service: network-deploy-service
-
-  grafana:
-    image: grafana/grafana:11.4.0
-    environment:
-      - GF_PATHS_PROVISIONING=/etc/grafana/provisioning
-      - GF_AUTH_ANONYMOUS_ENABLED=true
-      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
-    depends_on:
-      - gateway
-    entrypoint:
-      - sh
-      - -euc
-      - |
-        /run.sh
-    ports:
-      - "3000:3000"
-    volumes:
-      - ../observability/grafana/datasource.yml:/etc/grafana/provisioning/datasources/datasource.yml
-    healthcheck:
-      test: [ "CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1" ]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    extends:
-      file: common-config.yml
-      service: network-deploy-service
-
-  backend:
-    image: grafana/loki:3.1.2
-    volumes:
-      - ../observability/loki/loki-config.yaml:/etc/loki/config.yaml
-    ports:
-      - "3100"
-      - "7946"
-    command: "-config.file=/etc/loki/config.yaml -target=backend -legacy-read-mode=false"
-    depends_on:
-      - gateway
-    extends:
-      file: common-config.yml
-      service: network-deploy-service
-
-  gateway:
-    image: nginx:1.27.3
-    depends_on:
-      - read
-      - write
-    entrypoint:
-      - sh
-      - -euc
-      - |
-        cat <<EOF > /etc/nginx/nginx.conf
-        user  nginx;
-        worker_processes  5;  ## Default: 1
-
-        events {
-          worker_connections   1000;
-        }
-
-        http {
-          resolver 127.0.0.11;
-
-          server {
-            listen             3100;
-
-            location = / {
-              return 200 'OK';
-              auth_basic off;
-            }
-
-            location = /api/prom/push {
-              proxy_pass       http://write:3100\$$request_uri;
-            }
-
-            location = /api/prom/tail {
-              proxy_pass       http://read:3100\$$request_uri;
-              proxy_set_header Upgrade \$$http_upgrade;
-              proxy_set_header Connection "upgrade";
-            }
-
-            location ~ /api/prom/.* {
-              proxy_pass       http://read:3100\$$request_uri;
-            }
-
-            location = /loki/api/v1/push {
-              proxy_pass       http://write:3100\$$request_uri;
-            }
-
-            location = /loki/api/v1/tail {
-              proxy_pass       http://read:3100\$$request_uri;
-              proxy_set_header Upgrade \$$http_upgrade;
-              proxy_set_header Connection "upgrade";
-            }
-
-            location ~ /loki/api/.* {
-              proxy_pass       http://read:3100\$$request_uri;
-            }
-          }
-        }
-        EOF
-        /docker-entrypoint.sh nginx -g "daemon off;"
-    ports:
-      - "3100:3100"
-    healthcheck:
-      test: [ "CMD", "service", "nginx", "status" ]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    extends:
-      file: common-config.yml
-      service: network-deploy-service
-
-  kafka:
-    image: docker.io/bitnami/kafka:3.9
-    ports:
-      - "9092:9092"
-    volumes:
-      - "kafka_data:/bitnami"
-    environment:
-      - KAFKA_CFG_NODE_ID=1
-      - KAFKA_CFG_PROCESS_ROLES=broker,controller
-      - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092,PLAINTEXT_INTERNAL://:29092,CONTROLLER://:9093
-      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://localhost:9092,PLAINTEXT_INTERNAL://kafka:29092
-      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=PLAINTEXT:PLAINTEXT,PLAINTEXT_INTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT
-      - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
-      - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=1@kafka:9093
-      - KAFKA_INTER_BROKER_LISTENER_NAME=PLAINTEXT_INTERNAL
-      - ALLOW_PLAINTEXT_LISTENER=yes
-    extends:
-      file: common-config.yml
-      service: network-deploy-service
+  # ===================================================================
+  # CORE INFRASTRUCTURE
+  # ===================================================================
   postgres:
-    image: postgres:latest
+    image: postgres:${POSTGRES_VERSION:-latest}
     container_name: postgres-server
     environment:
       POSTGRES_USER_FILE: /run/secrets/db_user
       POSTGRES_PASSWORD_FILE: /run/secrets/db_password
-    secrets:
-      - db_user
-      - db_password
-    ports:
-      - "5432:5432"
-    volumes:
-      - ../init-db:/docker-entrypoint-initdb.d
+    secrets: [db_user, db_password]
+    ports: ["5432:5432"]
+    volumes: ["../init-db:/docker-entrypoint-initdb.d"]
+    networks: [novaPLay]
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U $$(cat /run/secrets/db_user)" ]
+      test: ["CMD-SHELL", "pg_isready -U $$(cat /run/secrets/db_user)"]
       interval: 10s
       timeout: 5s
       retries: 5
-    extends:
-      file: common-config.yml
-      service: network-deploy-service
 
-  cloud-config:
-    image: "novaplay/cloudconfig:v1.0.0"
-    container_name: cloud-config
-    ports:
-      - "8888:8888"
-    healthcheck:
-      test: "curl --fail --silent localhost:8888/actuator/health/readiness | grep UP || exit 1" #
-      interval: 20s
-      timeout: 5s
-      retries: 20
-      start_period: 10s
-    extends:
-      file: common-config.yml
-      service: microservice-base-config
+  redis:
+    image: redis:${REDIS_VERSION:-7-alpine}
+    container_name: redis-service
+    ports: ["6379:6379"]
+    networks: [novaPLay]
+    restart: always
+
+  kafka-services:
+    image: docker.io/bitnami/kafka:${KAFKA_VERSION:-3.9}
+    container_name: kafka-services
+    ports: ["9092:9092"]
+    volumes: ["kafka_services_data:/bitnami"]
+    networks: [novaPLay]
     environment:
-      SPRING_APPLICATION_NAME: "cloud-config" # Ghi đè biến môi trường nếu cần
+      - KAFKA_CFG_NODE_ID=1
+      - KAFKA_CFG_PROCESS_ROLES=broker,controller
+      - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092,PLAINTEXT_INTERNAL://:29092,CONTROLLER://:9095
+      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://localhost:9092,PLAINTEXT_INTERNAL://kafka-services:29092
+      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=PLAINTEXT:PLAINTEXT,PLAINTEXT_INTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT
+      - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
+      - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=1@kafka-services:9095
+      - KAFKA_CFG_INTER_BROKER_LISTENER_NAME=PLAINTEXT_INTERNAL
+      - KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE=true
+      - KAFKA_CFG_OFFSETS_TOPIC_REPLICATION_FACTOR=1
+      - KAFKA_CFG_TRANSACTION_STATE_LOG_REPLICATION_FACTOR=1
+      - KAFKA_CFG_TRANSACTION_STATE_LOG_MIN_ISR=1
+      - ALLOW_PLAINTEXT_LISTENER=yes
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:v0.7.2
+    container_name: kafka-ui
+    depends_on: [kafka-services]
+    networks: [novaPLay]           # phải cùng network với kafka-services
+    ports:
+      - "8080:8080"                # mở UI ra host
+    environment:
+      - KAFKA_CLUSTERS_0_NAME=local
+      - KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS=kafka-services:29092
+      # (tuỳ chọn) bật login cho UI
+      - AUTH_TYPE=LOGIN_FORM
+      - SPRING_SECURITY_USER_NAME=admin
+      - SPRING_SECURITY_USER_PASSWORD=admin
+  # ===================================================================
+  # OBSERVABILITY STACK (Loki, Prometheus, Grafana, etc.)
+  # ===================================================================
+  loki-write:
+    <<: *loki-common
+    container_name: loki-write
+    command: "-config.file=/etc/loki/config.yaml -target=write"
+    ports: ["3102:3100"]
+
+  loki-read:
+    <<: *loki-common
+    container_name: loki-read
+    command: "-config.file=/etc/loki/config.yaml -target=read"
+    ports: ["3101:3100"]
+
+  loki-backend:
+    <<: *loki-common
+    container_name: loki-backend
+    command: "-config.file=/etc/loki/config.yaml -target=backend -legacy-read-mode=false"
+
+  loki-gateway:
+    image: nginx:${NGINX_VERSION:-1.27.3}
+    container_name: loki-gateway
+    volumes: ["./nginx.conf:/etc/nginx/nginx.conf:ro"]
+    ports: ["3100:3100"]
+    networks: [novaPLay]
+    depends_on: [loki-read, loki-write]
+
+  minio:
+    image: minio/minio:${MINIO_VERSION:-RELEASE.2024-12-18T13-15-44Z}
+    container_name: minio-storage
+    entrypoint: ["sh", "-euc", "mkdir -p /data/loki-data && minio server /data"]
+    environment:
+      - MINIO_ROOT_USER=loki
+      - MINIO_ROOT_PASSWORD=supersecret
+    ports: ["9001:9000"]
+    volumes: ["./.data/minio:/data"]
+    networks: [novaPLay]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 15s
+      timeout: 20s
+      retries: 5
+
+  prometheus:
+    image: prom/prometheus:${PROMETHEUS_VERSION:-v3.1.0}
+    container_name: prometheus-monitoring
+    ports: ["9090:9090"]
+    volumes: ["../observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro"]
+    networks: [novaPLay]
+
+  tempo:
+    image: grafana/tempo:${TEMPO_VERSION:-2.6.1}
+    container_name: tempo-tracing
+    command: -config.file /etc/tempo-config.yml
+    ports: ["3110:3100", "4318:4318"]
+    volumes: ["../observability/tempo/tempo.yml:/etc/tempo-config.yml:ro"]
+    networks: [novaPLay]
+
+  alloy:
+    image: grafana/alloy:${ALLOY_VERSION:-v1.5.1}
+    container_name: alloy-collector
+    volumes:
+      - ../observability/alloy/alloy-local-config.yaml:/etc/alloy/config.alloy:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    command: run --server.http.listen-addr=0.0.0.0:12345 --storage.path=/var/lib/alloy/data /etc/alloy/config.alloy
+    ports: ["12345:12345"]
+    networks: [novaPLay]
+
+  grafana:
+    image: grafana/grafana:${GRAFANA_VERSION:-11.4.0}
+    container_name: grafana-dashboard
+    environment:
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+    ports: ["3000:3000"]
+    volumes: ["../observability/grafana/datasource.yml:/etc/grafana/provisioning/datasources/datasource.yml:ro"]
+    networks: [novaPLay]
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ===================================================================
+  # APPLICATION SERVICES
+  # ===================================================================
+  cloud-config:
+    image: "novaplay/cloudconfig:${CLOUD_CONFIG_VERSION:-v1.0.0}"
+    container_name: cloud-config-service
+    <<: *microservice-base
+    ports: ["8888:8888"]
+    environment:
+      PORT: 8888
+      SPRING_APPLICATION_NAME: "cloud-config"
       OTEL_SERVICE_NAME: "cloud-config"
 
   discovery-server:
-    image: "novaplay/discoveryserver:v1.0.0"
+    image: "novaplay/discoveryserver:${DISCOVERY_SERVER_VERSION:-v1.0.0}"
     container_name: discovery-server
-    ports:
-      - "8761:8761"
+    <<: *microservice-base
+    ports: ["8761:8761"]
     depends_on:
-      cloud-config:
-        condition: service_healthy
-    healthcheck:
-      test: "curl --fail --silent localhost:8761/actuator/health/readiness | grep UP || exit 1"
-      interval: 20s
-      timeout: 5s
-      retries: 20
-      start_period: 10s
-    extends:
-      file: common-config.yml
-      service: microservice-configserver-config
+      cloud-config: { condition: service_healthy }
     environment:
+      PORT: 8761
       SPRING_APPLICATION_NAME: "discovery-server"
       OTEL_SERVICE_NAME: "discovery-server"
 
   user-service:
-    image: "novaplay/userservice:v1.0.0"
+    image: "novaplay/userservice:${USER_SERVICE_VERSION:-v1.0.0}"
     container_name: user-service
-    ports:
-      - "8700:8700"
-    secrets:
-      - db_user
-      - db_password
-      - db_name
+    <<: *microservice-base
+    ports: ["8700:8700"]
+    secrets: [db_user, db_password, db_name]
     depends_on:
-      discovery-server:
-        condition: service_healthy
-      cloud-config:
-        condition: service_healthy
-    healthcheck:
-      test: "curl --fail --silent localhost:8700/actuator/health/readiness | grep UP || exit 1"
-      interval: 20s
-      timeout: 5s
-      retries: 20
-      start_period: 10s
+      discovery-server: { condition: service_healthy }
+      postgres: { condition: service_healthy }
     environment:
+      PORT: 8700
       SPRING_DATASOURCE_USERNAME_FILE: /run/secrets/db_user
       SPRING_DATASOURCE_PASSWORD_FILE: /run/secrets/db_password
       DB_NAME_FILE: /run/secrets/db_name
       DB_HOST: postgres
       SPRING_APPLICATION_NAME: "user-service"
       OTEL_SERVICE_NAME: "user-service"
-    extends:
-      file: common-config.yml
-      service: microservice-eureka-config
 
   api-gateway:
-    image: "novaplay/apigateway:v1.0.0"
+    image: "novaplay/apigateway:${API_GATEWAY_VERSION:-v1.0.0}"
     container_name: api-gateway
-    ports: # Chỉ public port cho API Gateway
-      - "8072:8072"
+    <<: *microservice-base
+    ports: ["8072:8072"]
     depends_on:
-      discovery-server:
-        condition: service_healthy
-      user-service:
-        condition: service_healthy
-      cloud-config:
-        condition: service_healthy
-    healthcheck:
-      test: "curl --fail --silent localhost:8072/actuator/health/readiness | grep UP || exit 1"
-      interval: 20s
-      timeout: 5s
-      retries: 20
-      start_period: 10s
+      discovery-server: { condition: service_healthy }
+      user-service: { condition: service_healthy }
     environment:
-      SPRING_APPLICATION_NAME: "api-gateway" # Ghi đè biến môi trường nếu cần
+      PORT: 8072
+      SPRING_APPLICATION_NAME: "api-gateway"
       OTEL_SERVICE_NAME: "api-gateway"
-      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK-SET-URI: "http://keycloak:8080/realms/novaplay/protocol/openid-connect/certs"
 
-    extends:
-      file: common-config.yml
-      service: microservice-eureka-config
-
-# Định nghĩa các network và volume sử dụng chung
+# ===================================================================
+# TOP-LEVEL DEFINITIONS
+# ===================================================================
 networks:
   novaPLay:
     driver: bridge
 
 volumes:
-  kafka_data:
+  kafka_services_data:
     driver: local
 
-# Định nghĩa các file secret sẽ được Docker quản lý
 secrets:
   db_user:
     file: ../secrets/db_user.txt
