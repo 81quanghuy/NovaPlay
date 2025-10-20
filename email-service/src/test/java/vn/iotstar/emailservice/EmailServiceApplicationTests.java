@@ -8,6 +8,7 @@ class EmailServiceApplicationTests {
 
     @Test
     void contextLoads() {
+        System.out.println("Email Service Application context loads successfully.");
     }
 
 }

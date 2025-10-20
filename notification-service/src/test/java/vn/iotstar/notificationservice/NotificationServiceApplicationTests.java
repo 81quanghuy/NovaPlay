@@ -8,6 +8,7 @@ class NotificationServiceApplicationTests {
 
     @Test
     void contextLoads() {
+        System.out.println("Notification Service Application context loads successfully.");
     }
 
 }

@@ -1,9 +1,9 @@
 package vn.iotstar.authservice.model.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+
 import java.util.Date;
 import java.util.Set;
-import java.util.UUID;
 
 @Schema(name = "UserResponse", description = "DTO chứa thông tin người dùng trả về cho client")
 public record UserResponse(

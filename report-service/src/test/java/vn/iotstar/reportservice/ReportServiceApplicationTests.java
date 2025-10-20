@@ -8,6 +8,7 @@ class ReportServiceApplicationTests {
 
     @Test
     void contextLoads() {
+        System.out.println("Report Service Application context loads successfully.");
     }
 
 }

@@ -8,6 +8,7 @@ class MovieServiceApplicationTests {
 
     @Test
     void contextLoads() {
+        System.out.println("Movie Service Application context loads successfully.");
     }
 
 }

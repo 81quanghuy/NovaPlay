@@ -9,11 +9,6 @@ public class Constants {
         throw  new UnsupportedOperationException("Utility class");
     }
 
-    // General Constants
-    public static final String UUID_CONST = "uuid";
-
-    // User Table Constants
-    public static final String PARAM_USER_ID = "userId";
     // link avatar default
     public static final String DEFAULT_AVATAR_URL = "https://i.imgur.com/iP4sAgI.png";
 
@@ -53,14 +48,4 @@ public class Constants {
     public static final String FAVORITE_ITEM_MOVIE_ID_COLUMN = "movie_id";
     public static final String FAVORITE_ITEM_MOVIE_TYPE_COLUMN = "movie_type"; // MOVIE/EPISODE/...
 
-    // UNIQUE CONSTRAINTS, nullable = false, length = 64)
-    public static final String UK_FAV_PROFILE_CONTENT = "uk_fav_profile_content";
-    public static final String UK_USER_PROFILE_EMAIL = "uk_user_profile_email";
-    public static final String UK_WATCH_PROGRESS_PROFILE_CONTENT = "uk_wp_profile_content";
-
-    // INDEXES
-    public static final String IDX_FAV_PROFILE = "idx_fav_profile";
-    public static final String IDX_PROFILE_ACTIVE = "idx_user_profile_active";
-    public static final String IDX_WATCH_PROGRESS_PROFILE_CONTENT = "idx_wp_profile_content";
-    public static final String IDX_WATCH_PROGRESS_PROFILE_TIME = "idx_wp_profile_time";
 }

@@ -8,6 +8,7 @@ class PaymentServiceApplicationTests {
 
     @Test
     void contextLoads() {
+        System.out.println("Payment Service Application context loads successfully.");
     }
 
 }

@@ -4,7 +4,6 @@ import lombok.*;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.TypeAlias;
 import org.springframework.data.mongodb.core.index.CompoundIndex;
-import org.springframework.data.mongodb.core.index.CompoundIndexes;
 import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.Field;
@@ -18,13 +17,11 @@ import static vn.iotstar.userservice.util.Constants.*;
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 @Document(collection = FAVORITE_ITEM_TABLE_NAME)
 @TypeAlias("FavoriteItem")
-@CompoundIndexes({
-        @CompoundIndex(
+@CompoundIndex(
                 name = "uk_profile_movie",
                 def = "{'" + FAVORITE_ITEM_USER_ID_COLUMN + "': 1, '" + FAVORITE_ITEM_MOVIE_ID_COLUMN + "': 1}",
                 unique = true
-        )
-})
+)
 public class FavoriteItem extends AuditableDocument implements Serializable {
 
     @Serial

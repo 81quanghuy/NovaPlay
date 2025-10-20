@@ -8,6 +8,7 @@ class PromotionServiceApplicationTests {
 
     @Test
     void contextLoads() {
+        System.out.println("Promotion Service Application context loads successfully.");
     }
 
 }
