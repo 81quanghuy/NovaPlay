@@ -4,7 +4,6 @@ import lombok.*;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.TypeAlias;
 import org.springframework.data.mongodb.core.index.CompoundIndex;
-import org.springframework.data.mongodb.core.index.CompoundIndexes;
 import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.Field;
@@ -19,17 +18,11 @@ import static vn.iotstar.userservice.util.Constants.*;
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 @Document(collection = WATCH_PROGRESS_TABLE_NAME)
 @TypeAlias("WatchProgress")
-@CompoundIndexes({
-        @CompoundIndex(
-                name = "uk_user_movie",
+@CompoundIndex(name = "uk_user_movie",
                 def = "{'" + WATCH_PROGRESS_USER_ID_COLUMN + "': 1, '" + WATCH_PROGRESS_MOVIE_ID_COLUMN + "': 1}",
-                unique = true
-        ),
-        @CompoundIndex(
-                name = "idx_user_lastwatched",
-                def = "{'" + WATCH_PROGRESS_USER_ID_COLUMN + "': 1, '" + WATCH_PROGRESS_LAST_WATCHED_AT_COLUMN + "': -1}"
-        ),
-})
+                unique = true)
+@CompoundIndex(name = "idx_user_lastwatched",
+                def = "{'" + WATCH_PROGRESS_USER_ID_COLUMN + "': 1, '" + WATCH_PROGRESS_LAST_WATCHED_AT_COLUMN + "': -1}")
 public class WatchProgress extends AuditableDocument implements Serializable {
 
     @Serial

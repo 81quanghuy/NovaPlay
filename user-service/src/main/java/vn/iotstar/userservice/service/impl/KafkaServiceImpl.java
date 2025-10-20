@@ -23,7 +23,7 @@ public class KafkaServiceImpl {
         try {
             userProfileService.registerNewUser(evt);
         } catch (Exception ex) {
-            throw (ex instanceof RuntimeException) ? (RuntimeException) ex : new RuntimeException(ex);
+            log.error(ex.getMessage(), ex);
         }
     }
     private void validateUserRegister(UserRegister evt) {
@@ -40,7 +40,7 @@ public class KafkaServiceImpl {
         try {
             userProfileService.changeUrlAvatar(event.cdnUrl(), event.ownerId());
         } catch (Exception ex) {
-            throw (ex instanceof RuntimeException) ? (RuntimeException) ex : new RuntimeException(ex);
+            log.error(ex.getMessage(), ex);
         }
     }
 }

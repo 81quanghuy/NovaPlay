@@ -59,7 +59,7 @@ public class KafkaServiceImpl {
             ack.acknowledge();
         } catch (Exception ex) {
             dedupService.release(dedupKey);
-            throw (ex instanceof RuntimeException) ? (RuntimeException) ex : new RuntimeException(ex);
+            throw (RuntimeException) ex;
         }
     }
 }

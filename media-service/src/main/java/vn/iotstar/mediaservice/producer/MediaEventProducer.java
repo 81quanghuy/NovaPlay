@@ -10,8 +10,6 @@ import vn.iotstar.mediaservice.entity.Media;
 import vn.iotstar.mediaservice.service.MediaService;
 import vn.iotstar.utils.dto.MediaReadyEvent;
 
-import java.util.List;
-
 @Component
 @RequiredArgsConstructor
 @Slf4j
@@ -21,7 +19,7 @@ public class MediaEventProducer {
     private final MediaService mediaService;
 
     @SqsListener(value = "${aws.sqs.queue-name}")
-    public void handleS3UploadEvent(String messageJson) {
+    public void handleS3UploadEvent(String messageJson) throws RuntimeException {
         try {
             log.info("Received message from SQS: {}", messageJson);
 
@@ -38,8 +36,7 @@ public class MediaEventProducer {
             );
 
         } catch (Exception e) {
-            log.error("Failed to process message from SQS. Message will be re-queued.", e);
-            throw new RuntimeException("Message processing failed, will be retried.", e);
+            log.error("Error processing S3 upload event: ", e);
         }
     }
 }

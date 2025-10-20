@@ -4,8 +4,6 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 
-import java.util.UUID;
-
 @Schema(name = "UserProfileDTO",
         description = "Data Transfer Object for User Profile, used in API responses.")
 public record UserProfileDTO(

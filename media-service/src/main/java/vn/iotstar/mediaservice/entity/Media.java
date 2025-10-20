@@ -3,7 +3,6 @@ package vn.iotstar.mediaservice.entity;
 import lombok.*;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.index.CompoundIndex;
-import org.springframework.data.mongodb.core.index.CompoundIndexes;
 import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.Field;
@@ -13,12 +12,9 @@ import vn.iotstar.mediaservice.util.MediaStatus;
 
 import java.io.Serial;
 import java.io.Serializable;
-import java.util.UUID;
 
 @Document(collection = Constants.MEDIA_COLLECTION)
-@CompoundIndexes({
-        @CompoundIndex(name = Constants.IDX_MEDIA_OWNER_ID, def = "{'" + Constants.MEDIA_OWNER_ID + "': 1}"),
-})
+@CompoundIndex(name = Constants.IDX_MEDIA_OWNER_ID, def = "{'" + Constants.MEDIA_OWNER_ID + "': 1}")
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class Media extends AuditableDocument implements Serializable {
 

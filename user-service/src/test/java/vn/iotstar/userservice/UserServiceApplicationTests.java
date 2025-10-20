@@ -8,6 +8,7 @@ class UserServiceApplicationTests {
 
     @Test
     void contextLoads() {
+        System.out.println("User Service Application context loads successfully.");
     }
 
 }
