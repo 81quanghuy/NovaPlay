@@ -8,7 +8,7 @@ import org.springframework.stereotype.Service;
 import vn.iotstar.authservice.model.entity.Token;
 import vn.iotstar.authservice.model.entity.User;
 import vn.iotstar.authservice.repository.TokenRepository;
-import vn.iotstar.authservice.service.ITokenService;
+import vn.iotstar.authservice.service.TokenService;
 import vn.iotstar.authservice.util.TokenType;
 
 import java.time.Instant;
@@ -18,7 +18,7 @@ import java.util.UUID;
 @Service
 @Slf4j
 @RequiredArgsConstructor
-public class TokenServiceImpl implements ITokenService {
+public class TokenServiceImpl implements TokenService {
 
     private final TokenRepository tokenRepository;
 

@@ -1,10 +1,16 @@
 package vn.iotstar.userservice.model.entity;
 
-import jakarta.persistence.*;
 import lombok.*;
-import org.springframework.data.jpa.domain.support.AuditingEntityListener;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.TypeAlias;
+import org.springframework.data.mongodb.core.index.CompoundIndex;
+import org.springframework.data.mongodb.core.index.CompoundIndexes;
+import org.springframework.data.mongodb.core.index.Indexed;
+import org.springframework.data.mongodb.core.mapping.Document;
+import org.springframework.data.mongodb.core.mapping.Field;
+import vn.iotstar.userservice.util.AuditableDocument;
 import vn.iotstar.userservice.util.Constants;
-import vn.iotstar.utils.AbstractBaseEntity;
+import vn.iotstar.userservice.util.Plan;
 
 import java.io.Serial;
 import java.io.Serializable;
@@ -14,58 +20,51 @@ import java.util.UUID;
 
 import static vn.iotstar.userservice.util.Constants.*;
 
-@Entity
-@Table(
-        name = USER_PROFILE_TABLE_NAME,
-        uniqueConstraints = {
-                @UniqueConstraint(name = UK_USER_PROFILE_EMAIL, columnNames = EMAIL_COLUMN)
-        },
-        indexes = {
-                @Index(name = IDX_PROFILE_ACTIVE, columnList = IS_ACTIVE_COLUMN)
-        }
-)
-@EntityListeners(AuditingEntityListener.class)
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
-public class UserProfile extends AbstractBaseEntity implements Serializable {
+@Document(collection = USER_PROFILE_TABLE_NAME)
+@TypeAlias("UserProfile")
+@CompoundIndexes({
+        @CompoundIndex(name = "email_active_idx", def = "{'email': 1, 'active': 1}")
+})
+public class UserProfile extends AuditableDocument implements Serializable {
 
     @Serial
     private static final long serialVersionUID = 1L;
 
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    @Column(name = Constants.USER_ID_COLUMN)
-    private UUID userId;
+    @Field(Constants.USER_ID_COLUMN)
+    private String id;
 
-    @Column(name = EMAIL_COLUMN, nullable = false)
+    @Indexed(unique = true)
+    @Field(EMAIL_COLUMN)
     private String email;
 
-    @Column(name = PREFERRED_USERNAME, length = 100)
+    @Field(PREFERRED_USERNAME)
     private String preferredUsername;
 
-    @Column(name = USER_NAME_COLUMN, length = 150)
+    @Field(USER_NAME_COLUMN)
     private String displayName;
 
-    @Column(name = AVATAR_COLUMN, length = 512)
+    @Field(AVATAR_COLUMN)
     private String avatarUrl;
 
-    @Column(name = LOCATE_COLUMN, length = 16)
+    @Field(LOCATE_COLUMN)
     private String locale;
 
-    @Column(name = PLAN_COLUMN, length = 50)
-    private String plan;
+    @Field(PLAN_COLUMN)
+    private Plan plan;
 
-    @Column(name = IS_ACTIVE_COLUMN, nullable = false)
+    @Indexed
+    @Field(IS_ACTIVE_COLUMN)
     private boolean active = true;
 
-    @Column(name = MARKETING_OPT_IN_COLUMN, nullable = false)
+    @Field(MARKETING_OPT_IN_COLUMN)
     private boolean marketingOptIn = false;
 
-    @Column(name = MARKETING_OPT_IN_AT_COLUMN)
+    @Field(MARKETING_OPT_IN_AT_COLUMN)
     private Instant marketingOptInAt;
 
-    @PreUpdate
-    @PrePersist
-    void normalize() {
+    public void normalize() {
         if (email != null) email = email.trim().toLowerCase();
         if (preferredUsername != null) preferredUsername = preferredUsername.trim();
         if (displayName != null) displayName = displayName.trim();
@@ -74,12 +73,15 @@ public class UserProfile extends AbstractBaseEntity implements Serializable {
             locale = locale.replace('_','-').trim();
             try {
                 var tag = Locale.forLanguageTag(locale).toLanguageTag();
-                if (!tag.isEmpty()) locale = tag; // chuẩn hoá như "vi-VN"
+                if (!tag.isEmpty()) locale = tag; // ví dụ: "vi-VN"
             } catch (Exception ignored) {
                 throw new IllegalArgumentException("Invalid locale format: " + locale);
             }
         }
-        if (plan != null) plan = plan.trim();
+        if (plan != null) plan = Plan.MEMBER;
+
+        if (id == null || id.isBlank()) {
+            id = UUID.randomUUID().toString();
+        }
     }
 }
-

@@ -5,6 +5,7 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.MDC;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -16,9 +17,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import vn.iotstar.authservice.model.dto.*;
-import vn.iotstar.authservice.service.IAuthService;
+import vn.iotstar.authservice.service.AuthService;
+import vn.iotstar.authservice.service.OtpService;
 import vn.iotstar.utils.constants.GenericResponse;
-import vn.iotstar.utils.dto.EmailRequest;
 
 @RestController
 @RequestMapping("/api/v1/auth")
@@ -26,14 +27,39 @@ import vn.iotstar.utils.dto.EmailRequest;
 @Tag(name = "Authentication API", description = "Endpoints for user registration, login, logout, and token refresh")
 public class AuthController {
 
-    private final IAuthService authService;
+    private final AuthService authService;
+    private final OtpService otpService;
 
     @Operation(summary = "Register a new user account")
     @PostMapping("/register")
-    public ResponseEntity<UserResponse> register(@Valid @RequestBody UserCreationRequest request) {
+    public ResponseEntity<UserResponse> register(@RequestBody UserCreationRequest request) {
         UserResponse registeredUser = authService.register(request);
+        otpService.generateAndDispatch(registeredUser.id(), registeredUser.email(), request.locale(), MDC.get("traceId"));
         return new ResponseEntity<>(registeredUser, HttpStatus.CREATED);
     }
+
+    @Operation(summary = "Verify OTP to activate user account")
+    @PostMapping("/verify-otp")
+    public ResponseEntity<GenericResponse> verify(@RequestBody VerifyOtpRequest req) {
+        boolean isValid = otpService.verify(req.email(), req.otp());
+        if (!isValid) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
+                    GenericResponse.builder()
+                            .success(false)
+                            .message("Invalid OTP")
+                            .result(null)
+                            .build()
+            );
+        }
+        authService.activateAccount(req.email());
+        return ResponseEntity.ok(GenericResponse.builder()
+                .success(true)
+                .message("OTP verified successfully")
+                .result(null)
+                .build());
+    }
+
+
 
     @Operation(summary = "Authenticate a user and get tokens")
     @PostMapping("/login")
@@ -69,7 +95,12 @@ public class AuthController {
             description = "This endpoint sends a One-Time Password (OTP) to the user's registered email address for password reset purposes.")
     @PostMapping("/forgot-password")
     public ResponseEntity<GenericResponse> forgotPassword(@RequestBody EmailRequest emailRequest) {
-        return authService.forgotPassword(emailRequest);
+        authService.forgotPassword(emailRequest,MDC.get("traceId"));
+        return ResponseEntity.status(HttpStatus.OK).body(
+                GenericResponse.builder()
+                        .success(true)
+                        .message("OTP sent to email successfully")
+                        .build());
     }
 
     @Operation(summary = "Reset password using OTP",

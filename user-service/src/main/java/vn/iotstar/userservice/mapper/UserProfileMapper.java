@@ -19,7 +19,7 @@ public class UserProfileMapper {
      */
     public static UserProfileDTO toUserProfileDTO(UserProfile userProfile) {
         return new UserProfileDTO(
-                userProfile.getUserId(),
+                userProfile.getId(),
                 userProfile.getPreferredUsername(),
                 userProfile.getEmail()
         );
@@ -33,7 +33,7 @@ public class UserProfileMapper {
      */
     public static UserProfile toUserProfile(UserProfileDTO userProfileDTO) {
         UserProfile userProfile = new UserProfile();
-        userProfile.setUserId(userProfileDTO.userId());
+        userProfile.setId(userProfileDTO.userId());
         userProfile.setDisplayName(userProfileDTO.displayName());
         userProfile.setEmail(userProfileDTO.email());
         return userProfile;

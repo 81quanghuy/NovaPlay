@@ -4,10 +4,9 @@ import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 import vn.iotstar.authservice.model.entity.User;
-import vn.iotstar.authservice.service.IJwtService;
+import vn.iotstar.authservice.service.JwtService;
 
 import java.security.interfaces.RSAPrivateKey;
 import java.util.Date;
@@ -17,7 +16,7 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
-public class JwtServiceImpl implements IJwtService {
+public class JwtServiceImpl implements JwtService {
 
     private final RSAPrivateKey rsaPrivateKey;
 

@@ -1,83 +1,66 @@
 package vn.iotstar.emailservice.service.impl;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;
-import org.springframework.messaging.handler.annotation.Payload;
+import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.stereotype.Service;
-import vn.iotstar.emailservice.service.DedupStore;
+import vn.iotstar.emailservice.service.DedupService;
 import vn.iotstar.emailservice.service.IEmailService;
-import vn.iotstar.emailservice.service.IKafkaService;
 import vn.iotstar.emailservice.util.TopicName;
-import vn.iotstar.utils.dto.EmailRequest;
+import vn.iotstar.utils.dto.EmailOtpRequested;
 
 import java.time.Duration;
-import java.util.UUID;
+import java.util.Map;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class KafkaServiceImpl implements IKafkaService {
+public class KafkaServiceImpl {
 
     private final IEmailService emailService;
 
-    private final DedupStore dedup; // service SETNX
-    private static final Duration DEDUP_TTL = Duration.ofHours(48);
+    private final DedupService dedupService;
+    private static final Duration DEDUP_TTL = Duration.ofHours(1);
 
-    @KafkaListener(id="email-service-user-registered",
-            topics=TopicName.USER_REGISTERED,
-            groupId="email-service")
-    public void onMessage(@Payload EmailRequest emailRequest, Acknowledgment ack) {
-        log.info("Received email evenlt: {}", emailRequest);
-        String key = "email:sent:" + UUID.randomUUID();
+    @KafkaListener(topics=TopicName.SEND_EMAIL,
+            groupId="email-service",
+            containerFactory = "emailOtpKafkaListenerContainerFactory")
+    public void handle(EmailOtpRequested evt,
+            @Header(name = "correlationId", required = false) String correlationId,
+            Acknowledgment ack) {
 
-        // 1) Dedup guard
-        if (!dedup.acquireOnce(key, DEDUP_TTL)) {
-            // đã gửi/trong tiến trình gửi → skip và commit offset
+        if (evt == null) throw new IllegalArgumentException("Null payload");
+        var vars = evt.variables() == null ? Map.<String,String>of() : evt.variables();
+        var otp    = vars.get("otp");
+        var expire = vars.getOrDefault("expireMinutes", "5");
+        var locale = vars.getOrDefault("locale", "vi-VN");
+        if (otp == null || evt.email() == null) {
+            throw new IllegalArgumentException("Missing otp/email");
+        }
+
+        var msgId = (evt.messageId() == null || evt.messageId().isBlank())
+                ? "mid:" + evt.userId() + ":" + System.currentTimeMillis()
+                : evt.messageId();
+
+        String dedupKey = "email:sent:" + msgId;
+
+        if (!dedupService.acquireOnce(dedupKey, DEDUP_TTL)) {
+            log.info("Skip duplicate msgId={}, userId={}", msgId, evt.userId());
             ack.acknowledge();
             return;
         }
 
-
         try {
-            emailService.sendOTP(emailRequest);
-
-            // 3) Thành công → giữ key tới khi TTL hết
+            emailService.sendOTP(evt.email(), otp, expire, locale);
+            log.info("Handled email.send.otp, msgId={}, userId={}, corrId={}",
+                    msgId, evt.userId(), correlationId);
             ack.acknowledge();
-
         } catch (Exception ex) {
-            // 4) Thất bại → nhả key để lần retry có thể gửi lại
-            dedup.release(key);
-            log.error(ex.getMessage(), ex);
-            throw (ex instanceof RuntimeException) ? (RuntimeException) ex : new RuntimeException(ex);
-        }
-    }
-
-    @KafkaListener(id="email-service-forgot-password",
-            topics=TopicName.FORGOT_PASSWORD,
-            groupId="email-service")
-    public void onForgotPassword(@Payload EmailRequest emailRequest, Acknowledgment ack) {
-        log.info("Received forgot-password event: {}", emailRequest);
-        String key = "email:sent:" + UUID.randomUUID();
-
-        // 1) Dedup guard
-        if (!dedup.acquireOnce(key, DEDUP_TTL)) {
-            // đã gửi/trong tiến trình gửi → skip và commit offset
-            ack.acknowledge();
-            return;
-        }
-        try {
-            emailService.sendOTP(emailRequest);
-
-            // 3) Thành công → giữ key tới khi TTL hết
-            ack.acknowledge();
-
-        } catch (Exception ex) {
-            // 4) Thất bại → nhả key để lần retry có thể gửi lại
-            dedup.release(key);
-            log.error(ex.getMessage(), ex);
+            dedupService.release(dedupKey);
             throw (ex instanceof RuntimeException) ? (RuntimeException) ex : new RuntimeException(ex);
         }
     }
 }
+

@@ -15,11 +15,7 @@
     <description>email-service</description>
 
     <dependencies>
-        <!-- Data store thực sự dùng -->
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-data-mongodb</artifactId>
-        </dependency>
+        <!-- Data store -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-redis</artifactId>
@@ -29,14 +25,6 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
-
-        <!-- Swagger/OpenAPI cho MVC -->
-        <dependency>
-            <groupId>org.springdoc</groupId>
-            <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
-            <version>2.6.0</version> <!-- hoặc nâng đồng bộ toàn dự án, ví dụ 2.8.9 -->
-        </dependency>
-
         <!-- Mail + Thymeleaf template -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -62,10 +50,6 @@
             <groupId>org.springframework.cloud</groupId>
             <artifactId>spring-cloud-starter-netflix-eureka-client</artifactId>
         </dependency>
-        <dependency>
-            <groupId>org.springframework.cloud</groupId>
-            <artifactId>spring-cloud-starter-openfeign</artifactId>
-        </dependency>
 
         <!-- Observability/Health -->
         <dependency>
@@ -83,7 +67,7 @@
             <artifactId>spring-kafka</artifactId>
         </dependency>
 
-        <!-- tiện ích nội bộ -->
+        <!-- Internal libraries -->
         <dependency>
             <groupId>vn.iotstar</groupId>
             <artifactId>utils</artifactId>
