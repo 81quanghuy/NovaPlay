@@ -1,12 +1,13 @@
 package vn.iotstar.userservice.repository;
 
-import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.mongodb.repository.MongoRepository;
 import org.springframework.stereotype.Repository;
 import vn.iotstar.userservice.model.entity.UserProfile;
 
-import java.util.UUID;
+import java.util.Optional;
 
 @Repository
-public interface IUserProfileRepository extends JpaRepository<UserProfile, UUID> {
+public interface IUserProfileRepository extends MongoRepository<UserProfile, String> {
 
+    Optional<UserProfile> findByEmail(String email);
 }

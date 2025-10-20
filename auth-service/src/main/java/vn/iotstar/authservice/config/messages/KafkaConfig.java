@@ -12,17 +12,8 @@ import vn.iotstar.authservice.util.TopicName;
 public class KafkaConfig {
 
     @Bean
-    public NewTopic userRegisteredTopic() {
-        return TopicBuilder.name(TopicName.USER_REGISTERED)
-                .partitions(3)
-                .replicas(1)
-                .config(TopicConfig.CLEANUP_POLICY_CONFIG, TopicConfig.CLEANUP_POLICY_DELETE)
-                .build();
-    }
-
-    @Bean
-    public NewTopic forgotPasswordTopic() {
-        return TopicBuilder.name(TopicName.FORGOT_PASSWORD)
+    public NewTopic sendEmail() {
+        return TopicBuilder.name(TopicName.SEND_EMAIL)
                 .partitions(3)
                 .replicas(1)
                 .config(TopicConfig.CLEANUP_POLICY_CONFIG, TopicConfig.CLEANUP_POLICY_DELETE)

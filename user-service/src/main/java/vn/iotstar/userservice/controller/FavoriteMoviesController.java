@@ -8,13 +8,13 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RestController;
 import vn.iotstar.utils.constants.GenericResponse;
-import vn.iotstar.userservice.service.IFavoriteMoviesService;
+import vn.iotstar.userservice.service.FavoriteMoviesService;
 
 @RestController
 @Slf4j
 @RequiredArgsConstructor
 public class FavoriteMoviesController {
-    private final IFavoriteMoviesService favoriteMoviesService;
+    private final FavoriteMoviesService favoriteMoviesService;
 
     /**
      * Adds a movie to the user's favorite list.

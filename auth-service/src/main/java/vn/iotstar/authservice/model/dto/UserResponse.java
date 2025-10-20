@@ -8,7 +8,7 @@ import java.util.UUID;
 @Schema(name = "UserResponse", description = "DTO chứa thông tin người dùng trả về cho client")
 public record UserResponse(
         @Schema(description = "ID của người dùng")
-        UUID id,
+        String id,
 
         @Schema(description = "Tên đăng nhập")
         String username,
