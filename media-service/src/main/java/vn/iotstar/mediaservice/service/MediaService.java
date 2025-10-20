@@ -6,8 +6,6 @@ import vn.iotstar.utils.dto.MediaReadyEvent;
 import vn.iotstar.utils.dto.UploadRequestDto;
 import vn.iotstar.utils.dto.UploadResponseDto;
 
-import java.util.List;
-
 public interface MediaService {
     @Transactional
     void processSuccessfulUpload(Media media);

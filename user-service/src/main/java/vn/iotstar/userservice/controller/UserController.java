@@ -41,7 +41,7 @@ public class UserController {
                 .build());
     }
 
-    private UploadResponseDto fallbackForRequestUpload(@AuthenticationPrincipal Jwt jwt, @RequestBody UploadRequestDto request) {
+    private UploadResponseDto fallbackForRequestUpload() {
         throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
                 "Media service is currently unavailable. Please try again later.");
     }

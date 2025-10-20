@@ -8,6 +8,7 @@ class StreamingServiceApplicationTests {
 
     @Test
     void contextLoads() {
+        System.out.println("Streaming Service Application context loads successfully.");
     }
 
 }

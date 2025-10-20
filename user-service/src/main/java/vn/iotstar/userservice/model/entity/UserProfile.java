@@ -4,7 +4,6 @@ import lombok.*;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.TypeAlias;
 import org.springframework.data.mongodb.core.index.CompoundIndex;
-import org.springframework.data.mongodb.core.index.CompoundIndexes;
 import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.Field;
@@ -23,9 +22,7 @@ import static vn.iotstar.userservice.util.Constants.*;
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 @Document(collection = USER_PROFILE_TABLE_NAME)
 @TypeAlias("UserProfile")
-@CompoundIndexes({
-        @CompoundIndex(name = "email_active_idx", def = "{'email': 1, 'active': 1}")
-})
+@CompoundIndex(name = "email_active_idx", def = "{'email': 1, 'active': 1}")
 public class UserProfile extends AuditableDocument implements Serializable {
 
     @Serial

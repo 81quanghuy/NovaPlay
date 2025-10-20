@@ -8,6 +8,7 @@ class DiscoveryServerApplicationTests {
 
     @Test
     void contextLoads() {
+        System.out.println("Discovery Server Application context loads successfully.");
     }
 
 }

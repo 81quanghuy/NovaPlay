@@ -11,7 +11,6 @@ import org.springframework.web.server.ResponseStatusException;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
 import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
-import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.S3Exception;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.PresignedPutObjectRequest;
@@ -120,14 +119,12 @@ public class MediaServiceImpl implements MediaService {
     }
 
     public String generateResignedUrl(String key) {
-        PutObjectRequest objectRequest = PutObjectRequest.builder()
-                .bucket(bucketName)
-                .key(key)
-                .build();
 
         PutObjectPresignRequest resignRequest = PutObjectPresignRequest.builder()
                 .signatureDuration(Duration.ofMinutes(durationMinutes))
-                .putObjectRequest(objectRequest)
+                .putObjectRequest(por -> por
+                                .bucket(bucketName)
+                                .key(key))
                 .build();
 
         PresignedPutObjectRequest resignedRequest = s3Presigner.presignPutObject(resignRequest);
