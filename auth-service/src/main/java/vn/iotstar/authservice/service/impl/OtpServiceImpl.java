@@ -10,10 +10,10 @@ import vn.iotstar.authservice.service.OtpService;
 import vn.iotstar.authservice.util.TopicName;
 import vn.iotstar.utils.dto.EmailOtpRequested;
 
+import java.security.SecureRandom;
 import java.time.Duration;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.ThreadLocalRandom;
 
 @Service
 @RequiredArgsConstructor
@@ -65,6 +65,8 @@ public class OtpServiceImpl implements OtpService {
     }
 
     public String generateOtp() {
-        return String.format("%06d", ThreadLocalRandom.current().nextInt(0, 1_000_000));
+        SecureRandom random = new SecureRandom();
+        int number = random.nextInt(999999);
+        return String.format("%06d", number);
     }
 }
