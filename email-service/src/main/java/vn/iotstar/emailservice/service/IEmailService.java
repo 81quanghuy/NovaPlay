@@ -1,29 +1,15 @@
 package vn.iotstar.emailservice.service;
 
 
-import jakarta.mail.MessagingException;
-import jakarta.validation.Valid;
-import org.springframework.http.ResponseEntity;
-import vn.iotstar.emailservice.model.dto.EmailDTO;
-import vn.iotstar.utils.constants.GenericResponse;
-import vn.iotstar.utils.dto.EmailRequest;
-
-import java.io.UnsupportedEncodingException;
-
 public interface IEmailService {
 
     /**
-     * Sends an OTP to the specified email address.
+     * Sends an email with the specified parameters.
      *
-     * @param emailRequest the request containing the email address and other details
+     * @param email      The recipient's email address.
+     * @param otp        The subject of the email.
+     * @param expire     The body content of the email.
+     * @param locale     The locale for the email content.
      */
-    void sendOTP(EmailRequest emailRequest)
-            throws MessagingException, UnsupportedEncodingException;
-    /**
-     * Verifies the OTP for the given email address.
-     *
-     * @param emailDTO the DTO containing the email address, OTP, and expiration time
-     * @return a ResponseEntity containing a GenericResponse with the result of the verification
-     */
-    ResponseEntity<GenericResponse> verifyOTP(@Valid EmailDTO emailDTO);
+    void sendOTP(String email, String otp, String expire, String locale);
 }

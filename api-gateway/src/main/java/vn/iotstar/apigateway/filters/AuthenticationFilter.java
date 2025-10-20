@@ -37,9 +37,11 @@ public class AuthenticationFilter implements GatewayFilter {
         ServerHttpRequest request = exchange.getRequest();
 
         final List<String> apiEndpoints = List.of("/api/v1/auth/register",
-                                                    "/api/v1/auth/login",
-                                                    "/api/v1/auth/refresh-token");
-
+                "/api/v1/auth/login",
+                "/api/v1/auth/refresh-token",
+                "/api/v1/auth/verify-otp",
+                "/api/v1/auth/forgot-password",
+                "/api/v1/auth/reset-password");
         Predicate<ServerHttpRequest> isApiSecured = r -> apiEndpoints.stream()
                 .noneMatch(uri -> r.getURI().getPath().contains(uri));
 

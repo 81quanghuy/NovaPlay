@@ -22,8 +22,7 @@ import org.springframework.context.annotation.Configuration;
 @OpenAPIDefinition
 public class OpenApiConfig {
 
-    // English: Server URLs, configurable via application.yml
-    // Tiếng Việt: Các URL của server, có thể override qua application.yml
+    // Server URLs, configurable via application.yml
     @Value("${openapi.server-url.local:http://localhost:8081}")
     private String localServer;
 
@@ -72,8 +71,7 @@ public class OpenApiConfig {
     }
 
     /**
-     * English: Groups all authentication-related endpoints.
-     * Tiếng Việt: Gom nhóm tất cả các endpoint liên quan đến xác thực.
+     * Groups all authentication-related endpoints.
      */
     @Bean
     public GroupedOpenApi authApi() {

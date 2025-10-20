@@ -19,5 +19,8 @@ public record UserCreationRequest(
         @Schema(description = "Mật khẩu", example = "yourStrongPassword123")
         @NotBlank(message = "Mật khẩu không được để trống")
         @Size(min = 8, message = "Mật khẩu phải có ít nhất 8 ký tự")
-        String password
+        String password,
+
+        @Schema(description = "Ngôn ngữ của người dùng", example = "en")
+        String locale
 ) {}

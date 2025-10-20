@@ -93,7 +93,19 @@ public class RouteConfig {
                     .uri(LB + serviceName)
             );
         }
-
+        for (String serviceName : services.keySet()) {
+            String shortName = serviceName.replace("-service", "");
+            routes.route(serviceName + "-swagger", r -> r
+                    // 1. Lắng nghe trên path mà Swagger UI sẽ gọi
+                    .path("/swagger/" + shortName + "/v3/api-docs")
+                    .filters(f -> f
+                            // 2. Viết lại path trước khi chuyển đến microservice
+                            .rewritePath("/swagger/" + shortName + "/(?<segment>.*)", "/${segment}")
+                    )
+                    // 3. Chuyển tiếp đến microservice tương ứng
+                    .uri(LB + serviceName)
+            );
+        }
         return routes.build();
     }
 

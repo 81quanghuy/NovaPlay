@@ -2,9 +2,6 @@ package vn.iotstar.authservice.service.impl;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -20,37 +17,34 @@ import vn.iotstar.authservice.model.entity.Token;
 import vn.iotstar.authservice.model.entity.User;
 import vn.iotstar.authservice.repository.RoleRepository;
 import vn.iotstar.authservice.repository.UserRepository;
-import vn.iotstar.authservice.service.IAuthService;
-import vn.iotstar.authservice.service.IJwtService;
-import vn.iotstar.authservice.service.IRecaptchaService;
-import vn.iotstar.authservice.service.ITokenService;
+import vn.iotstar.authservice.service.AuthService;
+import vn.iotstar.authservice.service.JwtService;
+import vn.iotstar.authservice.service.OtpService;
+import vn.iotstar.authservice.service.TokenService;
 import vn.iotstar.authservice.util.RoleName;
 import vn.iotstar.authservice.util.TopicName;
-import vn.iotstar.utils.constants.GenericResponse;
-import vn.iotstar.utils.dto.EmailRequest;
+import vn.iotstar.utils.dto.UserRegister;
 import vn.iotstar.utils.exceptions.wrapper.BadRequestException;
 import vn.iotstar.utils.exceptions.wrapper.UserAlreadyExistsException;
 
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.TimeUnit;
+import java.util.UUID;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class AuthServiceImpl implements IAuthService {
+public class AuthServiceImpl implements AuthService {
 
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private final AuthenticationManager authenticationManager;
     private final PasswordEncoder passwordEncoder;
-    private final IJwtService jwtService;
-    private final ITokenService tokenService;
+    private final JwtService jwtService;
+    private final TokenService tokenService;
     private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final OtpService otpService;
 
-    private final RedisTemplate<String, Object> redisTemplate;
-    private final IRecaptchaService recaptchaService;
-    private static final int MAX_ATTEMPTS = 3;
     @Override
     @Transactional
     public UserResponse register(UserCreationRequest request) {
@@ -67,12 +61,6 @@ public class AuthServiceImpl implements IAuthService {
         newUser.setRoles(Set.of(userRole));
 
         User savedUser = userRepository.save(newUser);
-        EmailRequest emailRequest = new EmailRequest(
-                   newUser.getEmail(),
-                    null,
-                    null);
-        kafkaTemplate.send(TopicName.USER_REGISTERED, emailRequest);
-
         return UserMapper.toUserResponse(savedUser);
     }
 
@@ -126,51 +114,19 @@ public class AuthServiceImpl implements IAuthService {
     }
 
     @Override
-    public ResponseEntity<GenericResponse> forgotPassword(EmailRequest emailRequest) {
-        log.info("Sending OTP for user: {}", emailRequest.recipientEmail());
-        if (!userRepository.existsByEmail(emailRequest.recipientEmail())) {
-            throw new BadRequestException("Email not found");
-        }
-        String cooldownKey = "otp_cooldown:" + emailRequest.recipientEmail();
-        String attemptKey = "otp_attempts:" + emailRequest.clientIp();
-
-        if (Boolean.TRUE.equals(redisTemplate.hasKey(cooldownKey))) {
-            Long ttl = redisTemplate.getExpire(cooldownKey, TimeUnit.SECONDS);
-            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
-                    .body(GenericResponse.builder()
-                            .success(false)
-                            .message(String.format("Vui lòng đợi %d giây nữa.", ttl))
-                            .build());
-        }
-
-        Integer attempts = (Integer) redisTemplate.opsForValue().get(attemptKey);
-        if (attempts == null) {
-            attempts = 0;
-        }
-
-        if (attempts >= MAX_ATTEMPTS) {
-            boolean isCaptchaValid = recaptchaService.validateCaptcha(emailRequest.captchaResponse(), emailRequest.clientIp());
-            if (!isCaptchaValid) {
-                return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                        .body(GenericResponse.builder()
-                                .success(false)
-                                .message("Captcha không hợp lệ. Vui lòng thử lại.")
-                                .build());
-            }
-        }
-        redisTemplate.opsForValue().increment(attemptKey);
-        if (attempts == 0) {
-            redisTemplate.expire(attemptKey, 1, TimeUnit.HOURS);
-        }
-        redisTemplate.opsForValue().set(cooldownKey, true, 60, TimeUnit.SECONDS);
-        kafkaTemplate.send(TopicName.FORGOT_PASSWORD,emailRequest);
-        return ResponseEntity.ok(GenericResponse.builder()
-                .success(true)
-                .message("OTP đã được gửi đến email của bạn.")
-                .build());
+    public void forgotPassword(EmailRequest emailRequest, String correlationId) {
+        log.info("Processing forgot password for email: {}", emailRequest.email());
+        User user = userRepository.findByEmail(emailRequest.email())
+                .orElseThrow(() -> new BadRequestException("Email not found"));
+        otpService.generateAndDispatch(
+                String.valueOf(user.getId()),
+                user.getEmail(),
+                emailRequest.locale(),
+                correlationId);
     }
 
     @Override
+    @Transactional
     public void resetPassword(ResetPasswordRequest resetPasswordRequest) {
         log.info("Resetting password for user: {}", resetPasswordRequest.email());
         User user = userRepository.findByEmail(resetPasswordRequest.email())
@@ -185,6 +141,7 @@ public class AuthServiceImpl implements IAuthService {
     }
 
     @Override
+    @Transactional
     public void changePassword(ChangePasswordRequest changePasswordRequest, String subject) {
         log.info("Changing password for user: {}", subject);
         User user = userRepository.findByEmail(subject)
@@ -203,12 +160,18 @@ public class AuthServiceImpl implements IAuthService {
     }
 
     @Override
-    public void verifyEmail(String email) {
-        log.info("Verifying email for user: {}", email);
+    @Transactional
+    public void activateAccount(String email) {
+        log.info("Activating account for email: {}", email);
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new BadRequestException("Email not found"));
+                .orElseThrow(() -> new BadRequestException("User not found"));
         user.setIsEmailVerified(true);
         userRepository.save(user);
+        UserRegister userRegister = new UserRegister(
+                user.getUsername(),
+                user.getEmail()
+        );
+        kafkaTemplate.send(TopicName.ACTIVATE_ACCOUNT, userRegister);
     }
 
 }
