@@ -2,6 +2,11 @@ package vn.iotstar.apigateway.constants;
 
 public class GateWayConstants {
 
+    // Private constructor to prevent instantiation
+    private GateWayConstants() {
+        throw new UnsupportedOperationException("This is a utility class and cannot be instantiated");
+    }
+
     // Prefix for all API endpoints
     public static final String API_V1 = "/api/v1/";
 

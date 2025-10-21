@@ -18,7 +18,6 @@ spring:
   kafka:
     bootstrap-servers: localhost:9092
 
-debug: true
 management:
   endpoints:
     web:
