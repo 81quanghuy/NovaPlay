@@ -97,16 +97,16 @@ flowchart TD
     subgraph Data
         POSTGRES[(PostgreSQL)]
         MONGO[(MongoDB)]
-        MYSQL[(MySQL)]
-        REDIS[(Redis)]
     end
-    USER --> MongoDB
+    USER --> MONGO
     AUTH --> POSTGRES
     MOVIE --> POSTGRES
     PAYMENT --> POSTGRES
     PROMO --> POSTGRES
-    NOTIF --> MongoDB
-    MEDIA --> MongoDB/AWS S3
+    NOTIF --> MONGO
+    MEDIA --> MONGO
+    REPORT--> MONGO
+    STREAM --> MONGO
 
     subgraph Config
         CONFIG(Config Server)
