@@ -1,4 +1,4 @@
-package vn.iotstar.mediaservice.util;
+package vn.iotstar.utils.audit;
 
 import lombok.Getter;
 import lombok.Setter;

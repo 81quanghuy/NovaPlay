@@ -23,8 +23,8 @@ import java.util.Objects;
 
 import static vn.iotstar.apigateway.constants.GateWayConstants.*;
 
-@Configuration
 @RequiredArgsConstructor
+@Configuration
 public class RouteConfig {
 
     private final AuthenticationFilter authFilter;
