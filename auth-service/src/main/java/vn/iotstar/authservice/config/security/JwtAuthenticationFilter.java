@@ -8,8 +8,6 @@ import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -22,7 +20,6 @@ import java.io.IOException;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
-    private final UserDetailsService userDetailsService;
 
     @Override
     protected void doFilterInternal(
@@ -39,24 +36,34 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         final String jwt = authHeader.substring(7);
-        final String userEmail = jwtService.extractEmail(jwt);
+        try {
+            final String userEmail = jwtService.extractEmail(jwt);
 
-        // Chỉ thực hiện nếu có email và người dùng chưa được xác thực
-        if (userEmail != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-            UserDetails userDetails = this.userDetailsService.loadUserByUsername(userEmail);
+            if (userEmail != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+                if (jwtService.isTokenValid(jwt)) {
+                    // Stateless parsing: Build authorities from token directly
+                    java.util.List<String> roles = jwtService.extractRoles(jwt);
+                    java.util.List<org.springframework.security.core.authority.SimpleGrantedAuthority> authorities =
+                            roles == null ? java.util.Collections.emptyList() :
+                                    roles.stream()
+                                            .map(org.springframework.security.core.authority.SimpleGrantedAuthority::new)
+                                            .collect(java.util.stream.Collectors.toList());
 
-            if (jwtService.isTokenValid(jwt)) {
-                // Tạo đối tượng xác thực
-                UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
-                        userDetails,
-                        null,
-                        userDetails.getAuthorities()
-                );
-                authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                    // Create partial User to act as the Principal without hitting DB
+                    vn.iotstar.authservice.model.entity.User userDetails = new vn.iotstar.authservice.model.entity.User();
+                    userDetails.setEmail(userEmail);
 
-                // Đặt vào SecurityContextHolder
-                SecurityContextHolder.getContext().setAuthentication(authToken);
+                    UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
+                            userDetails,
+                            null,
+                            authorities
+                    );
+                    authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                    SecurityContextHolder.getContext().setAuthentication(authToken);
+                }
             }
+        } catch (Exception e) {
+            // Invalid JWT token, do nothing and let it hit unauthorized if it reaches secured endpoints
         }
         filterChain.doFilter(request, response);
     }

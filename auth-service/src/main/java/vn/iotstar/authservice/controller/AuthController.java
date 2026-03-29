@@ -11,12 +11,13 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.oauth2.jwt.Jwt;
+
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import vn.iotstar.authservice.model.dto.*;
+import vn.iotstar.authservice.model.entity.User;
 import vn.iotstar.authservice.service.AuthService;
 import vn.iotstar.authservice.service.OtpService;
 import vn.iotstar.utils.constants.GenericResponse;
@@ -32,7 +33,7 @@ public class AuthController {
 
     @Operation(summary = "Register a new user account")
     @PostMapping("/register")
-    public ResponseEntity<UserResponse> register(@RequestBody UserCreationRequest request) {
+    public ResponseEntity<UserResponse> register(@Valid @RequestBody UserCreationRequest request) {
         UserResponse registeredUser = authService.register(request);
         otpService.generateAndDispatch(registeredUser.id(), registeredUser.email(), request.locale(), MDC.get("traceId"));
         return new ResponseEntity<>(registeredUser, HttpStatus.CREATED);
@@ -57,8 +58,17 @@ public class AuthController {
                 .message("OTP verified successfully")
                 .result(null)
                 .build());
+    }    @Operation(summary = "Resend OTP for account activation",
+            description = "Resends the OTP to the user's email if they haven't verified it yet.")
+    @PostMapping("/resend-registration-otp")
+    public ResponseEntity<GenericResponse> resendRegistrationOtp(@RequestBody EmailRequest emailRequest) {
+        authService.resendRegistrationOtp(emailRequest, MDC.get("traceId"));
+        return ResponseEntity.ok(GenericResponse.builder()
+                .success(true)
+                .message("OTP resent successfully. Please check your email.")
+                .result(null)
+                .build());
     }
-
 
 
     @Operation(summary = "Authenticate a user and get tokens")
@@ -86,8 +96,8 @@ public class AuthController {
     @PostMapping(value = "/logout", consumes = MediaType.APPLICATION_JSON_VALUE)
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Void> logout(@Valid @RequestBody RefreshTokenRequest request,
-                                       @AuthenticationPrincipal Jwt jwt) {
-        authService.logout(request.refreshToken(), jwt.getSubject());
+                                       @AuthenticationPrincipal User user) {
+        authService.logout(request.refreshToken(), user.getEmail());
         return ResponseEntity.noContent().build();
     }
 
@@ -119,8 +129,8 @@ public class AuthController {
     @PostMapping("/change-password")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<GenericResponse> changePassword(@Valid @RequestBody ChangePasswordRequest changePasswordRequest,
-                                                           @AuthenticationPrincipal Jwt jwt) {
-        authService.changePassword(changePasswordRequest, jwt.getSubject());
+                                                           @AuthenticationPrincipal User user) {
+        authService.changePassword(changePasswordRequest, user.getEmail());
         return ResponseEntity.ok(new GenericResponse(true,
                 "Password changed successfully",
                 null,

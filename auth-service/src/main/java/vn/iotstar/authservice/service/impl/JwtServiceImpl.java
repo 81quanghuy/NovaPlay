@@ -57,12 +57,27 @@ public class JwtServiceImpl implements JwtService {
 
     @Override
     public boolean isTokenValid(String token) {
-        Date expiration = Jwts.parserBuilder()
+        try {
+            Date expiration = Jwts.parserBuilder()
+                    .setSigningKey(rsaPrivateKey)
+                    .build()
+                    .parseClaimsJws(token)
+                    .getBody()
+                    .getExpiration();
+            return !expiration.before(new Date());
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    @Override
+    public java.util.List<String> extractRoles(String token) {
+        return (java.util.List<String>) Jwts.parserBuilder()
                 .setSigningKey(rsaPrivateKey)
                 .build()
                 .parseClaimsJws(token)
                 .getBody()
-                .getExpiration();
-        return expiration.before(new Date());
+                .get("roles", java.util.List.class);
     }
 }

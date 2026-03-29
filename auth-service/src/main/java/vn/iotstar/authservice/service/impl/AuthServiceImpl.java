@@ -29,7 +29,6 @@ import vn.iotstar.utils.exceptions.wrapper.UserAlreadyExistsException;
 
 import java.util.Optional;
 import java.util.Set;
-import java.util.UUID;
 
 @Slf4j
 @Service
@@ -48,7 +47,7 @@ public class AuthServiceImpl implements AuthService {
     @Override
     @Transactional
     public UserResponse register(UserCreationRequest request) {
-        log.info("Registering user: {}", request);
+        log.info("Registering user: email={}, username={}", request.email(), request.username());
         if (userRepository.existsByEmailOrUsername(request.email(),request.username())) {
             throw new UserAlreadyExistsException("Username hoặc email đã tồn tại");
         }
@@ -105,7 +104,7 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public AuthResponse processOAuth2Login(String providerName, String code) {
-        return null;
+        throw new UnsupportedOperationException("OAuth2 login is not yet implemented for provider: " + providerName);
     }
 
     @Override
@@ -132,7 +131,18 @@ public class AuthServiceImpl implements AuthService {
         User user = userRepository.findByEmail(resetPasswordRequest.email())
                 .orElseThrow(() -> new BadRequestException("Email not found"));
 
-        if(!resetPasswordRequest.newPassword().equals(user.getPassword())) {
+        // BUG-02 fix: Verify OTP before allowing password reset
+        if (!otpService.verify(resetPasswordRequest.email(), resetPasswordRequest.otp())) {
+            throw new BadRequestException("Invalid or expired OTP");
+        }
+
+        // BUG-03 fix: Check confirmNewPassword matches newPassword
+        if (!resetPasswordRequest.newPassword().equals(resetPasswordRequest.confirmNewPassword())) {
+            throw new BadRequestException("New password and confirmation do not match");
+        }
+
+        // BUG-01 fix: Use passwordEncoder.matches() instead of equals()
+        if (passwordEncoder.matches(resetPasswordRequest.newPassword(), user.getPassword())) {
             throw new BadRequestException("New password cannot be the same as the old password");
         }
 
@@ -174,4 +184,20 @@ public class AuthServiceImpl implements AuthService {
         kafkaTemplate.send(TopicName.ACTIVATE_ACCOUNT, userRegister);
     }
 
+    @Override
+    public void resendRegistrationOtp(EmailRequest emailRequest, String correlationId) {
+        log.info("Processing resend registration OTP for email: {}", emailRequest.email());
+        User user = userRepository.findByEmail(emailRequest.email())
+                .orElseThrow(() -> new BadRequestException("Email not found"));
+
+        if (Boolean.TRUE.equals(user.getIsEmailVerified())) {
+            throw new BadRequestException("Account is already verified");
+        }
+
+        otpService.generateAndDispatch(
+                String.valueOf(user.getId()),
+                user.getEmail(),
+                emailRequest.locale(),
+                correlationId);
+    }
 }

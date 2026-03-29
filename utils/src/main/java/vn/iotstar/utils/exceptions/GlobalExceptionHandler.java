@@ -96,6 +96,19 @@ public class GlobalExceptionHandler {
                         .build(), forbidden);
     }
 
+    @ExceptionHandler(value = {org.springframework.security.access.AccessDeniedException.class})
+    public ResponseEntity<GenericResponse> handleAccessDeniedException(final org.springframework.security.access.AccessDeniedException e) {
+        log.warn("Access denied: {}", e.getMessage());
+        final var forbidden = HttpStatus.FORBIDDEN;
+
+        return new ResponseEntity<>(
+                GenericResponse.builder()
+                        .success(false)
+                        .message(e.getMessage())
+                        .statusCode(forbidden.value())
+                        .build(), forbidden);
+    }
+
     @ExceptionHandler(value = {
             NullPointerException.class,
             Exception.class,

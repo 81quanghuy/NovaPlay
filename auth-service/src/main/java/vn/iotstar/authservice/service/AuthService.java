@@ -67,4 +67,9 @@ public interface AuthService {
      * @param email The email address associated with the account to be activated.
      */
     void activateAccount(String email);
+
+    /**
+     * Resends the registration OTP if the user hasn't verified their account yet.
+     */
+    void resendRegistrationOtp(@Valid EmailRequest emailRequest, String correlationId);
 }

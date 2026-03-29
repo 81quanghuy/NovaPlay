@@ -53,9 +53,7 @@ public class TokenServiceImpl implements TokenService {
                     if (!subject.equals(rt.getUser().getEmail())) {
                         throw new AccessDeniedException("Refresh token does not belong to current user");
                     }
-                    if (Boolean.TRUE.equals(!rt.getIsRevoked()) && rt.getExpiredAt().isAfter(Instant.now())) {
-                        revokeToken(rt);
-                    }
+                    revokeToken(rt);
                 });
     }
 

@@ -22,7 +22,6 @@ import org.springframework.context.annotation.Configuration;
 @OpenAPIDefinition
 public class OpenApiConfig {
 
-    // Server URLs, configurable via application.yml
     @Value("${openapi.server-url.local:http://localhost:8081}")
     private String localServer;
 

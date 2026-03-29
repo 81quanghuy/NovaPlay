@@ -63,28 +63,27 @@ services:
     restart: always
 
   kafka-services:
-    image: docker.io/bitnami/kafka:${KAFKA_VERSION:-3.9}
+    image: apache/kafka:${KAFKA_VERSION:-latest}
     container_name: kafka-services
     ports: ["9092:9092"]
-    volumes: ["kafka_services_data:/bitnami"]
+    volumes: ["kafka_services_data:/tmp/kraft-combined-logs"]
     networks: [novaPLay]
     environment:
-      - KAFKA_CFG_NODE_ID=1
-      - KAFKA_CFG_PROCESS_ROLES=broker,controller
-      - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092,PLAINTEXT_INTERNAL://:29092,CONTROLLER://:9095
-      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://localhost:9092,PLAINTEXT_INTERNAL://kafka-services:29092
-      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=PLAINTEXT:PLAINTEXT,PLAINTEXT_INTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT
-      - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
-      - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=1@kafka-services:9095
-      - KAFKA_CFG_INTER_BROKER_LISTENER_NAME=PLAINTEXT_INTERNAL
-      - KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE=true
-      - KAFKA_CFG_OFFSETS_TOPIC_REPLICATION_FACTOR=1
-      - KAFKA_CFG_TRANSACTION_STATE_LOG_REPLICATION_FACTOR=1
-      - KAFKA_CFG_TRANSACTION_STATE_LOG_MIN_ISR=1
-      - ALLOW_PLAINTEXT_LISTENER=yes
+      - KAFKA_NODE_ID=1
+      - KAFKA_PROCESS_ROLES=broker,controller
+      - KAFKA_LISTENERS=PLAINTEXT://:9092,PLAINTEXT_INTERNAL://:29092,CONTROLLER://:9095
+      - KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://localhost:9092,PLAINTEXT_INTERNAL://kafka-services:29092
+      - KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=PLAINTEXT:PLAINTEXT,PLAINTEXT_INTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT
+      - KAFKA_CONTROLLER_LISTENER_NAMES=CONTROLLER
+      - KAFKA_CONTROLLER_QUORUM_VOTERS=1@kafka-services:9095
+      - KAFKA_INTER_BROKER_LISTENER_NAME=PLAINTEXT_INTERNAL
+      - KAFKA_AUTO_CREATE_TOPICS_ENABLE=true
+      - KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1
+      - KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR=1
+      - KAFKA_TRANSACTION_STATE_LOG_MIN_ISR=1
 
   kafka-ui:
-    image: provectuslabs/kafka-ui:v0.7.2
+    image: provectuslabs/kafka-ui:latest
     container_name: kafka-ui
     depends_on: [kafka-services]
     networks: [novaPLay]           # phải cùng network với kafka-services
@@ -184,58 +183,58 @@ services:
   # ===================================================================
   # APPLICATION SERVICES
   # ===================================================================
-  cloud-config:
-    image: "novaplay/cloudconfig:${CLOUD_CONFIG_VERSION:-v1.0.0}"
-    container_name: cloud-config-service
-    <<: *microservice-base
-    ports: ["8888:8888"]
-    environment:
-      PORT: 8888
-      SPRING_APPLICATION_NAME: "cloud-config"
-      OTEL_SERVICE_NAME: "cloud-config"
+#  cloud-config:
+#    image: "novaplay/cloudconfig:${CLOUD_CONFIG_VERSION:-v1.0.0}"
+#    container_name: cloud-config-service
+#    <<: *microservice-base
+#    ports: ["8888:8888"]
+#    environment:
+#      PORT: 8888
+#      SPRING_APPLICATION_NAME: "cloud-config"
+#      OTEL_SERVICE_NAME: "cloud-config"
 
-  discovery-server:
-    image: "novaplay/discoveryserver:${DISCOVERY_SERVER_VERSION:-v1.0.0}"
-    container_name: discovery-server
-    <<: *microservice-base
-    ports: ["8761:8761"]
-    depends_on:
-      cloud-config: { condition: service_healthy }
-    environment:
-      PORT: 8761
-      SPRING_APPLICATION_NAME: "discovery-server"
-      OTEL_SERVICE_NAME: "discovery-server"
+#  discovery-server:
+#    image: "novaplay/discoveryserver:${DISCOVERY_SERVER_VERSION:-v1.0.0}"
+#    container_name: discovery-server
+#    <<: *microservice-base
+#    ports: ["8761:8761"]
+#    depends_on:
+#      cloud-config: { condition: service_healthy }
+#    environment:
+#      PORT: 8761
+#      SPRING_APPLICATION_NAME: "discovery-server"
+#      OTEL_SERVICE_NAME: "discovery-server"
 
-  user-service:
-    image: "novaplay/userservice:${USER_SERVICE_VERSION:-v1.0.0}"
-    container_name: user-service
-    <<: *microservice-base
-    ports: ["8700:8700"]
-    secrets: [db_user, db_password, db_name]
-    depends_on:
-      discovery-server: { condition: service_healthy }
-      postgres: { condition: service_healthy }
-    environment:
-      PORT: 8700
-      SPRING_DATASOURCE_USERNAME_FILE: /run/secrets/db_user
-      SPRING_DATASOURCE_PASSWORD_FILE: /run/secrets/db_password
-      DB_NAME_FILE: /run/secrets/db_name
-      DB_HOST: postgres
-      SPRING_APPLICATION_NAME: "user-service"
-      OTEL_SERVICE_NAME: "user-service"
+#  user-service:
+#    image: "novaplay/userservice:${USER_SERVICE_VERSION:-v1.0.0}"
+#    container_name: user-service
+#    <<: *microservice-base
+#    ports: ["8700:8700"]
+#    secrets: [db_user, db_password, db_name]
+#    depends_on:
+#      discovery-server: { condition: service_healthy }
+#      postgres: { condition: service_healthy }
+#    environment:
+#      PORT: 8700
+#      SPRING_DATASOURCE_USERNAME_FILE: /run/secrets/db_user
+#      SPRING_DATASOURCE_PASSWORD_FILE: /run/secrets/db_password
+#      DB_NAME_FILE: /run/secrets/db_name
+#      DB_HOST: postgres
+#      SPRING_APPLICATION_NAME: "user-service"
+#      OTEL_SERVICE_NAME: "user-service"
 
-  api-gateway:
-    image: "novaplay/apigateway:${API_GATEWAY_VERSION:-v1.0.0}"
-    container_name: api-gateway
-    <<: *microservice-base
-    ports: ["8072:8072"]
-    depends_on:
-      discovery-server: { condition: service_healthy }
-      user-service: { condition: service_healthy }
-    environment:
-      PORT: 8072
-      SPRING_APPLICATION_NAME: "api-gateway"
-      OTEL_SERVICE_NAME: "api-gateway"
+#  api-gateway:
+#    image: "novaplay/apigateway:${API_GATEWAY_VERSION:-v1.0.0}"
+#    container_name: api-gateway
+#    <<: *microservice-base
+#    ports: ["8072:8072"]
+#    depends_on:
+#      discovery-server: { condition: service_healthy }
+#      user-service: { condition: service_healthy }
+#    environment:
+#      PORT: 8072
+#      SPRING_APPLICATION_NAME: "api-gateway"
+#      OTEL_SERVICE_NAME: "api-gateway"
 
 # ===================================================================
 # TOP-LEVEL DEFINITIONS

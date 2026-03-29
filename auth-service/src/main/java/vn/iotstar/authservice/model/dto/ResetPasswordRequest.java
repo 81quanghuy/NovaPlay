@@ -8,20 +8,26 @@ import jakarta.validation.constraints.NotBlank;
         description = "Request to reset a user's password. This request does not require any fields as it is used to initiate the password reset process.")
 public record ResetPasswordRequest(
         @Schema(
-                description = "Email address of the user requesting the password reset. This is used to send the reset link.",
+                description = "Email address of the user requesting the password reset.",
                 example = "huy@gmail.com")
                 @Email(message = "Email should be valid")
         String email,
+
         @Schema(
-                description = "new password to set for the user. This is required to complete the password reset process.",
+                description = "OTP sent to the user's email for verification.",
+                example = "123456")
+                @NotBlank(message = "OTP must not be blank")
+        String otp,
+
+        @Schema(
+                description = "New password to set for the user.",
                 example = "newPassword123")
                 @NotBlank(message = "New password must not be blank")
         String newPassword,
 
         @Schema(
-                description = "Confirmation of the new password. This should match the new password to confirm the reset.",
-                example = "newPassword123"
-        )
+                description = "Confirmation of the new password. Must match newPassword.",
+                example = "newPassword123")
                 @NotBlank(message = "Confirm new password must not be blank")
         String confirmNewPassword
 ) {
