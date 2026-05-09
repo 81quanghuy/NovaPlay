@@ -7,8 +7,8 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import vn.iotstar.authservice.service.OtpService;
+import vn.iotstar.authservice.service.RateLimiterService;
 import vn.iotstar.authservice.util.TopicName;
-import vn.iotstar.utils.exceptions.wrapper.TooManyRequestsException;
 import vn.iotstar.utils.dto.EmailOtpRequested;
 
 import java.security.SecureRandom;
@@ -23,24 +23,22 @@ public class OtpServiceImpl implements OtpService {
     private final StringRedisTemplate redis;
     private final PasswordEncoder passwordEncoder;
     private final KafkaTemplate<String, Object> kafka;
+    private final RateLimiterService rateLimiterService;
 
     private static final Duration OTP_TTL = Duration.ofMinutes(5);
     private static final int MAX_SEND_PER_HOUR = 5;
+    private static final int MAX_VERIFY_ATTEMPTS = 10;
+    private static final Duration VERIFY_WINDOW = Duration.ofMinutes(15);
 
-    private String otpKey(String email)        { return "otp:" + email; }
-    private String sendCntKey(String email)     { return "otp:send:cnt:" + email.toLowerCase(); }
+    private String otpKey(String email)         { return "otp:" + email; }
+    private String sendCntKey(String email)      { return "otp:send:cnt:" + email.toLowerCase(); }
+    private String verifyCntKey(String email)    { return "auth:otp:verify:" + email.toLowerCase(); }
 
     @Override
     public void generateAndDispatch(String userId, String email, String locale, String correlationId) {
-        // Rate limiting: max 5 emails per hour
-        Long c = redis.opsForValue().increment(sendCntKey(email));
-        if (c != null && c == 1L) redis.expire(sendCntKey(email), Duration.ofHours(1));
-        if (c != null && c > MAX_SEND_PER_HOUR) {
-            throw new TooManyRequestsException("OTP send limit exceeded. Please try again later.");
-        }
-        String otp = generateOtp();
+        rateLimiterService.checkAndIncrement(sendCntKey(email), MAX_SEND_PER_HOUR, Duration.ofHours(1));
 
-        // Store hashed OTP in Redis with TTL
+        String otp = generateOtp();
         String hash = passwordEncoder.encode(otp);
         redis.opsForValue().set(otpKey(email), hash, OTP_TTL);
 
@@ -54,6 +52,8 @@ public class OtpServiceImpl implements OtpService {
 
     @Override
     public boolean verify(String email, String inputOtp) {
+        rateLimiterService.checkAndIncrement(verifyCntKey(email), MAX_VERIFY_ATTEMPTS, VERIFY_WINDOW);
+
         String key = otpKey(email);
         String storedHash = redis.opsForValue().get(key);
         if (storedHash == null) return false;
@@ -61,6 +61,7 @@ public class OtpServiceImpl implements OtpService {
         boolean ok = passwordEncoder.matches(inputOtp, storedHash);
         if (ok) {
             redis.delete(key);
+            rateLimiterService.reset(verifyCntKey(email));
         }
         return ok;
     }

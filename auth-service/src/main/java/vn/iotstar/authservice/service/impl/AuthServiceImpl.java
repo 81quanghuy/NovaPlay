@@ -23,6 +23,7 @@ import vn.iotstar.authservice.repository.UserRepository;
 import vn.iotstar.authservice.service.AuthService;
 import vn.iotstar.authservice.service.JwtService;
 import vn.iotstar.authservice.service.OtpService;
+import vn.iotstar.authservice.service.RateLimiterService;
 import vn.iotstar.authservice.service.TokenService;
 import vn.iotstar.authservice.util.RoleName;
 import vn.iotstar.authservice.util.TopicName;
@@ -32,6 +33,7 @@ import vn.iotstar.utils.exceptions.wrapper.ForbiddenException;
 import vn.iotstar.utils.exceptions.wrapper.ResourceNotFoundException;
 import vn.iotstar.utils.exceptions.wrapper.UserAlreadyExistsException;
 
+import java.time.Duration;
 import java.util.Optional;
 import java.util.Set;
 
@@ -48,6 +50,10 @@ public class AuthServiceImpl implements AuthService {
     private final TokenService tokenService;
     private final KafkaTemplate<String, Object> kafkaTemplate;
     private final OtpService otpService;
+    private final RateLimiterService rateLimiterService;
+
+    private static final int LOGIN_MAX_ATTEMPTS = 5;
+    private static final Duration LOGIN_WINDOW = Duration.ofMinutes(15);
 
     @Override
     @Transactional
@@ -71,6 +77,9 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public AuthResponse login(LoginRequest request) {
         log.info("Processing login for user: {}", request.emailOrUsername());
+        String rateLimitKey = "auth:login:fail:" + request.emailOrUsername().toLowerCase();
+        rateLimiterService.checkAndIncrement(rateLimitKey, LOGIN_MAX_ATTEMPTS, LOGIN_WINDOW);
+
         Authentication authentication;
         try {
             authentication = authenticationManager.authenticate(
@@ -83,6 +92,7 @@ public class AuthServiceImpl implements AuthService {
         } catch (BadCredentialsException e) {
             throw new BadRequestException("Invalid credentials");
         }
+        rateLimiterService.reset(rateLimitKey);
         SecurityContextHolder.getContext().setAuthentication(authentication);
         User user = (User) authentication.getPrincipal();
 
