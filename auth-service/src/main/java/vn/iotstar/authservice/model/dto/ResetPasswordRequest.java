@@ -3,6 +3,7 @@ package vn.iotstar.authservice.model.dto;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import vn.iotstar.authservice.util.validation.StrongPassword;
 
 @Schema(
         description = "Request to reset a user's password. This request does not require any fields as it is used to initiate the password reset process.")
@@ -23,6 +24,7 @@ public record ResetPasswordRequest(
                 description = "New password to set for the user.",
                 example = "newPassword123")
                 @NotBlank(message = "New password must not be blank")
+                @StrongPassword
         String newPassword,
 
         @Schema(

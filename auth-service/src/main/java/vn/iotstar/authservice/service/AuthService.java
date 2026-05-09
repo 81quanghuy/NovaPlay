@@ -27,14 +27,6 @@ public interface AuthService {
     AuthResponse refreshToken(String refreshTokenValue);
 
     /**
-     * Processes an OAuth2 login flow.
-     * @param providerName The name of the provider (e.g., 'google').
-     * @param code The authorization code from the provider.
-     * @return an AuthResponse containing the Access and Refresh Tokens.
-     */
-    AuthResponse processOAuth2Login(String providerName, String code);
-
-    /**
      * Handles the logout process by revoking the refresh token.
      * @param subject The subject of the access token, typically the user ID or username.
      * @param refreshTokenValue The refresh token to be revoked.

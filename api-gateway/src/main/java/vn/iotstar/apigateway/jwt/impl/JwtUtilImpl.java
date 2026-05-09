@@ -5,6 +5,7 @@ import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 import vn.iotstar.apigateway.jwt.JwtUtil;
@@ -20,6 +21,12 @@ public class JwtUtilImpl implements JwtUtil {
 
     private final RSAPublicKey publicKey;
 
+    @Value("${auth.jwt.issuer:novaplay-auth}")
+    private String expectedIssuer;
+
+    @Value("${auth.jwt.audience:novaplay}")
+    private String expectedAudience;
+
     @Override
     public String extractUsername(final String token) {
         return this.extractClaims(token, Claims::getSubject);
@@ -30,7 +37,7 @@ public class JwtUtilImpl implements JwtUtil {
         return this.extractClaims(token, Claims::getExpiration);
     }
 
-    private  <T> T extractClaims(final String token, Function<Claims, T> claimsResolver) {
+    private <T> T extractClaims(final String token, Function<Claims, T> claimsResolver) {
         final Claims claims = this.extractAllClaims(token);
         return claimsResolver.apply(claims);
     }
@@ -47,10 +54,24 @@ public class JwtUtilImpl implements JwtUtil {
     @Override
     public Boolean validateToken(final String token) {
         try {
-            Jwts.parserBuilder()
+            Claims claims = Jwts.parserBuilder()
                     .setSigningKey(this.publicKey)
                     .build()
-                    .parseClaimsJws(token);
+                    .parseClaimsJws(token)
+                    .getBody();
+
+            String iss = claims.getIssuer();
+            String aud = claims.getAudience();
+
+            if (!expectedIssuer.equals(iss)) {
+                log.error("JWT issuer mismatch: expected={}, got={}", expectedIssuer, iss);
+                return false;
+            }
+            if (aud == null || !aud.contains(expectedAudience)) {
+                log.error("JWT audience mismatch: expected={}, got={}", expectedAudience, aud);
+                return false;
+            }
+
             return true;
         } catch (JwtException ex) {
             log.error("Invalid JWT token: {}", ex.getMessage());
@@ -65,18 +86,11 @@ public class JwtUtilImpl implements JwtUtil {
         return expiration.before(new Date());
     }
 
-    /**
-     * Validates the token and checks if it belongs to the given user.
-     *
-     * @param token The JWT token.
-     * @param userDetails The user details object from Spring Security.
-     * @return true if the token is valid and belongs to the user.
-     */
     public Boolean validateToken(final String token, final UserDetails userDetails) {
         try {
             final String username = extractUsername(token);
             return (username.equals(userDetails.getUsername()) && !isTokenExpired(token));
-        } catch(Exception e) {
+        } catch (Exception e) {
             return false;
         }
     }

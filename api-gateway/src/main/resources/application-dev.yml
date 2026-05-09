@@ -6,3 +6,9 @@ spring:
 rsa:
   public:
     key-location: classpath:certs/public.pem
+
+auth:
+  jwt:
+    issuer: novaplay-auth
+    audience: novaplay
+    kid: v1

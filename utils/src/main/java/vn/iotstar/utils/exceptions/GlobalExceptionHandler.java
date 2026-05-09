@@ -152,4 +152,17 @@ public class GlobalExceptionHandler {
                         .statusCode(conflict.value())
                         .build(), conflict);
     }
+
+    @ExceptionHandler(value = {TooManyRequestsException.class})
+    public ResponseEntity<GenericResponse> handleTooManyRequestsException(final TooManyRequestsException e) {
+        log.warn("Rate limit exceeded: {}", e.getMessage());
+        final var tooManyRequests = HttpStatus.TOO_MANY_REQUESTS;
+
+        return new ResponseEntity<>(
+                GenericResponse.builder()
+                        .success(false)
+                        .message(e.getMessage())
+                        .statusCode(tooManyRequests.value())
+                        .build(), tooManyRequests);
+    }
 }

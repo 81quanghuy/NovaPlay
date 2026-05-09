@@ -15,13 +15,15 @@ public class RoleMapper {
         if (role == null) {
             return null;
         }
+        var permissions = role.getPermissions();
         return new RoleDTO(
                 role.getId(),
                 role.getRoleName(),
                 role.getDescription(),
-                role.getPermissions().stream()
-                        .map(PermissionMapper::toPermissionDTO)
-                        .collect(Collectors.toSet())
+                permissions == null ? java.util.Set.of() :
+                        permissions.stream()
+                                .map(PermissionMapper::toPermissionDTO)
+                                .collect(Collectors.toSet())
         );
     }
 

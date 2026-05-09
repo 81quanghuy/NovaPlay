@@ -9,17 +9,18 @@ import org.springframework.cloud.context.config.annotation.RefreshScope;
 import org.springframework.cloud.gateway.filter.GatewayFilter;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.core.io.buffer.DataBuffer;
+import org.springframework.data.redis.core.ReactiveStringRedisTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.http.server.reactive.ServerHttpResponse;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
+import vn.iotstar.apigateway.constants.PublicEndpoints;
 import vn.iotstar.apigateway.jwt.JwtUtil;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.function.Predicate;
 
@@ -29,20 +30,17 @@ import java.util.function.Predicate;
 @RequiredArgsConstructor
 public class AuthenticationFilter implements GatewayFilter {
 
+    private static final String BLACKLIST_KEY_PREFIX = "jwt:blacklist:";
+
     private final JwtUtil jwtUtil;
     private final ObjectMapper objectMapper;
+    private final ReactiveStringRedisTemplate redisTemplate;
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
         ServerHttpRequest request = exchange.getRequest();
 
-        final List<String> apiEndpoints = List.of("/api/v1/auth/register",
-                "/api/v1/auth/login",
-                "/api/v1/auth/refresh-token",
-                "/api/v1/auth/verify-otp",
-                "/api/v1/auth/forgot-password",
-                "/api/v1/auth/reset-password");
-        Predicate<ServerHttpRequest> isApiSecured = r -> apiEndpoints.stream()
+        Predicate<ServerHttpRequest> isApiSecured = r -> PublicEndpoints.AUTH.stream()
                 .noneMatch(uri -> r.getURI().getPath().contains(uri));
 
         if (isApiSecured.test(request)) {
@@ -65,6 +63,19 @@ public class AuthenticationFilter implements GatewayFilter {
             } catch (Exception e) {
                 log.error("Error validating token: {}", e.getMessage());
                 return this.onError(exchange, "Token validation error");
+            }
+
+            Claims claims = jwtUtil.extractAllClaims(token);
+            String jti = claims.getId();
+            if (jti != null) {
+                return redisTemplate.hasKey(BLACKLIST_KEY_PREFIX + jti)
+                        .flatMap(blacklisted -> {
+                            if (Boolean.TRUE.equals(blacklisted)) {
+                                return this.onError(exchange, "Token has been revoked");
+                            }
+                            this.populateRequestWithHeaders(exchange, token);
+                            return chain.filter(exchange);
+                        });
             }
 
             this.populateRequestWithHeaders(exchange, token);

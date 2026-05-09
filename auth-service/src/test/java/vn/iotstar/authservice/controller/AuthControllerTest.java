@@ -49,6 +49,9 @@ public class AuthControllerTest {
     @Mock
     private OtpService otpService;
 
+    @Mock
+    private vn.iotstar.authservice.service.JwtService jwtService;
+
     @InjectMocks
     private AuthController authController;
 
@@ -110,7 +113,7 @@ public class AuthControllerTest {
         doNothing().when(authService).changePassword(any(ChangePasswordRequest.class), anyString());
 
         ChangePasswordRequest req = new ChangePasswordRequest(
-                "oldPassword123", "newPassword456", "newPassword456");
+                "OldP@ssw0rd!", "NewP@ssw0rd!", "NewP@ssw0rd!");
 
         mockMvc.perform(post("/api/v1/auth/change-password")
                         .contentType(MediaType.APPLICATION_JSON)

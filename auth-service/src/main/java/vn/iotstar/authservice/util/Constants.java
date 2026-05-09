@@ -51,11 +51,6 @@ public final class Constants {
     public static final String USER_COLUMN_LAST_LOGIN_AT = "last_login_at";
 
     /**
-     * Column name for the user's roles.
-     */
-    public static final String PROVIDERS_COLUMN_USER = "user";
-
-    /**
      * Unique constraint name for the user email.
      */
     public static final String UK_USER_EMAIL = "UK_user_email";
@@ -162,50 +157,6 @@ public final class Constants {
      * Index name for the token's revoked status.
      */
     public static final String IDX_TOKEN_IS_REVOKED = "IDX_token_is_revoked";
-    // =================================================================
-    // PROVIDERS TABLE (Third-party Authentication)
-    // =================================================================
-
-    /**
-     * Table name for third-party authentication providers.
-     */
-    public static final String PROVIDERS_TABLE = "providers";
-
-    /**
-     * Primary key for the Provider entity.
-     */
-    public static final String PROVIDER_ID = "provider_id";
-
-    /**
-     * Column name for the provider's name (e.g., 'GOOGLE', 'FACEBOOK').
-     */
-    public static final String PROVIDER_NAME = "provider_name";
-
-    /**
-     * Column name for the user ID (Foreign key to the USERs table).
-     */
-    public static final String PROVIDER_COLUMN_USER_ID = "user_id";
-
-    /**
-     * Column name for the provider's URL.
-     */
-    public static final String PROVIDER_URL = "provider_url";
-
-    /**
-     * Unique constraint name for the combination of provider name and user ID.
-     */
-    public static final String UK_PROVIDER_NAME_AND_USER_ID = "UK_provider_name_and_user_id";
-
-    /**
-     * Unique constraint name for the combination of user ID and provider name.
-     */
-    public static final String UK_PROVIDER_USER_AND_NAME = "UK_provider_user_and_name";
-
-    /**
-     * Index name for the provider's user ID.
-     */
-    public static final String IDX_PROVIDER_USER_ID = "IDX_provider_user_id";
-
     // =================================================================
     // PERMISSIONS TABLE (Optional, if needed)
     // =================================================================
