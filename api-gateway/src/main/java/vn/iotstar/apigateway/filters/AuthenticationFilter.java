@@ -15,11 +15,11 @@ import org.springframework.http.server.reactive.ServerHttpResponse;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
+import vn.iotstar.apigateway.constants.PublicEndpoints;
 import vn.iotstar.apigateway.jwt.JwtUtil;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.function.Predicate;
 
@@ -36,13 +36,7 @@ public class AuthenticationFilter implements GatewayFilter {
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
         ServerHttpRequest request = exchange.getRequest();
 
-        final List<String> apiEndpoints = List.of("/api/v1/auth/register",
-                "/api/v1/auth/login",
-                "/api/v1/auth/refresh-token",
-                "/api/v1/auth/verify-otp",
-                "/api/v1/auth/forgot-password",
-                "/api/v1/auth/reset-password");
-        Predicate<ServerHttpRequest> isApiSecured = r -> apiEndpoints.stream()
+        Predicate<ServerHttpRequest> isApiSecured = r -> PublicEndpoints.AUTH.stream()
                 .noneMatch(uri -> r.getURI().getPath().contains(uri));
 
         if (isApiSecured.test(request)) {

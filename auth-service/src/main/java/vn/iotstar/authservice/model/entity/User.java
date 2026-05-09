@@ -71,11 +71,11 @@ public class User extends AbstractBaseEntity implements Serializable, UserDetail
 
     @Override
     public boolean isEnabled() {
-        return this.isActive != null && this.isActive;
+        return Boolean.TRUE.equals(this.isEmailVerified);
     }
 
     @Override
     public boolean isAccountNonLocked() {
-        return this.isEmailVerified != null && this.isEmailVerified;
+        return !Boolean.FALSE.equals(this.isActive);
     }
 }

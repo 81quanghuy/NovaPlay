@@ -4,6 +4,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.DisabledException;
+import org.springframework.security.authentication.LockedException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -25,6 +28,7 @@ import vn.iotstar.authservice.util.RoleName;
 import vn.iotstar.authservice.util.TopicName;
 import vn.iotstar.utils.dto.UserRegister;
 import vn.iotstar.utils.exceptions.wrapper.BadRequestException;
+import vn.iotstar.utils.exceptions.wrapper.ForbiddenException;
 import vn.iotstar.utils.exceptions.wrapper.ResourceNotFoundException;
 import vn.iotstar.utils.exceptions.wrapper.UserAlreadyExistsException;
 
@@ -67,9 +71,18 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public AuthResponse login(LoginRequest request) {
         log.info("Processing login for user: {}", request.emailOrUsername());
-        Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(request.emailOrUsername(), request.password())
-        );
+        Authentication authentication;
+        try {
+            authentication = authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(request.emailOrUsername(), request.password())
+            );
+        } catch (DisabledException e) {
+            throw new ForbiddenException("Account not verified - check your email for OTP");
+        } catch (LockedException e) {
+            throw new ForbiddenException("Account is locked - contact support");
+        } catch (BadCredentialsException e) {
+            throw new BadRequestException("Invalid credentials");
+        }
         SecurityContextHolder.getContext().setAuthentication(authentication);
         User user = (User) authentication.getPrincipal();
 
