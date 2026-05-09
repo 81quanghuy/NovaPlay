@@ -2,6 +2,7 @@ package vn.iotstar.authservice.service;
 
 import vn.iotstar.authservice.model.entity.User;
 
+import java.util.Date;
 import java.util.List;
 
 public interface JwtService {
@@ -19,4 +20,6 @@ public interface JwtService {
     String extractJti(String token);
 
     String extractIssuer(String token);
+
+    Date extractExpiration(String token);
 }

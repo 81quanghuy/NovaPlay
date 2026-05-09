@@ -9,6 +9,7 @@ import org.springframework.cloud.context.config.annotation.RefreshScope;
 import org.springframework.cloud.gateway.filter.GatewayFilter;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.core.io.buffer.DataBuffer;
+import org.springframework.data.redis.core.ReactiveStringRedisTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.http.server.reactive.ServerHttpResponse;
@@ -29,8 +30,11 @@ import java.util.function.Predicate;
 @RequiredArgsConstructor
 public class AuthenticationFilter implements GatewayFilter {
 
+    private static final String BLACKLIST_KEY_PREFIX = "jwt:blacklist:";
+
     private final JwtUtil jwtUtil;
     private final ObjectMapper objectMapper;
+    private final ReactiveStringRedisTemplate redisTemplate;
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
@@ -59,6 +63,19 @@ public class AuthenticationFilter implements GatewayFilter {
             } catch (Exception e) {
                 log.error("Error validating token: {}", e.getMessage());
                 return this.onError(exchange, "Token validation error");
+            }
+
+            Claims claims = jwtUtil.extractAllClaims(token);
+            String jti = claims.getId();
+            if (jti != null) {
+                return redisTemplate.hasKey(BLACKLIST_KEY_PREFIX + jti)
+                        .flatMap(blacklisted -> {
+                            if (Boolean.TRUE.equals(blacklisted)) {
+                                return this.onError(exchange, "Token has been revoked");
+                            }
+                            this.populateRequestWithHeaders(exchange, token);
+                            return chain.filter(exchange);
+                        });
             }
 
             this.populateRequestWithHeaders(exchange, token);

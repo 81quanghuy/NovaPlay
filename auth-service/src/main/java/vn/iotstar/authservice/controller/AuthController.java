@@ -18,8 +18,10 @@ import vn.iotstar.authservice.model.entity.User;
 import vn.iotstar.authservice.service.AuthService;
 import vn.iotstar.authservice.service.JwtService;
 import vn.iotstar.authservice.service.OtpService;
+import vn.iotstar.authservice.service.TokenBlacklist;
 import vn.iotstar.utils.constants.GenericResponse;
 
+import java.util.Date;
 import java.util.Map;
 
 @RestController
@@ -31,6 +33,7 @@ public class AuthController {
     private final AuthService authService;
     private final OtpService otpService;
     private final JwtService jwtService;
+    private final TokenBlacklist tokenBlacklist;
 
     @Operation(summary = "Register a new user account")
     @PostMapping("/register")
@@ -90,7 +93,18 @@ public class AuthController {
     @PostMapping(value = "/logout", consumes = MediaType.APPLICATION_JSON_VALUE)
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Void> logout(@Valid @RequestBody RefreshTokenRequest request,
-                                       @AuthenticationPrincipal User user) {
+                                       @AuthenticationPrincipal User user,
+                                       @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            String accessToken = authHeader.substring(7);
+            try {
+                String jti = jwtService.extractJti(accessToken);
+                Date exp = jwtService.extractExpiration(accessToken);
+                tokenBlacklist.revoke(jti, exp);
+            } catch (Exception ignored) {
+                // token already invalid — blacklisting not needed
+            }
+        }
         authService.logout(request.refreshToken(), user.getEmail());
         return ResponseEntity.noContent().build();
     }

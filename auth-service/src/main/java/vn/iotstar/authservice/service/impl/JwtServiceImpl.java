@@ -94,6 +94,11 @@ public class JwtServiceImpl implements JwtService {
         return extractAllClaims(token).getIssuer();
     }
 
+    @Override
+    public Date extractExpiration(String token) {
+        return extractAllClaims(token).getExpiration();
+    }
+
     private Claims extractAllClaims(String token) {
         return Jwts.parserBuilder()
                 .setSigningKey(rsaPublicKey)
