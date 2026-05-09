@@ -20,6 +20,7 @@ import vn.iotstar.authservice.model.entity.Token;
 import vn.iotstar.authservice.model.entity.User;
 import vn.iotstar.authservice.repository.RoleRepository;
 import vn.iotstar.authservice.repository.UserRepository;
+import vn.iotstar.authservice.service.AuditLogger;
 import vn.iotstar.authservice.service.AuthService;
 import vn.iotstar.authservice.service.EventPublisher;
 import vn.iotstar.authservice.service.JwtService;
@@ -53,6 +54,7 @@ public class AuthServiceImpl implements AuthService {
     private final OtpService otpService;
     private final RateLimiterService rateLimiterService;
     private final EventPublisher eventPublisher;
+    private final AuditLogger auditLogger;
 
     private static final int LOGIN_MAX_ATTEMPTS = 5;
     private static final Duration LOGIN_WINDOW = Duration.ofMinutes(15);
@@ -88,15 +90,19 @@ public class AuthServiceImpl implements AuthService {
                     new UsernamePasswordAuthenticationToken(request.emailOrUsername(), request.password())
             );
         } catch (DisabledException e) {
+            auditLogger.loginFailure(request.emailOrUsername(), "account_not_verified", "");
             throw new ForbiddenException("Account not verified - check your email for OTP");
         } catch (LockedException e) {
+            auditLogger.loginFailure(request.emailOrUsername(), "account_locked", "");
             throw new ForbiddenException("Account is locked - contact support");
         } catch (BadCredentialsException e) {
+            auditLogger.loginFailure(request.emailOrUsername(), "bad_credentials", "");
             throw new BadRequestException("Invalid credentials");
         }
         rateLimiterService.reset(rateLimitKey);
         SecurityContextHolder.getContext().setAuthentication(authentication);
         User user = (User) authentication.getPrincipal();
+        auditLogger.loginSuccess(String.valueOf(user.getId()), user.getEmail(), "");
 
         String accessToken = jwtService.generateToken(user);
         Token refreshToken = tokenService.createRefreshToken(user);
@@ -169,6 +175,7 @@ public class AuthServiceImpl implements AuthService {
 
         user.setPassword(passwordEncoder.encode(resetPasswordRequest.newPassword()));
         userRepository.save(user);
+        auditLogger.passwordReset(resetPasswordRequest.email());
     }
 
     @Override
@@ -188,6 +195,7 @@ public class AuthServiceImpl implements AuthService {
         }
         user.setPassword(passwordEncoder.encode(changePasswordRequest.newPassword()));
         userRepository.save(user);
+        auditLogger.passwordChanged(String.valueOf(user.getId()), user.getEmail());
     }
 
     @Override
@@ -203,6 +211,7 @@ public class AuthServiceImpl implements AuthService {
                 user.getEmail()
         );
         eventPublisher.publish(TopicName.ACTIVATE_ACCOUNT, String.valueOf(user.getId()), userRegister);
+        auditLogger.accountActivated(String.valueOf(user.getId()), user.getEmail());
     }
 
     @Override

@@ -54,7 +54,7 @@ public class User extends AbstractBaseEntity implements Serializable, UserDetail
     @Column(name = Constants.USER_COLUMN_LAST_LOGIN_AT)
     private Date lastLoginAt;
 
-    @ManyToMany(fetch = FetchType.EAGER)
+    @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
             name = Constants.USER_ROLE_TABLE,
             joinColumns = @JoinColumn(name = Constants.USER_ID),

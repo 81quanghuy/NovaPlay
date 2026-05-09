@@ -2,6 +2,7 @@ package vn.iotstar.authservice.model.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
+import vn.iotstar.authservice.util.validation.StrongPassword;
 
 @Schema(
         description = "Request to change user password",
@@ -11,8 +12,9 @@ public record ChangePasswordRequest (
                 @NotBlank(message = "Current password must not be blank")
         String currentPassword,
 
-        @Schema(description = "New password for the user", example = "newPassword456")
+        @Schema(description = "New password for the user", example = "newPassword456!")
                 @NotBlank(message = "New password must not be blank")
+                @StrongPassword
         String newPassword,
         @Schema(description = "Confirmation of the new password", example = "newPassword456")
                 @NotBlank(message = "Confirm new password must not be blank")
