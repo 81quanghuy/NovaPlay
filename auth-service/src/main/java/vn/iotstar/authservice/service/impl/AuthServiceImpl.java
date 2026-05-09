@@ -20,6 +20,7 @@ import vn.iotstar.authservice.model.entity.Token;
 import vn.iotstar.authservice.model.entity.User;
 import vn.iotstar.authservice.repository.RoleRepository;
 import vn.iotstar.authservice.repository.UserRepository;
+import vn.iotstar.authservice.config.observability.AuthMetrics;
 import vn.iotstar.authservice.service.AuditLogger;
 import vn.iotstar.authservice.service.AuthService;
 import vn.iotstar.authservice.service.EventPublisher;
@@ -55,6 +56,7 @@ public class AuthServiceImpl implements AuthService {
     private final RateLimiterService rateLimiterService;
     private final EventPublisher eventPublisher;
     private final AuditLogger auditLogger;
+    private final AuthMetrics authMetrics;
 
     private static final int LOGIN_MAX_ATTEMPTS = 5;
     private static final Duration LOGIN_WINDOW = Duration.ofMinutes(15);
@@ -75,6 +77,7 @@ public class AuthServiceImpl implements AuthService {
         newUser.setRoles(Set.of(userRole));
 
         User savedUser = userRepository.save(newUser);
+        authMetrics.getRegisterSuccessCounter().increment();
         return UserMapper.toUserResponse(savedUser);
     }
 
@@ -82,7 +85,12 @@ public class AuthServiceImpl implements AuthService {
     public AuthResponse login(LoginRequest request) {
         log.info("Processing login for user: {}", request.emailOrUsername());
         String rateLimitKey = "auth:login:fail:" + request.emailOrUsername().toLowerCase();
-        rateLimiterService.checkAndIncrement(rateLimitKey, LOGIN_MAX_ATTEMPTS, LOGIN_WINDOW);
+        try {
+            rateLimiterService.checkAndIncrement(rateLimitKey, LOGIN_MAX_ATTEMPTS, LOGIN_WINDOW);
+        } catch (vn.iotstar.utils.exceptions.wrapper.TooManyRequestsException e) {
+            authMetrics.getRateLimitHitCounter().increment();
+            throw e;
+        }
 
         Authentication authentication;
         try {
@@ -90,18 +98,22 @@ public class AuthServiceImpl implements AuthService {
                     new UsernamePasswordAuthenticationToken(request.emailOrUsername(), request.password())
             );
         } catch (DisabledException e) {
+            authMetrics.getLoginFailureCounter().increment();
             auditLogger.loginFailure(request.emailOrUsername(), "account_not_verified", "");
             throw new ForbiddenException("Account not verified - check your email for OTP");
         } catch (LockedException e) {
+            authMetrics.getLoginFailureCounter().increment();
             auditLogger.loginFailure(request.emailOrUsername(), "account_locked", "");
             throw new ForbiddenException("Account is locked - contact support");
         } catch (BadCredentialsException e) {
+            authMetrics.getLoginFailureCounter().increment();
             auditLogger.loginFailure(request.emailOrUsername(), "bad_credentials", "");
             throw new BadRequestException("Invalid credentials");
         }
         rateLimiterService.reset(rateLimitKey);
         SecurityContextHolder.getContext().setAuthentication(authentication);
         User user = (User) authentication.getPrincipal();
+        authMetrics.getLoginSuccessCounter().increment();
         auditLogger.loginSuccess(String.valueOf(user.getId()), user.getEmail(), "");
 
         String accessToken = jwtService.generateToken(user);
@@ -175,6 +187,7 @@ public class AuthServiceImpl implements AuthService {
 
         user.setPassword(passwordEncoder.encode(resetPasswordRequest.newPassword()));
         userRepository.save(user);
+        authMetrics.getPasswordResetCounter().increment();
         auditLogger.passwordReset(resetPasswordRequest.email());
     }
 

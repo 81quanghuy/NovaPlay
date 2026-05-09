@@ -16,6 +16,8 @@ import org.springframework.security.authentication.LockedException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import io.micrometer.core.instrument.Counter;
+import vn.iotstar.authservice.config.observability.AuthMetrics;
 import vn.iotstar.authservice.model.dto.*;
 import vn.iotstar.authservice.model.entity.Role;
 import vn.iotstar.authservice.model.entity.Token;
@@ -57,6 +59,7 @@ class AuthServiceImplTest {
     @Mock private RateLimiterService rateLimiterService;
     @Mock private EventPublisher eventPublisher;
     @Mock private AuditLogger auditLogger;
+    @Mock private AuthMetrics authMetrics;
 
     @InjectMocks
     private AuthServiceImpl authService;
@@ -65,6 +68,13 @@ class AuthServiceImplTest {
 
     @BeforeEach
     void setUp() {
+        Counter noopCounter = mock(Counter.class);
+        lenient().when(authMetrics.getLoginSuccessCounter()).thenReturn(noopCounter);
+        lenient().when(authMetrics.getLoginFailureCounter()).thenReturn(noopCounter);
+        lenient().when(authMetrics.getRegisterSuccessCounter()).thenReturn(noopCounter);
+        lenient().when(authMetrics.getPasswordResetCounter()).thenReturn(noopCounter);
+        lenient().when(authMetrics.getRateLimitHitCounter()).thenReturn(noopCounter);
+
         Role userRole = new Role();
         userRole.setRoleName(RoleName.USER);
 
