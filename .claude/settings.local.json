@@ -2,7 +2,10 @@
   "permissions": {
     "allow": [
       "Bash(mvn -pl utils,auth-service clean compile -DskipTests -q)",
-      "Bash(git add *)"
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(find \"D:\\\\NovaPlay\\\\NovaPlay_BE\\\\NovaPlay\" -name \"*.pem\" -not -path \"*/\\\\.claude/*\" 2>/dev/null | head -20)",
+      "Bash(mvn -pl utils,auth-service,api-gateway clean compile -DskipTests -q)"
     ]
   }
 }
