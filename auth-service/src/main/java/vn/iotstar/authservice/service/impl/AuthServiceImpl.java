@@ -21,6 +21,7 @@ import vn.iotstar.authservice.model.entity.User;
 import vn.iotstar.authservice.repository.RoleRepository;
 import vn.iotstar.authservice.repository.UserRepository;
 import vn.iotstar.authservice.service.AuthService;
+import vn.iotstar.authservice.service.EventPublisher;
 import vn.iotstar.authservice.service.JwtService;
 import vn.iotstar.authservice.service.OtpService;
 import vn.iotstar.authservice.service.RateLimiterService;
@@ -51,6 +52,7 @@ public class AuthServiceImpl implements AuthService {
     private final KafkaTemplate<String, Object> kafkaTemplate;
     private final OtpService otpService;
     private final RateLimiterService rateLimiterService;
+    private final EventPublisher eventPublisher;
 
     private static final int LOGIN_MAX_ATTEMPTS = 5;
     private static final Duration LOGIN_WINDOW = Duration.ofMinutes(15);
@@ -200,7 +202,7 @@ public class AuthServiceImpl implements AuthService {
                 user.getUsername(),
                 user.getEmail()
         );
-        kafkaTemplate.send(TopicName.ACTIVATE_ACCOUNT, userRegister);
+        eventPublisher.publish(TopicName.ACTIVATE_ACCOUNT, String.valueOf(user.getId()), userRegister);
     }
 
     @Override
