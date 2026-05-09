@@ -8,6 +8,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import vn.iotstar.authservice.service.OtpService;
 import vn.iotstar.authservice.util.TopicName;
+import vn.iotstar.utils.exceptions.wrapper.TooManyRequestsException;
 import vn.iotstar.utils.dto.EmailOtpRequested;
 
 import java.security.SecureRandom;
@@ -35,7 +36,7 @@ public class OtpServiceImpl implements OtpService {
         Long c = redis.opsForValue().increment(sendCntKey(email));
         if (c != null && c == 1L) redis.expire(sendCntKey(email), Duration.ofHours(1));
         if (c != null && c > MAX_SEND_PER_HOUR) {
-            throw new IllegalStateException("Beyond max OTP send limit");
+            throw new TooManyRequestsException("OTP send limit exceeded. Please try again later.");
         }
         String otp = generateOtp();
 

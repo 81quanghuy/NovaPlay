@@ -25,6 +25,7 @@ import vn.iotstar.authservice.util.RoleName;
 import vn.iotstar.authservice.util.TopicName;
 import vn.iotstar.utils.dto.UserRegister;
 import vn.iotstar.utils.exceptions.wrapper.BadRequestException;
+import vn.iotstar.utils.exceptions.wrapper.ResourceNotFoundException;
 import vn.iotstar.utils.exceptions.wrapper.UserAlreadyExistsException;
 
 import java.util.Optional;
@@ -56,7 +57,7 @@ public class AuthServiceImpl implements AuthService {
         newUser.setPassword(passwordEncoder.encode(request.password()));
 
         Role userRole = roleRepository.findByRoleName(RoleName.USER)
-                .orElseThrow(() -> new RuntimeException(" Role 'USER' is not found."));
+                .orElseThrow(() -> new ResourceNotFoundException("Role USER not found - DB seed missing"));
         newUser.setRoles(Set.of(userRole));
 
         User savedUser = userRepository.save(newUser);
@@ -100,11 +101,6 @@ public class AuthServiceImpl implements AuthService {
                 .expiresIn(jwtService.getJwtExpiration())
                 .userProfile(UserMapper.toUserResponse(user))
                 .build();
-    }
-
-    @Override
-    public AuthResponse processOAuth2Login(String providerName, String code) {
-        throw new UnsupportedOperationException("OAuth2 login is not yet implemented for provider: " + providerName);
     }
 
     @Override

@@ -9,7 +9,6 @@ import org.springframework.security.core.userdetails.UserDetails;
 import vn.iotstar.authservice.util.Constants;
 import vn.iotstar.utils.AbstractBaseEntity;
 
-
 import java.io.Serial;
 import java.io.Serializable;
 import java.util.*;
@@ -62,9 +61,6 @@ public class User extends AbstractBaseEntity implements Serializable, UserDetail
             inverseJoinColumns = @JoinColumn(name = Constants.ROLE_ID)
     )
     private Set<Role> roles;
-
-    @OneToMany(mappedBy = Constants.PROVIDERS_COLUMN_USER, cascade = CascadeType.ALL, orphanRemoval = true)
-    private Set<Provider> providers;
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {

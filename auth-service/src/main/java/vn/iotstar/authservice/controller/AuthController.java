@@ -41,7 +41,7 @@ public class AuthController {
 
     @Operation(summary = "Verify OTP to activate user account")
     @PostMapping("/verify-otp")
-    public ResponseEntity<GenericResponse> verify(@RequestBody VerifyOtpRequest req) {
+    public ResponseEntity<GenericResponse> verify(@Valid @RequestBody VerifyOtpRequest req) {
         boolean isValid = otpService.verify(req.email(), req.otp());
         if (!isValid) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
@@ -61,7 +61,7 @@ public class AuthController {
     }    @Operation(summary = "Resend OTP for account activation",
             description = "Resends the OTP to the user's email if they haven't verified it yet.")
     @PostMapping("/resend-registration-otp")
-    public ResponseEntity<GenericResponse> resendRegistrationOtp(@RequestBody EmailRequest emailRequest) {
+    public ResponseEntity<GenericResponse> resendRegistrationOtp(@Valid @RequestBody EmailRequest emailRequest) {
         authService.resendRegistrationOtp(emailRequest, MDC.get("traceId"));
         return ResponseEntity.ok(GenericResponse.builder()
                 .success(true)
@@ -104,7 +104,7 @@ public class AuthController {
     @Operation(summary = "Send OTP to user's email for password reset",
             description = "This endpoint sends a One-Time Password (OTP) to the user's registered email address for password reset purposes.")
     @PostMapping("/forgot-password")
-    public ResponseEntity<GenericResponse> forgotPassword(@RequestBody EmailRequest emailRequest) {
+    public ResponseEntity<GenericResponse> forgotPassword(@Valid @RequestBody EmailRequest emailRequest) {
         authService.forgotPassword(emailRequest,MDC.get("traceId"));
         return ResponseEntity.status(HttpStatus.OK).body(
                 GenericResponse.builder()

@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mvn -pl utils,auth-service clean compile -DskipTests -q)",
+      "Bash(git add *)"
+    ]
+  }
+}
