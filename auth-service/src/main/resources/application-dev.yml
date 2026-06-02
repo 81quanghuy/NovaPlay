@@ -1,17 +1,60 @@
+server:
+  port: 8000
+
 spring:
-  config:
-    import: optional:configserver:http://localhost:8888/
-    activate:
-      on-profile: dev
+  datasource:
+    url: jdbc:postgresql://localhost:5432/auth_service
+    username: admin
+    password: admin123
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      timeout: 5s
+  kafka:
+    bootstrap-servers: localhost:9092
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      acks: all
+      retries: 10
+      delivery-timeout-ms: 120000
+      enable-idempotence: true
+      linger-ms: 10
+      batch-size: 32768
+      properties:
+        max.in.flight.requests.per.connection: 5
+        compression.type: lz4
+  application:
+    security:
+      jwt:
+        expiration: 86400000
+        refresh-token:
+          expiration: 604800000
+
+jwt:
+  private-key-path: classpath:keys/private.pem
+  public-key-path: classpath:keys/public.pem
 
 auth:
   jwt:
     issuer: novaplay-auth
     audience: novaplay
     kid: v1
-    expiration: 900000
-    refresh-token:
-      expiration: 2592000000
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
 
 management:
   endpoints:
@@ -30,4 +73,12 @@ management:
       enabled: true
   metrics:
     tags:
-      application: auth-service
+      application: ${spring.application.name}
+
+logging:
+  level:
+    vn:
+      iotstar:
+        authservice: DEBUG
+  pattern:
+    level: "%5p [${spring.application.name},%X{traceId},%X{spanId}]"
