@@ -113,6 +113,8 @@ public class AuthServiceImpl implements AuthService {
         rateLimiterService.reset(rateLimitKey);
         SecurityContextHolder.getContext().setAuthentication(authentication);
         User user = (User) authentication.getPrincipal();
+        user.setLastLoginAt(new Date());
+        userRepository.save(user);
         authMetrics.getLoginSuccessCounter().increment();
         auditLogger.loginSuccess(String.valueOf(user.getId()), user.getEmail(), "");
 
@@ -217,6 +219,10 @@ public class AuthServiceImpl implements AuthService {
         log.info("Activating account for email: {}", email);
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new BadRequestException("User not found"));
+        if (Boolean.TRUE.equals(user.getIsEmailVerified())) {
+            log.info("Account already activated for email: {}", email);
+            return;
+        }
         user.setIsEmailVerified(true);
         userRepository.save(user);
         UserRegister userRegister = new UserRegister(

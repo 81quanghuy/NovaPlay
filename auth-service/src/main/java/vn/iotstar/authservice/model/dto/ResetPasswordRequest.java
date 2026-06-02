@@ -11,6 +11,7 @@ public record ResetPasswordRequest(
         @Schema(
                 description = "Email address of the user requesting the password reset.",
                 example = "huy@gmail.com")
+                @NotBlank(message = "Email must not be blank")
                 @Email(message = "Email should be valid")
         String email,
 

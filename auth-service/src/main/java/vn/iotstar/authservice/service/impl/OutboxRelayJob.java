@@ -41,7 +41,7 @@ public class OutboxRelayJob {
 
             try {
                 Object payload = objectMapper.readValue(event.getPayload(), Object.class);
-                kafkaTemplate.send(event.getTopic(), event.getKey(), payload).get();
+                kafkaTemplate.send(event.getTopic(), event.getKey(), payload).get(10, java.util.concurrent.TimeUnit.SECONDS);
                 event.setStatus(OutboxEvent.OutboxStatus.SENT);
                 event.setSentAt(Instant.now());
                 outboxEventRepository.save(event);

@@ -52,6 +52,19 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     // Create partial User to act as the Principal without hitting DB
                     vn.iotstar.authservice.model.entity.User userDetails = new vn.iotstar.authservice.model.entity.User();
                     userDetails.setEmail(userEmail);
+                    userDetails.setId(java.util.UUID.randomUUID());
+                    userDetails.setUsername(userEmail);
+                    userDetails.setIsEmailVerified(true);
+                    userDetails.setIsActive(true);
+                    java.util.Set<vn.iotstar.authservice.model.entity.Role> rolesSet = new java.util.HashSet<>();
+                    if (roles != null) {
+                        for (String roleStr : roles) {
+                            vn.iotstar.authservice.model.entity.Role role = new vn.iotstar.authservice.model.entity.Role();
+                            role.setRoleName(vn.iotstar.authservice.util.RoleName.valueOf(roleStr.replace("ROLE_", "")));
+                            rolesSet.add(role);
+                        }
+                    }
+                    userDetails.setRoles(rolesSet);
 
                     UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
                             userDetails,
