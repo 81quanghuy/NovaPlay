@@ -12,3 +12,12 @@ auth:
     issuer: novaplay-auth
     audience: novaplay
     kid: v1
+
+# Local-dev fallback for CORS. Production values come from cloud-config.
+# Override in cloud-config/application.yml when adding new frontend origins.
+application:
+  cors:
+    allowed-origins:
+      - http://localhost:5173
+      - http://localhost:3000
+      - http://127.0.0.1:5173
