@@ -5,8 +5,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.jsonwebtoken.Claims;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.cloud.gateway.filter.GatewayFilter;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
+import org.springframework.cloud.gateway.filter.GlobalFilter;
+import org.springframework.core.Ordered;
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.data.redis.core.ReactiveStringRedisTemplate;
 import org.springframework.http.HttpStatus;
@@ -23,12 +24,11 @@ import vn.iotstar.apigateway.jwt.JwtUtil;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.function.Predicate;
 
 @Component
 @Slf4j
 @RequiredArgsConstructor
-public class AuthenticationFilter implements GatewayFilter {
+public class AuthenticationFilter implements GlobalFilter, Ordered {
 
     private static final String BLACKLIST_KEY_PREFIX = "jwt:blacklist:";
     private final AntPathMatcher pathMatcher = new AntPathMatcher();
@@ -38,50 +38,56 @@ public class AuthenticationFilter implements GatewayFilter {
     private final ReactiveStringRedisTemplate redisTemplate;
 
     @Override
+    public int getOrder() {
+        return Ordered.HIGHEST_PRECEDENCE + 1;
+    }
+
+    @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
         ServerHttpRequest request = exchange.getRequest();
+        String path = request.getURI().getPath();
 
-        Predicate<ServerHttpRequest> isApiSecured = r -> PublicEndpoints.AUTH.stream()
-                .noneMatch(uri -> pathMatcher.match(uri, r.getURI().getPath()));
+        boolean isPublic = PublicEndpoints.ALL.stream()
+                .anyMatch(pattern -> pathMatcher.match(pattern, path));
 
-        if (isApiSecured.test(request)) {
-            if (!request.getHeaders().containsKey("Authorization")) {
-                return this.onError(exchange, "Authorization header is missing in request");
-            }
-
-            final String authHeader = request.getHeaders().getOrEmpty("Authorization").getFirst();
-
-            if (!authHeader.startsWith("Bearer ")) {
-                return this.onError(exchange, "Authorization header is invalid");
-            }
-
-            final String token = authHeader.substring(7);
-
-            try {
-                if (Boolean.FALSE.equals(jwtUtil.validateToken(token))) {
-                    return this.onError(exchange, "Token is expired or invalid");
-                }
-            } catch (Exception e) {
-                log.error("Error validating token: {}", e.getMessage());
-                return this.onError(exchange, "Token validation error");
-            }
-
-            Claims claims = jwtUtil.extractAllClaims(token);
-            String jti = claims.getId();
-            if (jti == null) {
-                return this.onError(exchange, "Token missing jti claim");
-            }
-
-            return redisTemplate.hasKey(BLACKLIST_KEY_PREFIX + jti)
-                    .flatMap(blacklisted -> {
-                        if (Boolean.TRUE.equals(blacklisted)) {
-                            return this.onError(exchange, "Token has been revoked");
-                        }
-                        return chain.filter(sanitizeAndEnrich(exchange, claims));
-                    });
+        if (isPublic) {
+            return chain.filter(exchange);
         }
 
-        return chain.filter(exchange);
+        if (!request.getHeaders().containsKey("Authorization")) {
+            return this.onError(exchange, "Authorization header is missing in request");
+        }
+
+        final String authHeader = request.getHeaders().getOrEmpty("Authorization").getFirst();
+
+        if (!authHeader.startsWith("Bearer ")) {
+            return this.onError(exchange, "Authorization header is invalid");
+        }
+
+        final String token = authHeader.substring(7);
+
+        try {
+            if (Boolean.FALSE.equals(jwtUtil.validateToken(token))) {
+                return this.onError(exchange, "Token is expired or invalid");
+            }
+        } catch (Exception e) {
+            log.error("Error validating token: {}", e.getMessage());
+            return this.onError(exchange, "Token validation error");
+        }
+
+        Claims claims = jwtUtil.extractAllClaims(token);
+        String jti = claims.getId();
+        if (jti == null) {
+            return this.onError(exchange, "Token missing jti claim");
+        }
+
+        return redisTemplate.hasKey(BLACKLIST_KEY_PREFIX + jti)
+                .flatMap(blacklisted -> {
+                    if (Boolean.TRUE.equals(blacklisted)) {
+                        return this.onError(exchange, "Token has been revoked");
+                    }
+                    return chain.filter(sanitizeAndEnrich(exchange, claims));
+                });
     }
 
     private ServerWebExchange sanitizeAndEnrich(ServerWebExchange exchange, Claims claims) {

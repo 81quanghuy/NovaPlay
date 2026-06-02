@@ -2,6 +2,9 @@ server:
   port: 8072
 
 spring:
+  config:
+    activate:
+      on-profile: dev
   data:
     redis:
       connect-timeout: 2s
@@ -23,50 +26,88 @@ spring:
           predicates:
             - Path=/api/v1/auth/**
           filters:
-            - name: Authentication
+            - name: CircuitBreaker
               args:
-                publicEndpoints:
-                  - "/api/v1/auth/register"
-                  - "/api/v1/auth/login"
-                  - "/api/v1/auth/refresh-token"
-                  - "/api/v1/auth/verify-otp"
-                  - "/api/v1/auth/forgot-password"
-                  - "/api/v1/auth/reset-password"
+                name: auth-service-cb
+                fallbackUri: forward:/fallback/message
+            - name: Retry
+              args:
+                retries: 3
+                methods: GET
+                backoff:
+                  firstBackoff: 100ms
+                  maxBackoff: 1000ms
+                  factor: 2
+                  basedOnPreviousValue: true
             - name: RequestRateLimiter
               args:
                 redis-rate-limiter.replenishRate: 10
                 redis-rate-limiter.burstCapacity: 20
                 key-resolver: "#{@userEmailOrIpKeyResolver}"
+
         - id: user-service
           uri: lb://user-service
           predicates:
-            - Path=/v1/api/users/**, /v1/api/internal/users/**, /v1/api/admin/users/**
+            - Path=/api/v1/users/**
           filters:
-            - name: ApiKey
+            - name: CircuitBreaker
               args:
-                keys:
-                  "admin-secret-key": "admin"
-                  "internal-secret-key": "internal"
-                  "public-secret-key": "public"
-            - name: Authentication
+                name: user-service-cb
+                fallbackUri: forward:/fallback/message
+            - name: Retry
               args:
-                publicEndpoints: []
-            - CircuitBreaker=user-service-cb
+                retries: 3
+                methods: GET
+                backoff:
+                  firstBackoff: 100ms
+                  maxBackoff: 1000ms
+                  factor: 2
+                  basedOnPreviousValue: true
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 10
+                redis-rate-limiter.burstCapacity: 20
+                key-resolver: "#{@userEmailOrIpKeyResolver}"
+
         - id: movie-service
           uri: lb://movie-service
           predicates:
-            - Path=/v1/api/movies/**, /v1/api/internal/movies/**
+            - Path=/api/v1/movies/**
           filters:
-            - name: ApiKey
+            - name: CircuitBreaker
               args:
-                keys:
-                  "admin-secret-key": "admin"
-                  "internal-secret-key": "internal"
-            - name: Authentication
+                name: movie-service-cb
+                fallbackUri: forward:/fallback/message
+            - name: Retry
               args:
-                publicEndpoints:
-                  - "/v1/api/movies/public/**"
-            - CircuitBreaker=movie-service-cb
+                retries: 3
+                methods: GET
+                backoff:
+                  firstBackoff: 100ms
+                  maxBackoff: 1000ms
+                  factor: 2
+                  basedOnPreviousValue: true
+
+        - id: auth-service-swagger
+          uri: lb://auth-service
+          predicates:
+            - Path=/swagger/auth/v3/api-docs
+          filters:
+            - RewritePath=/swagger/auth/(?<segment>.*), /${segment}
+
+        - id: user-service-swagger
+          uri: lb://user-service
+          predicates:
+            - Path=/swagger/user/v3/api-docs
+          filters:
+            - RewritePath=/swagger/user/(?<segment>.*), /${segment}
+
+        - id: movie-service-swagger
+          uri: lb://movie-service
+          predicates:
+            - Path=/swagger/movie/v3/api-docs
+          filters:
+            - RewritePath=/swagger/movie/(?<segment>.*), /${segment}
 
 rsa:
   public:
@@ -120,3 +161,21 @@ resilience4j:
         permittedNumberOfCallsInHalfOpenState: 2
         failureRateThreshold: 50
         waitDurationInOpenState: 10000
+    instances:
+      auth-service-cb:
+        base-config: default
+      user-service-cb:
+        base-config: default
+      movie-service-cb:
+        base-config: default
+  timelimiter:
+    configs:
+      default:
+        timeout-duration: 10s
+    instances:
+      auth-service-cb:
+        base-config: default
+      user-service-cb:
+        base-config: default
+      movie-service-cb:
+        base-config: default

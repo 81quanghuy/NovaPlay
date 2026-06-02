@@ -7,17 +7,14 @@ public class GateWayConstants {
     }
 
     public static final String API_V1 = "/api/v1/";
-    public static final String CIRCUIT_BREAKER = "circuitBreaker";
     public static final String LB = "lb://";
     public static final String USER_SERVICE = "user-service";
     public static final String MOVIE_SERVICE = "movie-service";
     public static final String AUTH_SERVICE = "auth-service";
     public static final String CORRELATION_ID = "novaPlay-correlation-id";
     public static final String X_RESPONSE_TIME = "X-Response-Time";
-    public static final String X_USER_EMAIL = "X-User-Email";
-    public static final String X_USER_ROLES = "X-User-Roles";
     public static final String FALLBACK_URI = "forward:/fallback/message";
     public static final String CONTACT_SUPPORT_MESSAGE = "An error occurred. Please try after some time or contact support team!!!";
-    public static final String USER_SERVICE_PATH = "novaplay/user-service/**";
-    public static final String MOVIE_SERVICE_PATH = "novaplay/movie-service/**";
+    public static final String X_USER_EMAIL = "X-User-Email";
+    public static final String X_USER_ROLES = "X-User-Roles";
 }
