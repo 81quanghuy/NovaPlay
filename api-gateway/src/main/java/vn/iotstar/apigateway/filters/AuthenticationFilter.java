@@ -5,7 +5,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.jsonwebtoken.Claims;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.cloud.context.config.annotation.RefreshScope;
 import org.springframework.cloud.gateway.filter.GatewayFilter;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.core.io.buffer.DataBuffer;
@@ -14,8 +13,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.http.server.reactive.ServerHttpResponse;
 import org.springframework.stereotype.Component;
+import org.springframework.util.AntPathMatcher;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
+import vn.iotstar.apigateway.constants.GateWayConstants;
 import vn.iotstar.apigateway.constants.PublicEndpoints;
 import vn.iotstar.apigateway.jwt.JwtUtil;
 
@@ -24,13 +25,13 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Predicate;
 
-@RefreshScope
 @Component
 @Slf4j
 @RequiredArgsConstructor
 public class AuthenticationFilter implements GatewayFilter {
 
     private static final String BLACKLIST_KEY_PREFIX = "jwt:blacklist:";
+    private final AntPathMatcher pathMatcher = new AntPathMatcher();
 
     private final JwtUtil jwtUtil;
     private final ObjectMapper objectMapper;
@@ -41,7 +42,7 @@ public class AuthenticationFilter implements GatewayFilter {
         ServerHttpRequest request = exchange.getRequest();
 
         Predicate<ServerHttpRequest> isApiSecured = r -> PublicEndpoints.AUTH.stream()
-                .noneMatch(uri -> r.getURI().getPath().contains(uri));
+                .noneMatch(uri -> pathMatcher.match(uri, r.getURI().getPath()));
 
         if (isApiSecured.test(request)) {
             if (!request.getHeaders().containsKey("Authorization")) {
@@ -67,21 +68,32 @@ public class AuthenticationFilter implements GatewayFilter {
 
             Claims claims = jwtUtil.extractAllClaims(token);
             String jti = claims.getId();
-            if (jti != null) {
-                return redisTemplate.hasKey(BLACKLIST_KEY_PREFIX + jti)
-                        .flatMap(blacklisted -> {
-                            if (Boolean.TRUE.equals(blacklisted)) {
-                                return this.onError(exchange, "Token has been revoked");
-                            }
-                            this.populateRequestWithHeaders(exchange, token);
-                            return chain.filter(exchange);
-                        });
+            if (jti == null) {
+                return this.onError(exchange, "Token missing jti claim");
             }
 
-            this.populateRequestWithHeaders(exchange, token);
+            return redisTemplate.hasKey(BLACKLIST_KEY_PREFIX + jti)
+                    .flatMap(blacklisted -> {
+                        if (Boolean.TRUE.equals(blacklisted)) {
+                            return this.onError(exchange, "Token has been revoked");
+                        }
+                        return chain.filter(sanitizeAndEnrich(exchange, claims));
+                    });
         }
 
         return chain.filter(exchange);
+    }
+
+    private ServerWebExchange sanitizeAndEnrich(ServerWebExchange exchange, Claims claims) {
+        ServerHttpRequest mutated = exchange.getRequest().mutate()
+                .headers(h -> {
+                    h.remove(GateWayConstants.X_USER_EMAIL);
+                    h.remove(GateWayConstants.X_USER_ROLES);
+                })
+                .header(GateWayConstants.X_USER_EMAIL, claims.getSubject())
+                .header(GateWayConstants.X_USER_ROLES, String.valueOf(claims.get("roles")))
+                .build();
+        return exchange.mutate().request(mutated).build();
     }
 
     private Mono<Void> onError(ServerWebExchange exchange, String errorMessage) {
@@ -106,13 +118,5 @@ public class AuthenticationFilter implements GatewayFilter {
             log.error("Error writing JSON error response", e);
             return response.setComplete();
         }
-    }
-
-    private void populateRequestWithHeaders(ServerWebExchange exchange, String token) {
-        Claims claims = jwtUtil.extractAllClaims(token);
-        exchange.getRequest().mutate()
-                .header("X-User-Email", claims.getSubject())
-                .header("X-User-Roles", String.valueOf(claims.get("roles")))
-                .build();
     }
 }
