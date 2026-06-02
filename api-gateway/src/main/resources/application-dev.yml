@@ -1,8 +1,73 @@
+server:
+  port: 8072
+
 spring:
-  config:
-    import: optional:configserver:http://localhost:8888/
-    activate:
-      on-profile: dev
+  data:
+    redis:
+      connect-timeout: 2s
+      host: localhost
+      port: 6379
+      timeout: 1s
+  cloud:
+    gateway:
+      discovery:
+        locator:
+          enabled: true
+          lowerCaseServiceId: true
+      httpclient:
+        connect-timeout: 1000
+        response-timeout: 10s
+      routes:
+        - id: auth-service
+          uri: lb://auth-service
+          predicates:
+            - Path=/api/v1/auth/**
+          filters:
+            - name: Authentication
+              args:
+                publicEndpoints:
+                  - "/api/v1/auth/register"
+                  - "/api/v1/auth/login"
+                  - "/api/v1/auth/refresh-token"
+                  - "/api/v1/auth/verify-otp"
+                  - "/api/v1/auth/forgot-password"
+                  - "/api/v1/auth/reset-password"
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 10
+                redis-rate-limiter.burstCapacity: 20
+                key-resolver: "#{@userEmailOrIpKeyResolver}"
+        - id: user-service
+          uri: lb://user-service
+          predicates:
+            - Path=/v1/api/users/**, /v1/api/internal/users/**, /v1/api/admin/users/**
+          filters:
+            - name: ApiKey
+              args:
+                keys:
+                  "admin-secret-key": "admin"
+                  "internal-secret-key": "internal"
+                  "public-secret-key": "public"
+            - name: Authentication
+              args:
+                publicEndpoints: []
+            - CircuitBreaker=user-service-cb
+        - id: movie-service
+          uri: lb://movie-service
+          predicates:
+            - Path=/v1/api/movies/**, /v1/api/internal/movies/**
+          filters:
+            - name: ApiKey
+              args:
+                keys:
+                  "admin-secret-key": "admin"
+                  "internal-secret-key": "internal"
+            - name: Authentication
+              args:
+                publicEndpoints:
+                  - "/v1/api/movies/public/**"
+            - CircuitBreaker=movie-service-cb
+
 rsa:
   public:
     key-location: classpath:certs/public.pem
@@ -13,11 +78,45 @@ auth:
     audience: novaplay
     kid: v1
 
-# Local-dev fallback for CORS. Production values come from cloud-config.
-# Override in cloud-config/application.yml when adding new frontend origins.
 application:
   cors:
     allowed-origins:
       - http://localhost:5173
       - http://localhost:3000
       - http://127.0.0.1:5173
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+  endpoint:
+    gateway:
+      access: unrestricted
+  info:
+    env:
+      enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}
+
+logging:
+  level:
+    vn:
+      iotstar:
+        apigateway: DEBUG
+    org:
+      springframework:
+        cloud:
+          gateway: INFO
+  pattern:
+    level: "%5p [${spring.application.name},%X{traceId},%X{spanId}]"
+
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        slidingWindowSize: 10
+        permittedNumberOfCallsInHalfOpenState: 2
+        failureRateThreshold: 50
+        waitDurationInOpenState: 10000
