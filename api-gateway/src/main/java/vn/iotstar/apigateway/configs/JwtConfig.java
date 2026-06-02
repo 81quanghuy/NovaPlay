@@ -4,8 +4,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.ClassPathResource;
-import org.springframework.security.oauth2.jwt.JwtDecoder;
-import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 
 import java.io.InputStream;
 import java.security.KeyFactory;
@@ -17,7 +15,6 @@ import java.util.Base64;
 @Slf4j
 public class JwtConfig {
 
-    // Tạo bean cho Public Key. Nó cũng chỉ được tạo MỘT LẦN.
     @Bean
     public RSAPublicKey publicKey() throws Exception {
         log.info("Loading RSA public key...");
@@ -34,12 +31,5 @@ public class JwtConfig {
             log.info("RSA public key loaded successfully.");
             return (RSAPublicKey) keyFactory.generatePublic(keySpec);
         }
-    }
-
-    @Bean
-    public JwtDecoder jwtDecoder(RSAPublicKey publicKey) {
-        return NimbusJwtDecoder
-                .withPublicKey(publicKey)
-                .build();
     }
 }
