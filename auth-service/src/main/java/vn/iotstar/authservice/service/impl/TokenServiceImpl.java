@@ -3,8 +3,10 @@ package vn.iotstar.authservice.service.impl;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import vn.iotstar.authservice.model.entity.Token;
 import vn.iotstar.authservice.model.entity.User;
 import vn.iotstar.authservice.repository.TokenRepository;
@@ -69,5 +71,19 @@ public class TokenServiceImpl implements TokenService {
             return;
         validUserTokens.forEach(token -> token.setIsRevoked(true));
         tokenRepository.saveAll(validUserTokens);
+    }
+
+    @Scheduled(fixedDelay = 3600000)
+    @Transactional
+    public void cleanupExpiredTokens() {
+        log.info("Cleaning up expired tokens from database...");
+        Instant now = Instant.now();
+        var expiredTokens = tokenRepository.findAll().stream()
+                .filter(token -> token.getExpiredAt().isBefore(now))
+                .toList();
+        if (!expiredTokens.isEmpty()) {
+            tokenRepository.deleteAll(expiredTokens);
+            log.info("Deleted {} expired tokens", expiredTokens.size());
+        }
     }
 }

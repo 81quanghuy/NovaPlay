@@ -3,6 +3,7 @@ package vn.iotstar.authservice.controller;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.MDC;
@@ -71,9 +72,22 @@ public class AuthController {
 
     @Operation(summary = "Authenticate a user and get tokens")
     @PostMapping("/login")
-    public ResponseEntity<GenericResponse> login(@Valid @RequestBody LoginRequest request) {
+    public ResponseEntity<GenericResponse> login(@Valid @RequestBody LoginRequest request, HttpServletRequest httpRequest) {
+        String clientIp = getClientIp(httpRequest);
         AuthResponse authResponse = authService.login(request);
         return ResponseEntity.ok(GenericResponse.success(authResponse, "Login successful"));
+    }
+
+    private String getClientIp(HttpServletRequest request) {
+        String xForwardedFor = request.getHeader("X-Forwarded-For");
+        if (xForwardedFor != null && !xForwardedFor.isEmpty()) {
+            return xForwardedFor.split(",")[0].trim();
+        }
+        String xRealIp = request.getHeader("X-Real-IP");
+        if (xRealIp != null && !xRealIp.isEmpty()) {
+            return xRealIp;
+        }
+        return request.getRemoteAddr();
     }
 
     @Operation(summary = "Refresh the access token",
@@ -95,6 +109,7 @@ public class AuthController {
     public ResponseEntity<Void> logout(@Valid @RequestBody RefreshTokenRequest request,
                                        @AuthenticationPrincipal User user,
                                        @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        authService.logout(request.refreshToken(), user.getEmail());
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             String accessToken = authHeader.substring(7);
             try {
@@ -105,7 +120,6 @@ public class AuthController {
                 // token already invalid — blacklisting not needed
             }
         }
-        authService.logout(request.refreshToken(), user.getEmail());
         return ResponseEntity.noContent().build();
     }
 

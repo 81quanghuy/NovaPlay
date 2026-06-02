@@ -39,12 +39,12 @@ public class EventPublisherImpl implements EventPublisher {
         log.debug("Outbox event saved: topic={}, key={}", topic, key);
 
         try {
-            kafkaTemplate.send(topic, key, payload);
+            kafkaTemplate.send(topic, key, payload).get(30, java.util.concurrent.TimeUnit.SECONDS);
             event.setStatus(OutboxEvent.OutboxStatus.SENT);
             event.setSentAt(java.time.Instant.now());
             outboxEventRepository.save(event);
         } catch (Exception e) {
-            log.warn("Kafka send failed immediately, event will be retried by relay job: topic={}", topic, e.getMessage());
+            log.warn("Kafka send failed, event will be retried by relay job: topic={}, error={}", topic, e.getMessage());
         }
     }
 }

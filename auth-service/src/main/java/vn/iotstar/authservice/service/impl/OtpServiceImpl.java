@@ -6,6 +6,7 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import vn.iotstar.authservice.config.observability.AuthMetrics;
 import vn.iotstar.authservice.service.EventPublisher;
 import vn.iotstar.authservice.service.OtpService;
 import vn.iotstar.authservice.service.RateLimiterService;
@@ -26,6 +27,7 @@ public class OtpServiceImpl implements OtpService {
     private final KafkaTemplate<String, Object> kafka;
     private final RateLimiterService rateLimiterService;
     private final EventPublisher eventPublisher;
+    private final AuthMetrics authMetrics;
 
     private static final Duration OTP_TTL = Duration.ofMinutes(5);
     private static final int MAX_SEND_PER_HOUR = 5;
@@ -49,6 +51,7 @@ public class OtpServiceImpl implements OtpService {
                 Map.of("otp", otp, "expireMinutes", String.valueOf(OTP_TTL.toMinutes()), "locale", locale)
         );
         eventPublisher.publish(TopicName.SEND_EMAIL, userId, evt);
+        authMetrics.getOtpSentCounter().increment();
         log.info("OTP generated & dispatched, userId={}, corrId={}", userId, correlationId);
     }
 
@@ -64,13 +67,14 @@ public class OtpServiceImpl implements OtpService {
         if (ok) {
             redis.delete(key);
             rateLimiterService.reset(verifyCntKey(email));
+            authMetrics.getOtpVerifiedCounter().increment();
         }
         return ok;
     }
 
     public String generateOtp() {
         SecureRandom random = new SecureRandom();
-        int number = random.nextInt(999999);
+        int number = random.nextInt(1000000);
         return String.format("%06d", number);
     }
 }

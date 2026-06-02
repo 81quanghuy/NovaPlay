@@ -21,10 +21,16 @@ public class AuthServiceKeyConfig {
     @Value("${auth.jwt.kid:v1}")
     private String kid;
 
+    @Value("${jwt.private-key-path:classpath:keys/private.pem}")
+    private String privateKeyPath;
+
+    @Value("${jwt.public-key-path:classpath:keys/public.pem}")
+    private String publicKeyPath;
+
     @Bean
     public RSAPrivateKey privateKey() throws Exception {
-        log.info("Loading RSA private key...");
-        ClassPathResource resource = new ClassPathResource("certs/private.pem");
+        log.info("Loading RSA private key from: {}", privateKeyPath);
+        ClassPathResource resource = new ClassPathResource(privateKeyPath.replace("classpath:", ""));
         try (InputStream inputStream = resource.getInputStream()) {
             String key = new String(inputStream.readAllBytes())
                     .replace("-----BEGIN PRIVATE KEY-----", "")
@@ -41,8 +47,8 @@ public class AuthServiceKeyConfig {
 
     @Bean
     public RSAPublicKey rsaPublicKey() throws Exception {
-        log.info("Loading RSA public key...");
-        ClassPathResource resource = new ClassPathResource("certs/public.pem");
+        log.info("Loading RSA public key from: {}", publicKeyPath);
+        ClassPathResource resource = new ClassPathResource(publicKeyPath.replace("classpath:", ""));
         try (InputStream inputStream = resource.getInputStream()) {
             String key = new String(inputStream.readAllBytes())
                     .replace("-----BEGIN PUBLIC KEY-----", "")
