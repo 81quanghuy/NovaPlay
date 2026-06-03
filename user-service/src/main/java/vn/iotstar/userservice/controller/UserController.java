@@ -7,10 +7,9 @@ import lombok.RequiredArgsConstructor;
 import org.slf4j.MDC;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
@@ -30,10 +29,11 @@ public class UserController {
     @Operation(summary = "Change avatar of user")
     @CircuitBreaker(name = "mediaService", fallbackMethod = "fallbackForRequestUpload")
     @PostMapping("/avatar/request-upload")
-    public ResponseEntity<GenericResponse> changeAvatar(@AuthenticationPrincipal Jwt jwt, @RequestBody UploadRequestDto request) {
+    public ResponseEntity<GenericResponse> changeAvatar(
+            @RequestHeader("X-User-Email") String email,
+            @RequestBody UploadRequestDto request) {
         String traceId = MDC.get("traceId");
-        String email = jwt.getSubject();
-        UploadResponseDto uploadResponseDto  =userProfileService.changeAvatar(request, email, traceId);
+        UploadResponseDto uploadResponseDto = userProfileService.changeAvatar(request, email, traceId);
         return ResponseEntity.ok(GenericResponse.builder()
                 .success(true)
                 .message("Avatar change initiated successfully")
@@ -41,7 +41,7 @@ public class UserController {
                 .build());
     }
 
-    private UploadResponseDto fallbackForRequestUpload() {
+    private ResponseEntity<GenericResponse> fallbackForRequestUpload(String email, UploadRequestDto request, Exception ex) {
         throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
                 "Media service is currently unavailable. Please try again later.");
     }
