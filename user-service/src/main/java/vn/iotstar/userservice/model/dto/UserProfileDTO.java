@@ -1,24 +1,33 @@
 package vn.iotstar.userservice.model.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.validation.constraints.Email;
-import jakarta.validation.constraints.NotBlank;
 
-@Schema(name = "UserProfileDTO",
-        description = "Data Transfer Object for User Profile, used in API responses.")
+@Schema(name = "UserProfileDTO", description = "Thông tin hồ sơ người dùng trả về trong API responses.")
 public record UserProfileDTO(
-        @Schema(description = "ID của người dùng, định dạng UUID.",
-                example = "123e4567-e89b-12d3-a456-426614174000")
+        @Schema(description = "ID của người dùng.", example = "a1b2c3d4-...")
         String userId,
 
-        @Schema(description = "Tên hiển thị của người dùng.",
-                example = "john_doe")
+        @Schema(description = "Email của người dùng.", example = "user@example.com")
+        String email,
+
+        @Schema(description = "Username hiển thị/đăng nhập.", example = "huynguyen")
+        String preferredUsername,
+
+        @Schema(description = "Tên hiển thị trên UI.", example = "Huy Nguyễn")
         String displayName,
 
-        @Schema(description = "Email của người dùng.",
-                example = "quanghuy@gmail.com")
-        @Email
-        @NotBlank
-        String email
+        @Schema(description = "URL ảnh đại diện.", example = "https://cdn.novaplay.com/avatars/u-123.png")
+        String avatarUrl,
 
-){}
+        @Schema(description = "Ngôn ngữ theo BCP47.", example = "vi-VN")
+        String locale,
+
+        @Schema(description = "Gói cước.", example = "MEMBER")
+        String plan,
+
+        @Schema(description = "Trạng thái tài khoản.")
+        boolean active,
+
+        @Schema(description = "Đồng ý nhận marketing.")
+        boolean marketingOptIn
+) {}

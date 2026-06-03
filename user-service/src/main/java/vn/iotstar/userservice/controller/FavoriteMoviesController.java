@@ -1,81 +1,74 @@
 package vn.iotstar.userservice.controller;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RestController;
-import vn.iotstar.utils.constants.GenericResponse;
+import org.springframework.web.bind.annotation.*;
+import vn.iotstar.userservice.model.dto.AddFavoriteItemRequest;
+import vn.iotstar.userservice.model.entity.FavoriteItem;
 import vn.iotstar.userservice.service.FavoriteMoviesService;
+import vn.iotstar.utils.constants.GenericResponse;
+
+import java.util.Map;
 
 @RestController
+@RequestMapping("/api/v1/users/favorites")
 @Slf4j
 @RequiredArgsConstructor
+@Tag(name = "Favorites API", description = "Quản lý danh sách yêu thích (My List)")
 public class FavoriteMoviesController {
+
     private final FavoriteMoviesService favoriteMoviesService;
 
-    /**
-     * Adds a movie to the user's favorite list.
-     *
-     * @param userId  The ID of the user.
-     * @param movieId The ID of the movie to be added.
-     * @return ResponseEntity with GenericResponse indicating success or failure.
-     */
-    @PostMapping("/add")
-    public ResponseEntity<GenericResponse> addFavoriteMovie(String userId, String movieId) {
-        log.info("Adding favorite movie for user: {}, movie: {}", userId, movieId);
-        return favoriteMoviesService.addFavoriteMovie(userId, movieId);
+    @Operation(summary = "Thêm nội dung vào danh sách yêu thích", security = @SecurityRequirement(name = "bearer-jwt"))
+    @PostMapping
+    public ResponseEntity<GenericResponse> addFavoriteMovie(
+            @RequestHeader("X-User-Email") String email,
+            @Valid @RequestBody AddFavoriteItemRequest request) {
+        FavoriteItem item = favoriteMoviesService.addFavoriteMovie(email, request);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(GenericResponse.success(item, "Added to favorites"));
     }
 
-    /**
-     * Removes a movie from the user's favorite list.
-     *
-     * @param userId  The ID of the user.
-     * @param movieId The ID of the movie to be removed.
-     * @return ResponseEntity with GenericResponse indicating success or failure.
-     */
-    @DeleteMapping("/remove")
-    public ResponseEntity<GenericResponse> removeFavoriteMovie(String userId, String movieId) {
-        log.info("Removing favorite movie for user: {}, movie: {}", userId, movieId);
-        return favoriteMoviesService.removeFavoriteMovie(userId, movieId);
+    @Operation(summary = "Xóa nội dung khỏi danh sách yêu thích", security = @SecurityRequirement(name = "bearer-jwt"))
+    @DeleteMapping("/{movieId}")
+    public ResponseEntity<Void> removeFavoriteMovie(
+            @RequestHeader("X-User-Email") String email,
+            @PathVariable String movieId) {
+        favoriteMoviesService.removeFavoriteMovie(email, movieId);
+        return ResponseEntity.noContent().build();
     }
 
-    /**
-     * Retrieves the list of favorite movies for a user.
-     *
-     * @param userId The ID of the user.
-     * @return ResponseEntity with GenericResponse containing the list of favorite movies.
-     */
-    @GetMapping("/list")
-    public ResponseEntity<GenericResponse> getFavoriteMovies(String userId) {
-        log.info("Fetching favorite movies for user: {}", userId);
-        return favoriteMoviesService.getFavoriteMovies(userId);
+    @Operation(summary = "Lấy danh sách yêu thích (có phân trang)", security = @SecurityRequirement(name = "bearer-jwt"))
+    @GetMapping
+    public ResponseEntity<GenericResponse> getFavoriteMovies(
+            @RequestHeader("X-User-Email") String email,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        Page<FavoriteItem> result = favoriteMoviesService.getFavoriteMovies(email, PageRequest.of(page, size));
+        return ResponseEntity.ok(GenericResponse.success(result, "Favorites retrieved"));
     }
 
-    /**
-     * Checks if a movie is in the user's favorite list.
-     *
-     * @param userId  The ID of the user.
-     * @param movieId The ID of the movie to check.
-     * @return ResponseEntity with GenericResponse indicating whether the movie is a favorite.
-     */
-    @GetMapping("/is-favorite")
-    public ResponseEntity<GenericResponse> isFavoriteMovie(String userId, String movieId) {
-        log.info("Checking if movie is favorite for user: {}, movie: {}", userId, movieId);
-        return favoriteMoviesService.isFavoriteMovie(userId, movieId);
+    @Operation(summary = "Kiểm tra nội dung có trong danh sách yêu thích không", security = @SecurityRequirement(name = "bearer-jwt"))
+    @GetMapping("/{movieId}/exists")
+    public ResponseEntity<GenericResponse> isFavoriteMovie(
+            @RequestHeader("X-User-Email") String email,
+            @PathVariable String movieId) {
+        boolean exists = favoriteMoviesService.isFavoriteMovie(email, movieId);
+        return ResponseEntity.ok(GenericResponse.success(Map.of("exists", exists), "Favorite check result"));
     }
 
-    /**
-     * Deletes all favorite movies for a user.
-     *
-     * @param userId The ID of the user.
-     * @return ResponseEntity with GenericResponse indicating success or failure.
-     */
-    @DeleteMapping("/delete-all")
-    public ResponseEntity<GenericResponse> deleteAllFavoriteMovies(String userId) {
-        log.info("Deleting all favorite movies for user: {}", userId);
-        return favoriteMoviesService.deleteAllFavoriteMovies(userId);
+    @Operation(summary = "Xóa toàn bộ danh sách yêu thích", security = @SecurityRequirement(name = "bearer-jwt"))
+    @DeleteMapping
+    public ResponseEntity<Void> deleteAllFavoriteMovies(@RequestHeader("X-User-Email") String email) {
+        favoriteMoviesService.deleteAllFavoriteMovies(email);
+        return ResponseEntity.noContent().build();
     }
 }

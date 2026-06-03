@@ -1,16 +1,19 @@
 package vn.iotstar.userservice.service;
 
-import org.springframework.http.ResponseEntity;
-import vn.iotstar.utils.constants.GenericResponse;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import vn.iotstar.userservice.model.dto.AddFavoriteItemRequest;
+import vn.iotstar.userservice.model.entity.FavoriteItem;
 
 public interface FavoriteMoviesService {
-    ResponseEntity<GenericResponse> addFavoriteMovie(String userId, String movieId);
 
-    ResponseEntity<GenericResponse> removeFavoriteMovie(String userId, String movieId);
+    FavoriteItem addFavoriteMovie(String email, AddFavoriteItemRequest request);
 
-    ResponseEntity<GenericResponse> getFavoriteMovies(String userId);
+    void removeFavoriteMovie(String email, String movieId);
 
-    ResponseEntity<GenericResponse> isFavoriteMovie(String userId, String movieId);
+    Page<FavoriteItem> getFavoriteMovies(String email, Pageable pageable);
 
-    ResponseEntity<GenericResponse> deleteAllFavoriteMovies(String userId);
+    boolean isFavoriteMovie(String email, String movieId);
+
+    void deleteAllFavoriteMovies(String email);
 }
