@@ -75,7 +75,7 @@ public class UserProfile extends AuditableDocument implements Serializable {
                 throw new IllegalArgumentException("Invalid locale format: " + locale);
             }
         }
-        if (plan != null) plan = Plan.MEMBER;
+        if (plan == null) plan = Plan.MEMBER;
 
         if (id == null || id.isBlank()) {
             id = UUID.randomUUID().toString();
