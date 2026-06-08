@@ -71,6 +71,7 @@ The **API Gateway** (`api-gateway`) is the single entry point:
 - Routes, CircuitBreaker, Retry, and RequestRateLimiter are configured in `application-dev.yml` (YAML-only, no `RouteLocator` bean)
 - Rate limiting keyed by `X-User-Email` (authenticated) or IP (anonymous), backed by Redis
 
+
 ### Auth Flow
 
 `auth-service` owns identity: RSA private key signs JWTs, RSA public key is loaded by `api-gateway` for verification. Token blacklist (logout/revoke) is stored in Redis under `jwt:blacklist:<jti>`.
