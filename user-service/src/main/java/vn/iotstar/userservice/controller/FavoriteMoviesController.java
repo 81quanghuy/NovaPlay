@@ -4,23 +4,31 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import vn.iotstar.userservice.mapper.FavoriteItemMapper;
 import vn.iotstar.userservice.model.dto.AddFavoriteItemRequest;
+import vn.iotstar.userservice.model.dto.FavoriteItemDTO;
+import vn.iotstar.userservice.model.dto.PageResponse;
 import vn.iotstar.userservice.model.entity.FavoriteItem;
 import vn.iotstar.userservice.service.FavoriteMoviesService;
 import vn.iotstar.utils.constants.GenericResponse;
 
 import java.util.Map;
 
+import static vn.iotstar.userservice.controller.PaginationLimits.MAX_PAGE_SIZE;
+
 @RestController
 @RequestMapping("/api/v1/users/favorites")
 @Slf4j
+@Validated
 @RequiredArgsConstructor
 @Tag(name = "Favorites API", description = "Quản lý danh sách yêu thích (My List)")
 public class FavoriteMoviesController {
@@ -34,7 +42,7 @@ public class FavoriteMoviesController {
             @Valid @RequestBody AddFavoriteItemRequest request) {
         FavoriteItem item = favoriteMoviesService.addFavoriteMovie(email, request);
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(GenericResponse.success(item, "Added to favorites"));
+                .body(GenericResponse.success(FavoriteItemMapper.toDto(item), "Added to favorites"));
     }
 
     @Operation(summary = "Xóa nội dung khỏi danh sách yêu thích", security = @SecurityRequirement(name = "bearer-jwt"))
@@ -50,9 +58,11 @@ public class FavoriteMoviesController {
     @GetMapping
     public ResponseEntity<GenericResponse> getFavoriteMovies(
             @RequestHeader("X-User-Email") String email,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size) {
-        Page<FavoriteItem> result = favoriteMoviesService.getFavoriteMovies(email, PageRequest.of(page, size));
+            @RequestParam(defaultValue = "0") @Min(0) int page,
+            @RequestParam(defaultValue = "20") @Min(1) @Max(MAX_PAGE_SIZE) int size) {
+        PageResponse<FavoriteItemDTO> result = PageResponse.from(
+                favoriteMoviesService.getFavoriteMovies(email, PageRequest.of(page, size)),
+                FavoriteItemMapper::toDto);
         return ResponseEntity.ok(GenericResponse.success(result, "Favorites retrieved"));
     }
 

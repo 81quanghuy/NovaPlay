@@ -4,22 +4,29 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.server.ResponseStatusException;
+import vn.iotstar.userservice.mapper.WatchProgressMapper;
+import vn.iotstar.userservice.model.dto.PageResponse;
 import vn.iotstar.userservice.model.dto.UpsertWatchProgressRequest;
+import vn.iotstar.userservice.model.dto.WatchProgressDTO;
 import vn.iotstar.userservice.model.entity.WatchProgress;
 import vn.iotstar.userservice.service.WatchHistoryService;
 import vn.iotstar.utils.constants.GenericResponse;
+import vn.iotstar.utils.exceptions.wrapper.ResourceNotFoundException;
+
+import static vn.iotstar.userservice.controller.PaginationLimits.MAX_PAGE_SIZE;
 
 @RestController
 @RequestMapping("/api/v1/users/watch-progress")
 @Slf4j
+@Validated
 @RequiredArgsConstructor
 @Tag(name = "Watch Progress API", description = "Theo dõi tiến độ xem — hỗ trợ 'Tiếp tục xem'")
 public class WatchHistoryController {
@@ -32,16 +39,19 @@ public class WatchHistoryController {
             @RequestHeader("X-User-Email") String email,
             @Valid @RequestBody UpsertWatchProgressRequest request) {
         WatchProgress progress = watchHistoryService.upsertWatchProgress(email, request);
-        return ResponseEntity.ok(GenericResponse.success(progress, "Watch progress updated"));
+        return ResponseEntity.ok(GenericResponse.success(
+                WatchProgressMapper.toDto(progress), "Watch progress updated"));
     }
 
     @Operation(summary = "Lấy danh sách 'Tiếp tục xem' (sort by lastWatchedAt)", security = @SecurityRequirement(name = "bearer-jwt"))
     @GetMapping
     public ResponseEntity<GenericResponse> getRecentWatchProgress(
             @RequestHeader("X-User-Email") String email,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size) {
-        Page<WatchProgress> result = watchHistoryService.getRecentWatchProgress(email, PageRequest.of(page, size));
+            @RequestParam(defaultValue = "0") @Min(0) int page,
+            @RequestParam(defaultValue = "20") @Min(1) @Max(MAX_PAGE_SIZE) int size) {
+        PageResponse<WatchProgressDTO> result = PageResponse.from(
+                watchHistoryService.getRecentWatchProgress(email, PageRequest.of(page, size)),
+                WatchProgressMapper::toDto);
         return ResponseEntity.ok(GenericResponse.success(result, "Watch progress retrieved"));
     }
 
@@ -51,7 +61,8 @@ public class WatchHistoryController {
             @RequestHeader("X-User-Email") String email,
             @PathVariable String movieId) {
         WatchProgress progress = watchHistoryService.getWatchProgress(email, movieId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "No watch progress for: " + movieId));
-        return ResponseEntity.ok(GenericResponse.success(progress, "Watch progress retrieved"));
+                .orElseThrow(() -> new ResourceNotFoundException("No watch progress for: " + movieId));
+        return ResponseEntity.ok(GenericResponse.success(
+                WatchProgressMapper.toDto(progress), "Watch progress retrieved"));
     }
 }
