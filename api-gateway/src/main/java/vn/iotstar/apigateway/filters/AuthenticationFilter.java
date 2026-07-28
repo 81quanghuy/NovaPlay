@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.jsonwebtoken.Claims;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.core.Ordered;
@@ -37,6 +38,13 @@ public class AuthenticationFilter implements GlobalFilter, Ordered {
     private final ObjectMapper objectMapper;
     private final ReactiveStringRedisTemplate redisTemplate;
 
+    /**
+     * Bí mật dùng chung với các service downstream. Để trống thì header sẽ không được gắn —
+     * downstream chỉ từ chối request khi chính nó bật kiểm tra.
+     */
+    @Value("${application.security.gateway-secret:}")
+    private String gatewaySecret;
+
     @Override
     public int getOrder() {
         return Ordered.HIGHEST_PRECEDENCE + 1;
@@ -51,7 +59,9 @@ public class AuthenticationFilter implements GlobalFilter, Ordered {
                 .anyMatch(pattern -> pathMatcher.match(pattern, path));
 
         if (isPublic) {
-            return chain.filter(exchange);
+            // Route public không xác thực nên không có claim để gắn, nhưng vẫn phải gỡ header
+            // danh tính do client tự đặt — nếu không, chúng sẽ đi thẳng tới downstream.
+            return chain.filter(stripClientIdentityHeaders(exchange));
         }
 
         if (!request.getHeaders().containsKey("Authorization")) {
@@ -90,16 +100,36 @@ public class AuthenticationFilter implements GlobalFilter, Ordered {
                 });
     }
 
-    private ServerWebExchange sanitizeAndEnrich(ServerWebExchange exchange, Claims claims) {
+    private ServerWebExchange stripClientIdentityHeaders(ServerWebExchange exchange) {
         ServerHttpRequest mutated = exchange.getRequest().mutate()
                 .headers(h -> {
                     h.remove(GateWayConstants.X_USER_EMAIL);
                     h.remove(GateWayConstants.X_USER_ROLES);
+                    h.remove(GateWayConstants.X_GATEWAY_AUTH);
                 })
-                .header(GateWayConstants.X_USER_EMAIL, claims.getSubject())
-                .header(GateWayConstants.X_USER_ROLES, String.valueOf(claims.get("roles")))
                 .build();
         return exchange.mutate().request(mutated).build();
+    }
+
+    /**
+     * Gỡ bỏ mọi header danh tính do client tự đặt rồi gắn lại từ claim đã xác thực.
+     * Client không được phép tự khai báo mình là ai, kể cả header chứng minh đi qua gateway.
+     */
+    private ServerWebExchange sanitizeAndEnrich(ServerWebExchange exchange, Claims claims) {
+        ServerHttpRequest.Builder builder = exchange.getRequest().mutate()
+                .headers(h -> {
+                    h.remove(GateWayConstants.X_USER_EMAIL);
+                    h.remove(GateWayConstants.X_USER_ROLES);
+                    h.remove(GateWayConstants.X_GATEWAY_AUTH);
+                })
+                .header(GateWayConstants.X_USER_EMAIL, claims.getSubject())
+                .header(GateWayConstants.X_USER_ROLES, String.valueOf(claims.get("roles")));
+
+        if (gatewaySecret != null && !gatewaySecret.isBlank()) {
+            builder.header(GateWayConstants.X_GATEWAY_AUTH, gatewaySecret);
+        }
+
+        return exchange.mutate().request(builder.build()).build();
     }
 
     private Mono<Void> onError(ServerWebExchange exchange, String errorMessage) {

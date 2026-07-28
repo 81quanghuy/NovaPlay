@@ -125,6 +125,11 @@ application:
       - http://localhost:5173
       - http://localhost:3000
       - http://127.0.0.1:5173
+  security:
+    # Bí mật dùng chung để chứng minh với service downstream rằng request đã đi qua gateway.
+    # Để trống ở dev; production phải cấp qua biến môi trường và phải khớp với giá trị
+    # cấu hình ở downstream, nếu lệch thì mọi request sẽ bị trả 403.
+    gateway-secret: ${GATEWAY_SHARED_SECRET:}
 
 management:
   endpoints:
