@@ -5,19 +5,26 @@ spring:
   data:
     mongodb:
       uri: mongodb://localhost:27017/user_service
+      # Bắt buộc, nếu không các unique index mà logic chống trùng dựa vào sẽ không tồn tại.
+      auto-index-creation: true
     redis:
       host: localhost
       port: 6379
   kafka:
     bootstrap-servers: localhost:9092
-    producer:
-      key-serializer: org.apache.kafka.common.serialization.StringSerializer
-      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
-      properties:
-        spring.json.add.type.headers: true
 
 server:
   port: 8700
+  shutdown: graceful
+
+application:
+  security:
+    gateway-secret:
+      # Tắt ở local để gọi thẳng service khi dev; PROD bắt buộc bật.
+      enabled: false
+  mongodb:
+    # mongod standalone không hỗ trợ transaction (cần replica set).
+    transactions-enabled: false
 
 eureka:
   client:
@@ -35,7 +42,14 @@ management:
         include: health,info,prometheus,metrics
   endpoint:
     health:
-      show-details: always
+      show-details: when-authorized
+      probes:
+        enabled: true
+  health:
+    livenessstate:
+      enabled: true
+    readinessstate:
+      enabled: true
   tracing:
     sampling:
       probability: 1.0
