@@ -69,6 +69,8 @@ spring:
                 redis-rate-limiter.burstCapacity: 20
                 key-resolver: "#{@userEmailOrIpKeyResolver}"
 
+        # Ba route dưới đây cùng trỏ về movie-service: catalog phim, thể loại và nghệ sĩ là ba
+        # tài nguyên ngang hàng nên có prefix riêng thay vì lồng dưới /api/v1/movies.
         - id: movie-service
           uri: lb://movie-service
           predicates:
@@ -87,6 +89,61 @@ spring:
                   maxBackoff: 1000ms
                   factor: 2
                   basedOnPreviousValue: true
+            # Hạn mức rộng hơn auth/user-service: đây là endpoint đọc công khai, một lần vào
+            # trang chủ đã sinh ra vài request duyệt catalog.
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 30
+                redis-rate-limiter.burstCapacity: 60
+                key-resolver: "#{@userEmailOrIpKeyResolver}"
+
+        - id: genre-service
+          uri: lb://movie-service
+          predicates:
+            - Path=/api/v1/genres/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: movie-service-cb
+                fallbackUri: forward:/fallback/message
+            - name: Retry
+              args:
+                retries: 3
+                methods: GET
+                backoff:
+                  firstBackoff: 100ms
+                  maxBackoff: 1000ms
+                  factor: 2
+                  basedOnPreviousValue: true
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 30
+                redis-rate-limiter.burstCapacity: 60
+                key-resolver: "#{@userEmailOrIpKeyResolver}"
+
+        - id: artist-service
+          uri: lb://movie-service
+          predicates:
+            - Path=/api/v1/artists/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: movie-service-cb
+                fallbackUri: forward:/fallback/message
+            - name: Retry
+              args:
+                retries: 3
+                methods: GET
+                backoff:
+                  firstBackoff: 100ms
+                  maxBackoff: 1000ms
+                  factor: 2
+                  basedOnPreviousValue: true
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 30
+                redis-rate-limiter.burstCapacity: 60
+                key-resolver: "#{@userEmailOrIpKeyResolver}"
 
         - id: auth-service-swagger
           uri: lb://auth-service

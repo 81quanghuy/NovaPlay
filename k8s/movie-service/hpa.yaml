@@ -1,0 +1,26 @@
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: movie-service
+  labels:
+    app: movie-service
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: movie-service
+  minReplicas: 2
+  # Trần cao hơn user-service: catalog là thứ mọi khách truy cập đều chạm tới, kể cả người
+  # chưa đăng nhập, nên đỉnh tải của nó cao hơn hẳn các service chỉ phục vụ người đã đăng nhập.
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+  behavior:
+    scaleDown:
+      # Hạ quy mô từ từ để tránh dao động khi tải lên xuống thất thường.
+      stabilizationWindowSeconds: 300

@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: movie-service-config
+  labels:
+    app: movie-service
+# Chỉ chứa giá trị không nhạy cảm. Credential nằm ở movie-service-secrets.
+# Không có biến Kafka: movie-service chưa publish hay tiêu thụ event nào.
+data:
+  REDIS_HOST: "redis"
+  REDIS_PORT: "6379"
+  EUREKA_SERVICE_URL: "http://discovery-server:8761/eureka"
+  SERVER_PORT: "8600"
+  # Lấy mẫu toàn bộ ở production quá tốn kém; 10% đủ để phát hiện xu hướng.
+  TRACING_SAMPLE_RATE: "0.1"
+  # Catalog thay đổi thưa nên TTL dài hơn phần lớn dữ liệu khác vẫn an toàn; mọi thao tác ghi
+  # của admin đều evict cache ngay nên độ trễ hiển thị chỉ xảy ra với thay đổi từ bên ngoài.
+  CACHE_MOVIE_DETAIL_TTL: "10m"
+  CACHE_GENRE_LIST_TTL: "1h"

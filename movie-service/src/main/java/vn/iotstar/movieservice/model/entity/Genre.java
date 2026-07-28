@@ -1,34 +1,40 @@
 package vn.iotstar.movieservice.model.entity;
 
-
-import jakarta.persistence.*;
 import lombok.*;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.TypeAlias;
+import org.springframework.data.annotation.Version;
+import org.springframework.data.mongodb.core.mapping.Document;
+import org.springframework.data.mongodb.core.mapping.Field;
 import vn.iotstar.movieservice.utils.Constants;
-import vn.iotstar.utils.AbstractBaseEntity;
+import vn.iotstar.utils.audit.AuditableDocument;
 
+import java.io.Serial;
 import java.io.Serializable;
-import java.util.HashSet;
-import java.util.Set;
-import java.util.UUID;
 
-@Entity
-@Table(name = Constants.GENRE_TABLE)
-@Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
-public class Genre extends AbstractBaseEntity implements Serializable {
+@Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
+@Document(collection = Constants.GENRE_COLLECTION)
+@TypeAlias("Genre")
+public class Genre extends AuditableDocument implements Serializable {
+
+    @Serial
+    private static final long serialVersionUID = 1L;
 
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    @Column(name = Constants.ID)
-    private UUID id;
+    private String id;
 
-    @Column(name = Constants.GENRE_NAME, nullable = false, unique = true)
+    /** Xem ghi chú ở {@link Movie#getVersion()}: thiếu field này thì auditing bị bỏ qua. */
+    @Version
+    private Long version;
+
+    @Field(Constants.GENRE_NAME)
     private String name;
 
-    @ManyToMany(mappedBy = "genres")
-    @Builder.Default
-    private Set<Movie> movies = new HashSet<>();
+    @Field(Constants.SLUG)
+    private String slug;
+
+    public void normalize() {
+        if (name != null) name = name.trim();
+        if (slug != null) slug = slug.trim().toLowerCase();
+    }
 }

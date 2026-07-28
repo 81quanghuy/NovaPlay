@@ -1,0 +1,69 @@
+name: movie-service CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'movie-service/**'
+      - 'utils/**'
+      - 'pom.xml'
+      - '.github/workflows/movie-service-ci.yml'
+  pull_request:
+    paths:
+      - 'movie-service/**'
+      - 'utils/**'
+      - 'pom.xml'
+      - '.github/workflows/movie-service-ci.yml'
+
+# Push mới lên cùng một branch sẽ huỷ lượt chạy đang dở.
+concurrency:
+  group: movie-service-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: maven
+
+      # movie-service phụ thuộc vn.iotstar:utils, mà module này phải nằm trong local repo
+      # trước khi build được. -N cài pom cha, vốn không được `install -pl utils` cài giúp.
+      - name: Install parent POM and utils
+        run: |
+          ./mvnw -B -q install -N
+          ./mvnw -B -q install -pl utils -DskipTests
+
+      # verify chạy cả unit test (surefire) lẫn integration test (failsafe). Runner của
+      # GitHub có sẵn Docker nên MovieRepositoryIT chạy thật trên MongoDB qua Testcontainers;
+      # trên máy không có Docker thì test đó tự bỏ qua thay vì làm đỏ build.
+      - name: Build and test movie-service
+        run: ./mvnw -B verify -pl movie-service -am
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: movie-service-test-reports
+          path: |
+            movie-service/target/surefire-reports/
+            movie-service/target/failsafe-reports/
+          retention-days: 7
+
+  docker-build:
+    runs-on: ubuntu-latest
+    needs: build-and-test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Chỉ kiểm chứng image build được. Chưa push vì chưa cấu hình registry.
+      - name: Build Docker image
+        run: docker build -f movie-service/Dockerfile -t novaplay/movie-service:${{ github.sha }} .
