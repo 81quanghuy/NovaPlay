@@ -2,8 +2,10 @@ package vn.iotstar.userservice.config.messages;
 
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.StringDeserializer;
+import org.apache.kafka.common.serialization.StringSerializer;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -13,12 +15,14 @@ import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
 import org.springframework.kafka.config.TopicBuilder;
 import org.springframework.kafka.core.ConsumerFactory;
 import org.springframework.kafka.core.DefaultKafkaConsumerFactory;
+import org.springframework.kafka.core.DefaultKafkaProducerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.listener.ContainerProperties;
 import org.springframework.kafka.listener.DeadLetterPublishingRecoverer;
 import org.springframework.kafka.listener.DefaultErrorHandler;
 import org.springframework.kafka.support.ExponentialBackOffWithMaxRetries;
 import org.springframework.kafka.support.serializer.JsonDeserializer;
+import org.springframework.kafka.support.serializer.JsonSerializer;
 import vn.iotstar.userservice.util.TopicName;
 import vn.iotstar.utils.exceptions.wrapper.ResourceNotFoundException;
 
@@ -76,8 +80,29 @@ public class KafkaConsumerConfig {
         return factory;
     }
 
+    /**
+     * KafkaTemplate riêng cho DLT.
+     * <p>
+     * Không dùng được template Boot tự cấu hình: nó dùng ByteArraySerializer, trong khi
+     * consumer đã deserialize payload thành object (LinkedHashMap), nên mọi lần publish sang
+     * DLT đều ném ClassCastException — message hỏng vẫn mất, chỉ khác là có thêm log.
+     */
     @Bean
-    public DeadLetterPublishingRecoverer deadLetterPublishingRecoverer(KafkaTemplate<Object, Object> template) {
+    public KafkaTemplate<Object, Object> dltKafkaTemplate(
+            @Value("${spring.kafka.bootstrap-servers}") String bootstrap) {
+
+        var props = new HashMap<String, Object>();
+        props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrap);
+        props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
+        props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class);
+        props.put(ProducerConfig.ACKS_CONFIG, "all");
+        props.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, true);
+        return new KafkaTemplate<>(new DefaultKafkaProducerFactory<>(props));
+    }
+
+    @Bean
+    public DeadLetterPublishingRecoverer deadLetterPublishingRecoverer(
+            @Qualifier("dltKafkaTemplate") KafkaTemplate<Object, Object> template) {
         return new DeadLetterPublishingRecoverer(template,
                 (r, e) -> new TopicPartition(r.topic() + DLT_SUFFIX, r.partition()));
     }

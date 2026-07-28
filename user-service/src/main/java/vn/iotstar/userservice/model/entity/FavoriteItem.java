@@ -3,6 +3,7 @@ package vn.iotstar.userservice.model.entity;
 import lombok.*;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.TypeAlias;
+import org.springframework.data.domain.Persistable;
 import org.springframework.data.mongodb.core.index.CompoundIndex;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.Field;
@@ -22,7 +23,7 @@ import static vn.iotstar.userservice.util.Constants.*;
                 def = "{'" + FAVORITE_ITEM_USER_ID_COLUMN + "': 1, '" + FAVORITE_ITEM_MOVIE_ID_COLUMN + "': 1}",
                 unique = true
 )
-public class FavoriteItem extends AuditableDocument implements Serializable {
+public class FavoriteItem extends AuditableDocument implements Serializable, Persistable<String> {
 
     @Serial
     private static final long serialVersionUID = 1L;
@@ -30,6 +31,21 @@ public class FavoriteItem extends AuditableDocument implements Serializable {
     @Id
     @Field(FAVORITE_ITEM_ID_COLUMN)
     private String favoriteMovieId;
+
+    @Override
+    public String getId() {
+        return favoriteMovieId;
+    }
+
+    /**
+     * Id được gán sẵn bằng UUID trước khi lưu, nên Spring Data mặc định coi document là đã
+     * tồn tại và bỏ qua @CreatedDate/@CreatedBy — mất thông tin thời điểm thêm vào yêu thích.
+     * Dùng createdAt để phân biệt: chưa có nghĩa là document mới.
+     */
+    @Override
+    public boolean isNew() {
+        return getCreatedAt() == null;
+    }
 
     // Không cần @Indexed riêng: userId đã là prefix của uk_profile_movie.
     @Field(FAVORITE_ITEM_USER_ID_COLUMN)

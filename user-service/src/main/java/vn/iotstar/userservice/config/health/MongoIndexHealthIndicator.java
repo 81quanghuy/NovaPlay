@@ -11,6 +11,8 @@ import vn.iotstar.userservice.model.entity.UserProfile;
 
 import java.util.List;
 
+import static vn.iotstar.userservice.util.Constants.*;
+
 /**
  * Báo DOWN nếu các unique index mà tính đúng đắn phụ thuộc vào không tồn tại.
  * <p>
@@ -27,18 +29,19 @@ public class MongoIndexHealthIndicator implements HealthIndicator {
     @Override
     public Health health() {
         try {
-            boolean emailUnique = hasUniqueIndex(UserProfile.class, "uk_email");
-            boolean favoriteUnique = hasUniqueIndex(FavoriteItem.class, "uk_profile_movie");
+            boolean emailUnique = hasUniqueIndexOn(UserProfile.class, List.of(EMAIL_COLUMN));
+            boolean favoriteUnique = hasUniqueIndexOn(FavoriteItem.class,
+                    List.of(FAVORITE_ITEM_USER_ID_COLUMN, FAVORITE_ITEM_MOVIE_ID_COLUMN));
 
             if (emailUnique && favoriteUnique) {
                 return Health.up()
-                        .withDetail("uk_email", "present")
-                        .withDetail("uk_profile_movie", "present")
+                        .withDetail("userProfileEmail", "unique index present")
+                        .withDetail("favoriteProfileMovie", "unique index present")
                         .build();
             }
             return Health.down()
-                    .withDetail("uk_email", emailUnique ? "present" : "MISSING")
-                    .withDetail("uk_profile_movie", favoriteUnique ? "present" : "MISSING")
+                    .withDetail("userProfileEmail", emailUnique ? "unique index present" : "MISSING")
+                    .withDetail("favoriteProfileMovie", favoriteUnique ? "unique index present" : "MISSING")
                     .withDetail("reason", "Required unique indexes are missing; duplicate records are possible")
                     .build();
         } catch (Exception e) {
@@ -46,8 +49,14 @@ public class MongoIndexHealthIndicator implements HealthIndicator {
         }
     }
 
-    private boolean hasUniqueIndex(Class<?> entity, String indexName) {
+    /**
+     * So khớp theo bộ field chứ không theo tên index: index có thể được tạo bởi
+     * auto-index-creation với tên do nó tự đặt, hoặc bởi MongoIndexInitializer với tên của
+     * chúng ta. Điều quan trọng là ràng buộc có tồn tại hay không, không phải nó tên gì.
+     */
+    private boolean hasUniqueIndexOn(Class<?> entity, List<String> keys) {
         List<IndexInfo> indexes = mongoTemplate.indexOps(entity).getIndexInfo();
-        return indexes.stream().anyMatch(i -> indexName.equals(i.getName()) && i.isUnique());
+        return indexes.stream().anyMatch(i -> i.isUnique()
+                && i.getIndexFields().stream().map(f -> f.getKey()).toList().equals(keys));
     }
 }

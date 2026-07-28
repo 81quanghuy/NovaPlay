@@ -54,9 +54,13 @@ public class UserProfile extends AuditableDocument implements Serializable {
     @Field(PLAN_COLUMN)
     private Plan plan;
 
+    // @Builder.Default là bắt buộc: không có nó, Lombok bỏ qua giá trị khởi tạo và builder
+    // tạo ra profile với active=false, khiến mọi user đăng ký qua Kafka đều bị vô hiệu hoá.
+    @Builder.Default
     @Field(IS_ACTIVE_COLUMN)
     private boolean active = true;
 
+    @Builder.Default
     @Field(MARKETING_OPT_IN_COLUMN)
     private boolean marketingOptIn = false;
 

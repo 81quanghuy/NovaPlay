@@ -57,6 +57,17 @@ class UserProfileNormalizeTest {
         assertThat(p.getPlan()).isEqualTo(Plan.MEMBER);
     }
 
+    @Test
+    @DisplayName("profile tạo bằng builder mặc định là active")
+    void isActiveByDefaultWhenBuiltWithBuilder() {
+        // Không có @Builder.Default thì Lombok bỏ qua giá trị khởi tạo của field và mọi user
+        // đăng ký qua Kafka đều bị tạo ra ở trạng thái vô hiệu hoá.
+        UserProfile p = UserProfile.builder().email("a@b.com").build();
+
+        assertThat(p.isActive()).isTrue();
+        assertThat(p.isMarketingOptIn()).isFalse();
+    }
+
     @ParameterizedTest(name = "{0} -> {1}")
     @DisplayName("locale được chuẩn hoá về dạng BCP-47")
     @CsvSource({
