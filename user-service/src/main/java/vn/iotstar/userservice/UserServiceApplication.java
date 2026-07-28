@@ -17,7 +17,7 @@ import vn.iotstar.utils.audit.AuditAwareImpl;
         "vn.iotstar.utils", // package Utils,
 }, excludeFilters = @ComponentScan.Filter(
         // AuditAwareImpl của utils đọc danh tính từ claim JWT, còn service này lấy danh tính từ
-        // header do gateway inject. Loại nó ra để chỉ còn đúng một bean AuditorAware.
+        // header do gateway inject. Loại ra để chỉ còn đúng một bean AuditorAware.
         type = FilterType.ASSIGNABLE_TYPE, classes = AuditAwareImpl.class))
 @EnableMongoAuditing(
         auditorAwareRef = "auditorAware"
