@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: movie-service
+  labels:
+    app: movie-service
+spec:
+  # ClusterIP chứ không phải LoadBalancer/NodePort: service này chỉ được tiếp cận qua
+  # api-gateway. Expose ra ngoài sẽ mở đường đi vòng qua lớp xác thực của gateway — và với
+  # service này thì đó là đường đi thẳng tới các endpoint ghi dành cho admin.
+  type: ClusterIP
+  selector:
+    app: movie-service
+  ports:
+    - name: http
+      port: 8600
+      targetPort: http

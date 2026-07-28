@@ -1,5 +1,13 @@
+# Chỉ chứa những gì đúng cho MỌI môi trường. Cấu hình riêng theo môi trường nằm ở
+# application-<profile>.yml, chọn bằng SPRING_PROFILES_ACTIVE.
+#
+# Cố tình KHÔNG đặt spring.profiles.active ở đây: nướng cứng một profile vào jar khiến bản
+# build production chạy bằng cấu hình dev nếu ai đó quên override.
 spring:
   application:
     name: movie-service
-  profiles:
-    active: dev
+
+logging:
+  pattern:
+    # traceId/spanId được OpenTelemetry javaagent đưa vào MDC.
+    level: "%5p [${spring.application.name},%X{traceId},%X{spanId}]"

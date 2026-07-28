@@ -64,7 +64,19 @@ public class AuthenticationFilter implements GlobalFilter, Ordered {
             return chain.filter(stripClientIdentityHeaders(exchange));
         }
 
-        if (!request.getHeaders().containsKey("Authorization")) {
+        boolean hasAuthHeader = request.getHeaders().containsKey("Authorization");
+
+        // Đọc catalog là xác thực TUỲ CHỌN, không phải miễn xác thực: không có token thì duyệt
+        // với tư cách khách, còn có token thì vẫn phải xác thực và gắn danh tính.
+        //
+        // Bỏ qua hoàn toàn việc xác thực ở đây sẽ làm hỏng các endpoint quản trị nằm lồng dưới
+        // cùng prefix (ví dụ /api/v1/movies/manage): admin gửi kèm token vẫn bị gỡ mất danh tính
+        // và luôn nhận 401 từ downstream.
+        if (!hasAuthHeader && isPublicGet(request.getMethod().name(), path)) {
+            return chain.filter(stripClientIdentityHeaders(exchange));
+        }
+
+        if (!hasAuthHeader) {
             return this.onError(exchange, "Authorization header is missing in request");
         }
 
@@ -100,15 +112,32 @@ public class AuthenticationFilter implements GlobalFilter, Ordered {
                 });
     }
 
+    private boolean isPublicGet(String method, String path) {
+        return "GET".equalsIgnoreCase(method)
+                && PublicEndpoints.PUBLIC_GET.stream()
+                .anyMatch(pattern -> pathMatcher.match(pattern, path));
+    }
+
+    /**
+     * Gỡ header danh tính do client tự đặt, nhưng vẫn gắn lại bí mật chứng minh đi qua gateway.
+     * <p>
+     * Bí mật này trả lời câu hỏi "request có đi qua gateway không", hoàn toàn độc lập với việc
+     * người dùng đã đăng nhập hay chưa. Không gắn lại thì mọi request công khai sẽ bị downstream
+     * từ chối bằng 403 ngay khi service đó bật kiểm tra gateway-secret ở production.
+     */
     private ServerWebExchange stripClientIdentityHeaders(ServerWebExchange exchange) {
-        ServerHttpRequest mutated = exchange.getRequest().mutate()
+        ServerHttpRequest.Builder builder = exchange.getRequest().mutate()
                 .headers(h -> {
                     h.remove(GateWayConstants.X_USER_EMAIL);
                     h.remove(GateWayConstants.X_USER_ROLES);
                     h.remove(GateWayConstants.X_GATEWAY_AUTH);
-                })
-                .build();
-        return exchange.mutate().request(mutated).build();
+                });
+
+        if (gatewaySecret != null && !gatewaySecret.isBlank()) {
+            builder.header(GateWayConstants.X_GATEWAY_AUTH, gatewaySecret);
+        }
+
+        return exchange.mutate().request(builder.build()).build();
     }
 
     /**

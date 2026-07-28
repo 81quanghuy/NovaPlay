@@ -1,33 +1,49 @@
 package vn.iotstar.movieservice.model.entity;
 
-import jakarta.persistence.*;
 import lombok.*;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.TypeAlias;
+import org.springframework.data.annotation.Version;
+import org.springframework.data.mongodb.core.mapping.Document;
+import org.springframework.data.mongodb.core.mapping.Field;
 import vn.iotstar.movieservice.utils.Constants;
-import vn.iotstar.utils.AbstractBaseEntity;
+import vn.iotstar.utils.audit.AuditableDocument;
 
+import java.io.Serial;
 import java.io.Serializable;
-import java.util.HashSet;
-import java.util.Set;
-import java.util.UUID;
 
-@Entity
-@Table(name = Constants.ARTIST_TABLE)
+/**
+ * Nghệ sĩ tách thành collection riêng chứ không nhúng hẳn vào phim: một người đóng nhiều phim và
+ * có tiểu sử riêng cần quản lý ở một chỗ. Phim chỉ nhúng bản sao rút gọn
+ * ({@link vn.iotstar.movieservice.model.entity.embedded.CastMember}) để đọc không phải join.
+ */
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
-public class Artist extends AbstractBaseEntity implements Serializable {
+@Document(collection = Constants.ARTIST_COLLECTION)
+@TypeAlias("Artist")
+public class Artist extends AuditableDocument implements Serializable {
+
+    @Serial
+    private static final long serialVersionUID = 1L;
 
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    @Column(name = Constants.ID)
-    private UUID id;
+    private String id;
 
-    @Column(name = Constants.ARTIST_FULL_NAME, nullable = false)
+    /** Xem ghi chú ở {@link Movie#getVersion()}: thiếu field này thì auditing bị bỏ qua. */
+    @Version
+    private Long version;
+
+    @Field(Constants.ARTIST_FULL_NAME)
     private String fullName;
 
-    @Lob
-    @Column(name = Constants.ARTIST_BIO)
+    @Field(Constants.ARTIST_BIO)
     private String bio;
 
-    @OneToMany(mappedBy = "artist", cascade = CascadeType.ALL, orphanRemoval = true)
-    @Builder.Default
-    private Set<MovieArtist> movies = new HashSet<>();
+    @Field(Constants.ARTIST_AVATAR_URL)
+    private String avatarUrl;
+
+    public void normalize() {
+        if (fullName != null) fullName = fullName.trim();
+        if (bio != null) bio = bio.trim();
+        if (avatarUrl != null) avatarUrl = avatarUrl.trim();
+    }
 }

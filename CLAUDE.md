@@ -50,6 +50,7 @@ git push -u origin <new-branch-name>
 | api-gateway | 8072 | Redis |
 | auth-service | 8000 | PostgreSQL + Redis + Kafka |
 | user-service | 8700 | MongoDB + Kafka (consumer) |
+| movie-service | 8600 | MongoDB + Redis (cache) |
 | discovery-server | 8761 | — |
 | Kafka UI | 8080 | — |
 | Grafana | 3000 | — |

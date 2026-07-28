@@ -263,6 +263,23 @@ services:
       SPRING_DATA_MONGODB_URI: "mongodb://mongodb:27017/user_service?replicaSet=rs0"
       SPRING_DATA_REDIS_HOST: redis
 
+  movie-service:
+    image: "novaplay/movie-service:${MOVIE_SERVICE_VERSION:-v0.0.1}"
+    container_name: movie-service
+    <<: *microservice-base
+    ports: ["8600:8600"]
+    depends_on:
+      mongodb: { condition: service_healthy }
+      discovery-server: { condition: service_healthy }
+    environment:
+      SPRING_APPLICATION_NAME: "movie-service"
+      OTEL_SERVICE_NAME: "movie-service"
+      SPRING_CONFIG_IMPORT: ""
+      # Database riêng, không dùng chung với user_service. movie-service không dùng
+      # transaction nên replicaSet ở đây chỉ để khớp với cụm đang chạy sẵn.
+      SPRING_DATA_MONGODB_URI: "mongodb://mongodb:27017/movie_service?replicaSet=rs0"
+      SPRING_DATA_REDIS_HOST: redis
+
   api-gateway:
     image: "novaplay/apigateway:${API_GATEWAY_VERSION:-v1.0.0}"
     container_name: api-gateway
