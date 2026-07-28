@@ -139,6 +139,14 @@ management:
   endpoint:
     gateway:
       access: unrestricted
+    health:
+      probes:
+        enabled: true
+  health:
+    livenessstate:
+      enabled: true
+    readinessstate:
+      enabled: true
   info:
     env:
       enabled: true

@@ -1,5 +1,36 @@
 spring:
   config:
-    import: optional:configserver:http://localhost:8888/
     activate:
       on-profile: dev
+
+server:
+  port: 8761
+
+eureka:
+  instance:
+    hostname: localhost
+  client:
+    # Đây là chính bản thân Eureka server nên không cần đăng ký với chính nó hay lấy
+    # registry của chính nó — bật hai cờ này lên sẽ chỉ tạo log lỗi vô nghĩa.
+    register-with-eureka: false
+    fetch-registry: false
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  endpoint:
+    health:
+      probes:
+        enabled: true
+  health:
+    livenessstate:
+      enabled: true
+    readinessstate:
+      enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}

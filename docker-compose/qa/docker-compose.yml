@@ -1,22 +1,15 @@
-version: '3.8'
-
 # ===================================================================
 # EXTENSION FIELDS (x-) FOR REUSABLE BLOCKS (DRY PRINCIPLE)
 # ===================================================================
-x-healthcheck-microservice: &healthcheck-microservice
-  # A reusable health check for custom Spring Boot microservices.
-  test: "curl --fail --silent localhost:${PORT:-8080}/actuator/health/readiness | grep UP || exit 1"
-  interval: 20s
-  timeout: 5s
-  retries: 20
-  start_period: 10s
-
 x-microservice-base: &microservice-base
   # Base configuration inherited by all custom microservices.
+  # Không đặt healthcheck ở đây: docker-compose thay biến ${PORT:-8080} tại thời điểm PARSE
+  # file (phía host), không phải bên trong container, nên nó luôn ra 8080 bất kể mỗi service
+  # thật sự lắng nghe cổng nào. Mỗi Dockerfile đã tự khai báo HEALTHCHECK đúng cổng của nó,
+  # và `depends_on: condition: service_healthy` vẫn hoạt động dựa trên healthcheck của image.
   extends:
     file: common-config.yml
     service: microservice-eureka-config
-  healthcheck: *healthcheck-microservice
   networks: [novaPLay]
 
 x-loki-common: &loki-common
@@ -45,7 +38,10 @@ services:
     environment:
       POSTGRES_USER_FILE: /run/secrets/db_user
       POSTGRES_PASSWORD_FILE: /run/secrets/db_password
-    secrets: [db_user, db_password]
+      # Không có biến này, Postgres tạo database mặc định trùng tên user ("admin") thay vì
+      # "auth_service" mà auth-service thực sự kết nối tới.
+      POSTGRES_DB_FILE: /run/secrets/db_name
+    secrets: [db_user, db_password, db_name]
     ports: ["5432:5432"]
     volumes: ["../init-db:/docker-entrypoint-initdb.d"]
     networks: [novaPLay]
@@ -204,27 +200,51 @@ services:
   # ===================================================================
   # APPLICATION SERVICES
   # ===================================================================
-#  cloud-config:
-#    image: "novaplay/cloudconfig:${CLOUD_CONFIG_VERSION:-v1.0.0}"
-#    container_name: cloud-config-service
-#    <<: *microservice-base
-#    ports: ["8888:8888"]
-#    environment:
-#      PORT: 8888
-#      SPRING_APPLICATION_NAME: "cloud-config"
-#      OTEL_SERVICE_NAME: "cloud-config"
+  # LƯU Ý: mọi service dưới đây tắt SPRING_CONFIG_IMPORT (đặt rỗng). cloud-config vẫn chạy
+  # để có sẵn hạ tầng, nhưng repo config từ xa của nó (GitHub) đã lệch hẳn so với
+  # application-dev.yml hiện tại của từng service (route cũ, đường dẫn key cũ...), và việc
+  # nạp nó lúc build/test không nên phụ thuộc mạng ra ngoài. Đây cũng là hướng kiến trúc đã
+  # chọn cho auth-service/user-service (xem CLAUDE.md) — áp dụng nhất quán cho tất cả.
+  cloud-config:
+    image: "novaplay/cloudconfig:${CLOUD_CONFIG_VERSION:-v1.0.0}"
+    container_name: cloud-config-service
+    <<: *microservice-base
+    ports: ["8888:8888"]
+    environment:
+      SPRING_APPLICATION_NAME: "cloud-config"
+      OTEL_SERVICE_NAME: "cloud-config"
+      # cloud-config LÀ config server — nó không tự import từ chính nó.
+      SPRING_CONFIG_IMPORT: ""
 
-#  discovery-server:
-#    image: "novaplay/discoveryserver:${DISCOVERY_SERVER_VERSION:-v1.0.0}"
-#    container_name: discovery-server
-#    <<: *microservice-base
-#    ports: ["8761:8761"]
-#    depends_on:
-#      cloud-config: { condition: service_healthy }
-#    environment:
-#      PORT: 8761
-#      SPRING_APPLICATION_NAME: "discovery-server"
-#      OTEL_SERVICE_NAME: "discovery-server"
+  discovery-server:
+    image: "novaplay/discoveryserver:${DISCOVERY_SERVER_VERSION:-v0.0.1}"
+    container_name: discovery-server
+    <<: *microservice-base
+    ports: ["8761:8761"]
+    environment:
+      SPRING_APPLICATION_NAME: "discovery-server"
+      OTEL_SERVICE_NAME: "discovery-server"
+      SPRING_CONFIG_IMPORT: ""
+
+  auth-service:
+    image: "novaplay/authservice:${AUTH_SERVICE_VERSION:-v0.0.1}"
+    container_name: auth-service
+    <<: *microservice-base
+    ports: ["8000:8000"]
+    depends_on:
+      postgres: { condition: service_healthy }
+      discovery-server: { condition: service_healthy }
+    environment:
+      SPRING_APPLICATION_NAME: "auth-service"
+      OTEL_SERVICE_NAME: "auth-service"
+      SPRING_CONFIG_IMPORT: ""
+      # application-dev.yml hardcode "localhost" cho Postgres/Redis — bên trong container đó
+      # là chính nó, không phải service postgres/redis. Username/password khớp nội dung
+      # docker-compose/secrets/db_user.txt và db_password.txt.
+      SPRING_DATASOURCE_URL: "jdbc:postgresql://postgres:5432/auth_service"
+      SPRING_DATASOURCE_USERNAME: "admin"
+      SPRING_DATASOURCE_PASSWORD: "admin123"
+      SPRING_DATA_REDIS_HOST: redis
 
   user-service:
     image: "novaplay/userservice:${USER_SERVICE_VERSION:-v0.0.1}"
@@ -233,32 +253,30 @@ services:
     ports: ["8700:8700"]
     depends_on:
       mongodb: { condition: service_healthy }
+      discovery-server: { condition: service_healthy }
     environment:
-      PORT: 8700
       SPRING_APPLICATION_NAME: "user-service"
       OTEL_SERVICE_NAME: "user-service"
-      # Service này dùng cấu hình standalone; base config kế thừa trỏ tới cloud-config,
-      # vốn không có trong compose file này và sẽ chặn khởi động.
       SPRING_CONFIG_IMPORT: ""
       # user-service dùng MongoDB, không phải PostgreSQL — cấu hình cũ ở đây là tàn dư
       # từ thời trước khi chuyển sang Mongo.
       SPRING_DATA_MONGODB_URI: "mongodb://mongodb:27017/user_service?replicaSet=rs0"
       SPRING_DATA_REDIS_HOST: redis
-      # Listener nội bộ của broker; cổng 9092 chỉ dành cho client ngoài network.
-      SPRING_KAFKA_BOOTSTRAP_SERVERS: "kafka-services:29092"
 
-#  api-gateway:
-#    image: "novaplay/apigateway:${API_GATEWAY_VERSION:-v1.0.0}"
-#    container_name: api-gateway
-#    <<: *microservice-base
-#    ports: ["8072:8072"]
-#    depends_on:
-#      discovery-server: { condition: service_healthy }
-#      user-service: { condition: service_healthy }
-#    environment:
-#      PORT: 8072
-#      SPRING_APPLICATION_NAME: "api-gateway"
-#      OTEL_SERVICE_NAME: "api-gateway"
+  api-gateway:
+    image: "novaplay/apigateway:${API_GATEWAY_VERSION:-v1.0.0}"
+    container_name: api-gateway
+    <<: *microservice-base
+    ports: ["8072:8072"]
+    depends_on:
+      discovery-server: { condition: service_healthy }
+      auth-service: { condition: service_healthy }
+      user-service: { condition: service_healthy }
+    environment:
+      SPRING_APPLICATION_NAME: "api-gateway"
+      OTEL_SERVICE_NAME: "api-gateway"
+      SPRING_CONFIG_IMPORT: ""
+      SPRING_DATA_REDIS_HOST: redis
 
 # ===================================================================
 # TOP-LEVEL DEFINITIONS
