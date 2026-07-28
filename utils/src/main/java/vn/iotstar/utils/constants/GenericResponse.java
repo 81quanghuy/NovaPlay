@@ -1,13 +1,17 @@
 package vn.iotstar.utils.constants;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
+
+import java.time.Instant;
 
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@JsonInclude(JsonInclude.Include.NON_NULL)
 @Schema(
         description = "Generic response structure for API responses",
         title = "GenericResponse"
@@ -20,6 +24,12 @@ public class GenericResponse {
     private Object result;
 
     private int statusCode;
+
+    /** Chỉ được điền trên response lỗi, để đối chiếu với log. */
+    private Instant timestamp;
+
+    /** Chỉ được điền trên response lỗi, là request URI đã gây lỗi. */
+    private String path;
 
     public static GenericResponse success(Object data, String message, int statusCode) {
         return GenericResponse.builder()
