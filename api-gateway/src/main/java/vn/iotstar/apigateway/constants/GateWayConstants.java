@@ -17,4 +17,6 @@ public class GateWayConstants {
     public static final String CONTACT_SUPPORT_MESSAGE = "An error occurred. Please try after some time or contact support team!!!";
     public static final String X_USER_EMAIL = "X-User-Email";
     public static final String X_USER_ROLES = "X-User-Roles";
+    /** Chứng minh request đi qua gateway, để downstream không tin header danh tính từ client. */
+    public static final String X_GATEWAY_AUTH = "X-Gateway-Auth";
 }

@@ -51,16 +51,9 @@
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
             </plugin>
-            <plugin>
-                <groupId>com.google.cloud.tools</groupId>
-                <artifactId>jib-maven-plugin</artifactId>
-                <version>3.4.2</version>
-                <configuration>
-                    <to>
-                        <image>novaplay/${project.artifactId}:v${project.version}</image>
-                    </to>
-                </configuration>
-            </plugin>
+            <!-- jib đã bị gỡ: mvn package sẽ cố push image lên Docker Hub thật và fail
+                 không có credential. Dockerfile là đường build image duy nhất (nhất quán
+                 với user-service). -->
         </plugins>
     </build>
 

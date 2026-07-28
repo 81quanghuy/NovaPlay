@@ -11,9 +11,19 @@ import java.util.Optional;
 @Configuration
 public class MongoAuditingConfig {
 
+    /** Ghi cho những thao tác không có người dùng: consumer Kafka, job khởi động, batch. */
+    private static final String SYSTEM_AUDITOR = "system";
+
+    /**
+     * Danh tính người dùng đến từ header do gateway inject (xem {@code HeaderAuthenticationFilter}),
+     * nên principal ở đây là một chuỗi email chứ không phải JWT.
+     */
     @Bean
     public AuditorAware<String> auditorAware() {
         return () -> Optional.ofNullable(SecurityContextHolder.getContext().getAuthentication())
-                .map(Authentication::getName);
+                .filter(Authentication::isAuthenticated)
+                .map(Authentication::getName)
+                .filter(name -> !name.isBlank())
+                .or(() -> Optional.of(SYSTEM_AUDITOR));
     }
 }

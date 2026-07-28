@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: user-service-config
+  labels:
+    app: user-service
+# Chỉ chứa giá trị không nhạy cảm. Credential nằm ở user-service-secrets.
+data:
+  REDIS_HOST: "redis"
+  REDIS_PORT: "6379"
+  KAFKA_BOOTSTRAP_SERVERS: "kafka:9092"
+  KAFKA_SECURITY_PROTOCOL: "PLAINTEXT"
+  EUREKA_SERVICE_URL: "http://discovery-server:8761/eureka"
+  SERVER_PORT: "8700"
+  # Lấy mẫu toàn bộ ở production quá tốn kém; 10% đủ để phát hiện xu hướng.
+  TRACING_SAMPLE_RATE: "0.1"

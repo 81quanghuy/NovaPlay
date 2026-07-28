@@ -18,13 +18,19 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class SecurityConfig {
 
     private final HeaderAuthenticationFilter headerAuthFilter;
+    private final GatewayAuthFilter gatewayAuthFilter;
 
     private static final String[] PUBLIC_ENDPOINTS = {
             "/v3/api-docs/**",
             "/swagger-ui/**",
             "/swagger-ui.html",
             "/webjars/**",
-            "/actuator/**"
+            // Chỉ probe sức khoẻ mới để mở — orchestrator gọi chúng trước khi có danh tính.
+            // /actuator/prometheus và /actuator/metrics lộ tên endpoint nội bộ cùng số liệu
+            // vận hành nên phải yêu cầu xác thực.
+            "/actuator/health",
+            "/actuator/health/**",
+            "/actuator/info"
     };
 
     @Bean
@@ -37,7 +43,9 @@ public class SecurityConfig {
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
-                .addFilterBefore(headerAuthFilter, UsernamePasswordAuthenticationFilter.class);
+                // Chứng minh nguồn gốc gateway phải được kiểm tra trước khi tin bất kỳ header danh tính nào.
+                .addFilterBefore(gatewayAuthFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterAfter(headerAuthFilter, GatewayAuthFilter.class);
         return http.build();
     }
 }

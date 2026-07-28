@@ -3,8 +3,8 @@ package vn.iotstar.userservice.model.entity;
 import lombok.*;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.TypeAlias;
+import org.springframework.data.annotation.Version;
 import org.springframework.data.mongodb.core.index.CompoundIndex;
-import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.Field;
 import vn.iotstar.utils.audit.AuditableDocument;
@@ -32,7 +32,11 @@ public class WatchProgress extends AuditableDocument implements Serializable {
     @Field(WATCH_PROGRESS_ID_COLUMN)
     private String watchHistoryId;
 
-    @Indexed
+    /** Chống lost-update khi nhiều thiết bị cùng phát một phim. */
+    @Version
+    private Long version;
+
+    // Không cần @Indexed riêng: userId đã là prefix của cả uk_user_movie lẫn idx_user_lastwatched.
     @Field(WATCH_PROGRESS_USER_ID_COLUMN)
     private String userId;
 

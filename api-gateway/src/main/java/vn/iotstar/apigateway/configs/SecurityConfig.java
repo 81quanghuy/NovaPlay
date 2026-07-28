@@ -1,5 +1,6 @@
 package vn.iotstar.apigateway.configs;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -14,12 +15,11 @@ import java.util.Arrays;
 import java.util.List;
 
 @Configuration
+@RequiredArgsConstructor
 @EnableWebFluxSecurity
 public class SecurityConfig {
 
-    // Load the list of allowed origins from the application.properties file
-    @Value("${application.cors.allowed-origins}")
-    private List<String> allowedOrigins;
+    private final CorsProperties corsProperties;
 
     @Bean
     public SecurityWebFilterChain springSecurityFilterChain(ServerHttpSecurity http) {
@@ -48,7 +48,7 @@ public class SecurityConfig {
         configuration.setAllowCredentials(true);
 
         // Set the allowed origins from the configuration file
-        configuration.setAllowedOrigins(allowedOrigins);
+        configuration.setAllowedOrigins(corsProperties.getAllowedOrigins());
 
         // Restrict allowed HTTP methods for enhanced security
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));

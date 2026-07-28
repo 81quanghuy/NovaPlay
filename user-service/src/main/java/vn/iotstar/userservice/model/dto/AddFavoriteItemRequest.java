@@ -2,6 +2,7 @@ package vn.iotstar.userservice.model.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.*;
+import vn.iotstar.userservice.util.ContentType;
 
 @Schema(name = "AddFavoriteItemRequest",
         description = "Thêm nội dung vào danh sách yêu thích (My List).")
@@ -16,10 +17,7 @@ public record AddFavoriteItemRequest(
 
         @Schema(description = "Loại nội dung.",
                 example = "MOVIE",
-                allowableValues = {"MOVIE","EPISODE","SEASON","SERIES"},
                 requiredMode = Schema.RequiredMode.REQUIRED)
-        @NotBlank
-        @Pattern(regexp = "^(MOVIE|EPISODE|SEASON|SERIES)$",
-                message = "movieType phải là MOVIE|EPISODE|SEASON|SERIES")
-        String movieType
+        @NotNull(message = "movieType phải là MOVIE|EPISODE|SEASON|SERIES")
+        ContentType movieType
 ) {}

@@ -47,7 +47,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                             roles == null ? java.util.Collections.emptyList() :
                                     roles.stream()
                                             .map(org.springframework.security.core.authority.SimpleGrantedAuthority::new)
-                                            .collect(java.util.stream.Collectors.toList());
+                                            .toList();
 
                     // Create partial User to act as the Principal without hitting DB
                     vn.iotstar.authservice.model.entity.User userDetails = new vn.iotstar.authservice.model.entity.User();

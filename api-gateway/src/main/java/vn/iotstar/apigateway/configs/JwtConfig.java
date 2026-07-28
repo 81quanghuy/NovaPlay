@@ -18,7 +18,7 @@ public class JwtConfig {
     @Bean
     public RSAPublicKey publicKey() throws Exception {
         log.info("Loading RSA public key...");
-        ClassPathResource resource = new ClassPathResource("certs/public.pem");
+        ClassPathResource resource = new ClassPathResource("keys/public.pem");
         try (InputStream inputStream = resource.getInputStream()) {
             String key = new String(inputStream.readAllBytes())
                     .replace("-----BEGIN PUBLIC KEY-----", "")

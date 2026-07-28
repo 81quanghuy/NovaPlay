@@ -6,11 +6,11 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.server.ResponseStatusException;
 import vn.iotstar.userservice.model.dto.UpdateUserProfileRequest;
 import vn.iotstar.userservice.model.dto.UserProfileDTO;
 import vn.iotstar.userservice.service.UserProfileService;
@@ -18,8 +18,11 @@ import vn.iotstar.utils.constants.GenericResponse;
 import vn.iotstar.utils.dto.UploadRequestDto;
 import vn.iotstar.utils.dto.UploadResponseDto;
 
+import java.time.Instant;
+
 @RestController
 @RequiredArgsConstructor
+@Slf4j
 @RequestMapping("/api/v1/users")
 @Tag(name = "User Profile API", description = "Quản lý hồ sơ người dùng")
 public class UserController {
@@ -47,18 +50,32 @@ public class UserController {
     @PostMapping("/avatar/request-upload")
     public ResponseEntity<GenericResponse> changeAvatar(
             @RequestHeader("X-User-Email") String email,
-            @RequestBody UploadRequestDto request) {
+            @Valid @RequestBody UploadRequestDto request) {
         String traceId = MDC.get("traceId");
         UploadResponseDto uploadResponseDto = userProfileService.changeAvatar(request, email, traceId);
         return ResponseEntity.ok(GenericResponse.builder()
                 .success(true)
                 .message("Avatar change initiated successfully")
                 .result(uploadResponseDto)
+                .statusCode(HttpStatus.OK.value())
                 .build());
     }
 
-    private ResponseEntity<GenericResponse> fallbackForRequestUpload(String email, UploadRequestDto request, Exception ex) {
-        throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
-                "Media service is currently unavailable. Please try again later.");
+    /**
+     * Trả về response 503 thay vì ném exception: ném từ trong fallback khiến chính lời gọi
+     * fallback bị tính là thất bại và không hề làm dịu sự cố, chỉ đổi nhãn lỗi.
+     */
+    private ResponseEntity<GenericResponse> fallbackForRequestUpload(String email,
+                                                                     UploadRequestDto request,
+                                                                     Throwable ex) {
+        log.warn("Media service unavailable while requesting avatar upload for {}: {}",
+                email, ex.toString());
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(GenericResponse.builder()
+                        .success(false)
+                        .message("Media service is currently unavailable. Please try again later.")
+                        .statusCode(HttpStatus.SERVICE_UNAVAILABLE.value())
+                        .timestamp(Instant.now())
+                        .build());
     }
 }

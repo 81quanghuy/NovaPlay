@@ -25,7 +25,7 @@ public class JwtServiceImpl implements JwtService {
     private final RSAPrivateKey rsaPrivateKey;
     private final RSAPublicKey rsaPublicKey;
 
-    @Value("${spring.application.security.jwt.expiration}")
+    @Value("${jwt.access-token.expiration}")
     private long accessTokenExpiration;
 
     @Value("${auth.jwt.issuer:novaplay-auth}")
@@ -81,7 +81,7 @@ public class JwtServiceImpl implements JwtService {
     @SuppressWarnings("unchecked")
     @Override
     public List<String> extractRoles(String token) {
-        return (List<String>) extractAllClaims(token).get("roles", List.class);
+        return extractAllClaims(token).get("roles", List.class);
     }
 
     @Override

@@ -1,0 +1,16 @@
+# Giữ build context nhỏ và không để artifact build trên máy dev lọt vào image.
+**/target/
+**/.git/
+**/.idea/
+**/.vscode/
+**/*.iml
+**/node_modules/
+**/.mvn/wrapper/maven-wrapper.jar
+docker-compose/
+k8s/
+**/*.md
+**/.DS_Store
+
+# Không bao giờ đưa khoá riêng tư vào build context.
+**/keys/*.pem
+**/certs/*.pem

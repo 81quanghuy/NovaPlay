@@ -1,0 +1,90 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-service
+  labels:
+    app: user-service
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: user-service
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: user-service
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8700"
+        prometheus.io/path: "/actuator/prometheus"
+    spec:
+      # Cho phép request đang chạy hoàn tất; khớp với server.shutdown=graceful và
+      # spring.lifecycle.timeout-per-shutdown-phase=30s.
+      terminationGracePeriodSeconds: 45
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+      containers:
+        - name: user-service
+          image: novaplay/userservice:v0.0.1
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8700
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: prod
+            # MDC traceId/spanId trong log chỉ có giá trị khi javaagent được gắn.
+            - name: JAVA_TOOL_OPTIONS
+              value: "-javaagent:/app/libs/opentelemetry-javaagent.jar"
+            - name: OTEL_SERVICE_NAME
+              value: user-service
+          envFrom:
+            - configMapRef:
+                name: user-service-config
+            - secretRef:
+                name: user-service-secrets
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+          # Startup probe cho JVM thời gian khởi động mà không phải nới lỏng liveness.
+          startupProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: http
+            failureThreshold: 30
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: http
+            periodSeconds: 15
+            failureThreshold: 3
+          # Readiness bao gồm cả kiểm tra unique index của Mongo: pod thiếu index sẽ âm thầm
+          # cho phép dữ liệu trùng nên không được nhận traffic.
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: http
+            periodSeconds: 10
+            failureThreshold: 3
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}

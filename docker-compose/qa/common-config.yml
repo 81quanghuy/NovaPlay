@@ -15,7 +15,9 @@ services:
       OTEL_EXPORTER_OTLP_ENDPOINT: http://tempo:4318
       OTEL_METRICS_EXPORTER: none
       OTEL_LOGS_EXPORTER: none
-      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      # Service broker tên là "kafka-services", không phải "kafka"; và 29092 là listener
+      # nội bộ dành cho traffic bên trong network (9092 chỉ dành cho client ngoài).
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka-services:29092
 
   microservice-configserver-config:
     extends:

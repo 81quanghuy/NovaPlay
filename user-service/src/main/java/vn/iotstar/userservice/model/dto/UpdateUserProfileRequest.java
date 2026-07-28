@@ -1,20 +1,17 @@
 package vn.iotstar.userservice.model.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.validation.constraints.Email;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
+import vn.iotstar.userservice.util.Plan;
 import vn.iotstar.userservice.validation.BCP47Locale;
 
+/**
+ * Danh tính người dùng được lấy từ header {@code X-User-Email} do gateway inject,
+ * nên request body không nhận email — đổi email phải đi qua auth-service.
+ */
 @Schema(name = "UpdateUserProfileRequest",
         description = "Yêu cầu cập nhật hồ sơ người dùng (domain profile, không chứa credential).")
 public record UpdateUserProfileRequest(
-
-        @Schema(description = "Email của người dùng (case-insensitive).",
-                example = "user@example.com",
-                requiredMode = Schema.RequiredMode.REQUIRED)
-        @NotBlank @Email @Size(max = 255)
-        String email,
 
         @Schema(description = "Username hiển thị/đăng nhập (tuỳ chính sách unique).",
                 example = "huynguyen",
@@ -42,10 +39,9 @@ public record UpdateUserProfileRequest(
         String locale,
 
         @Schema(description = "Tên gói cước snapshot để hiển thị (nguồn chân lý ở billing).",
-                example = "Premium",
+                example = "PLUS",
                 requiredMode = Schema.RequiredMode.NOT_REQUIRED)
-        @Size(max = 50)
-        String plan,
+        Plan plan,
 
         @Schema(description = "Đồng ý nhận marketing (email/SMS/push).",
                 example = "true",

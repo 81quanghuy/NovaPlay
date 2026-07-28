@@ -53,6 +53,17 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
+        <!-- Khai báo tường minh: toàn bộ kiểm tra đầu vào dựa vào Bean Validation, không thể
+             để nó phụ thuộc vào việc một dependency khác tình cờ kéo theo Hibernate Validator. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+        <!-- @CircuitBreaker trên phương thức cần proxy AOP. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-aop</artifactId>
+        </dependency>
         <dependency>
             <groupId>org.springframework.cloud</groupId>
             <artifactId>spring-cloud-starter-netflix-eureka-client</artifactId>
@@ -99,6 +110,15 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <excludes>
+                        <!-- devtools được kế thừa từ pom gốc; nó không được đi vào artifact production. -->
+                        <exclude>
+                            <groupId>org.springframework.boot</groupId>
+                            <artifactId>spring-boot-devtools</artifactId>
+                        </exclude>
+                    </excludes>
+                </configuration>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -113,17 +133,8 @@
                     </annotationProcessorPaths>
                     <source>21</source>
                     <target>21</target>
-                    <compilerArgs>--enable-preview</compilerArgs>
-                </configuration>
-            </plugin>
-            <plugin>
-                <groupId>com.google.cloud.tools</groupId>
-                <artifactId>jib-maven-plugin</artifactId>
-                <version>3.4.2</version>
-                <configuration>
-                    <to>
-                        <image>novaplay/${project.artifactId}:v1.0.0</image>
-                    </to>
+                    <!-- Không bật cờ enable-preview: cờ này bắt buộc phải truyền lại lúc chạy,
+                         mà không có preview feature nào đang được dùng. -->
                 </configuration>
             </plugin>
         </plugins>

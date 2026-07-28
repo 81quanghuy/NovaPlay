@@ -15,6 +15,26 @@
     <description>auth-service</description>
 
     <dependencies>
+        <!-- auth-service là nơi phát hành JWT. Trước đây jjwt chỉ đến một cách bắc cầu qua
+             module utils, nghĩa là code chính phụ thuộc vào một thư viện chưa từng được khai
+             báo. Nay khai báo tường minh. -->
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-api</artifactId>
+            <version>0.11.5</version>
+        </dependency>
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-impl</artifactId>
+            <version>0.11.5</version>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-gson</artifactId>
+            <version>0.11.5</version>
+            <scope>runtime</scope>
+        </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-security</artifactId>
