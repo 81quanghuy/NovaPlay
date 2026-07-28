@@ -4,9 +4,9 @@ import lombok.*;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.TypeAlias;
 import org.springframework.data.mongodb.core.index.CompoundIndex;
-import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.Field;
+import vn.iotstar.userservice.util.ContentType;
 import vn.iotstar.utils.audit.AuditableDocument;
 
 import java.io.Serial;
@@ -31,7 +31,7 @@ public class FavoriteItem extends AuditableDocument implements Serializable {
     @Field(FAVORITE_ITEM_ID_COLUMN)
     private String favoriteMovieId;
 
-    @Indexed
+    // Không cần @Indexed riêng: userId đã là prefix của uk_profile_movie.
     @Field(FAVORITE_ITEM_USER_ID_COLUMN)
     private String userId;
 
@@ -39,5 +39,5 @@ public class FavoriteItem extends AuditableDocument implements Serializable {
     private String movieId;
 
     @Field(FAVORITE_ITEM_MOVIE_TYPE_COLUMN)
-    private String contentType;
+    private ContentType contentType;
 }

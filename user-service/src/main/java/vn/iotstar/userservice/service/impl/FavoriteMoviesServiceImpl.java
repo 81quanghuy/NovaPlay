@@ -5,16 +5,15 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 import vn.iotstar.userservice.model.dto.AddFavoriteItemRequest;
 import vn.iotstar.userservice.model.entity.FavoriteItem;
-import vn.iotstar.userservice.model.entity.UserProfile;
+import vn.iotstar.userservice.config.observability.UserMetrics;
 import vn.iotstar.userservice.repository.IFavoriteItemRepository;
-import vn.iotstar.userservice.repository.IUserProfileRepository;
+import vn.iotstar.userservice.service.AuditLogger;
 import vn.iotstar.userservice.service.FavoriteMoviesService;
+import vn.iotstar.userservice.service.UserProfileLookup;
+import vn.iotstar.utils.exceptions.wrapper.UserAlreadyExistsException;
 
 import java.util.UUID;
 
@@ -24,14 +23,15 @@ import java.util.UUID;
 public class FavoriteMoviesServiceImpl implements FavoriteMoviesService {
 
     private final IFavoriteItemRepository favoriteItemRepository;
-    private final IUserProfileRepository userProfileRepository;
+    private final UserProfileLookup userProfileLookup;
+    private final UserMetrics metrics;
+    private final AuditLogger auditLogger;
 
     @Override
-    @Transactional
     public FavoriteItem addFavoriteMovie(String email, AddFavoriteItemRequest request) {
-        String userId = resolveUserId(email);
+        String userId = userProfileLookup.resolveUserId(email);
         if (favoriteItemRepository.existsByUserIdAndMovieId(userId, request.movieId())) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Movie already in favorites");
+            throw new UserAlreadyExistsException("Movie already in favorites");
         }
         FavoriteItem item = FavoriteItem.builder()
                 .favoriteMovieId(UUID.randomUUID().toString())
@@ -40,43 +40,40 @@ public class FavoriteMoviesServiceImpl implements FavoriteMoviesService {
                 .contentType(request.movieType())
                 .build();
         try {
-            return favoriteItemRepository.save(item);
+            FavoriteItem saved = favoriteItemRepository.save(item);
+            metrics.getFavoriteAdded().increment();
+            auditLogger.favoriteAdded(email, request.movieId());
+            return saved;
         } catch (DuplicateKeyException e) {
-            // race condition — treat as already exists
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Movie already in favorites");
+            // Hai request song song cùng thêm một phim: unique index uk_profile_movie đã chặn.
+            throw new UserAlreadyExistsException("Movie already in favorites");
         }
     }
 
     @Override
-    @Transactional
     public void removeFavoriteMovie(String email, String movieId) {
-        String userId = resolveUserId(email);
-        // idempotent — no error if not found
+        String userId = userProfileLookup.resolveUserId(email);
+        // idempotent — không lỗi nếu bản ghi không tồn tại
         favoriteItemRepository.deleteByUserIdAndMovieId(userId, movieId);
+        metrics.getFavoriteRemoved().increment();
     }
 
     @Override
     public Page<FavoriteItem> getFavoriteMovies(String email, Pageable pageable) {
-        String userId = resolveUserId(email);
+        String userId = userProfileLookup.resolveUserId(email);
         return favoriteItemRepository.findByUserId(userId, pageable);
     }
 
     @Override
     public boolean isFavoriteMovie(String email, String movieId) {
-        String userId = resolveUserId(email);
+        String userId = userProfileLookup.resolveUserId(email);
         return favoriteItemRepository.existsByUserIdAndMovieId(userId, movieId);
     }
 
     @Override
-    @Transactional
     public void deleteAllFavoriteMovies(String email) {
-        String userId = resolveUserId(email);
-        favoriteItemRepository.deleteAllByUserId(userId);
-    }
-
-    private String resolveUserId(String email) {
-        return userProfileRepository.findByEmail(email)
-                .map(UserProfile::getId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found: " + email));
+        String userId = userProfileLookup.resolveUserId(email);
+        long removed = favoriteItemRepository.deleteAllByUserId(userId);
+        auditLogger.favoritesCleared(email, removed);
     }
 }

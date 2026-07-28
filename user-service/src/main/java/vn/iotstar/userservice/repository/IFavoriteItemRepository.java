@@ -6,18 +6,18 @@ import org.springframework.data.mongodb.repository.MongoRepository;
 import org.springframework.stereotype.Repository;
 import vn.iotstar.userservice.model.entity.FavoriteItem;
 
-import java.util.Optional;
-
 @Repository
 public interface IFavoriteItemRepository extends MongoRepository<FavoriteItem, String> {
 
     Page<FavoriteItem> findByUserId(String userId, Pageable pageable);
 
-    Optional<FavoriteItem> findByUserIdAndMovieId(String userId, String movieId);
-
     boolean existsByUserIdAndMovieId(String userId, String movieId);
 
     void deleteByUserIdAndMovieId(String userId, String movieId);
 
-    void deleteAllByUserId(String userId);
+    /**
+     * Trả về số bản ghi đã xoá. Kiểu trả về {@code long} khiến Spring Data phát sinh một
+     * lệnh delete duy nhất thay vì nạp toàn bộ document rồi mới xoá từng cái.
+     */
+    long deleteAllByUserId(String userId);
 }
