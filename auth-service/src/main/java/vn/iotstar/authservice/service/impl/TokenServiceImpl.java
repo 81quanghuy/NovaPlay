@@ -24,7 +24,7 @@ public class TokenServiceImpl implements TokenService {
 
     private final TokenRepository tokenRepository;
 
-    @Value("${spring.application.security.jwt.refresh-token.expiration}")
+    @Value("${jwt.refresh-token.expiration}")
     private long refreshTokenExpiration;
 
     @Override

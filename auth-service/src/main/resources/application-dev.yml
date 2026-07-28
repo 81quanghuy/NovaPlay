@@ -33,17 +33,14 @@ spring:
       properties:
         max.in.flight.requests.per.connection: 5
         compression.type: lz4
-  application:
-    security:
-      jwt:
-        expiration: 86400000
-        refresh-token:
-          expiration: 604800000
 
 jwt:
   private-key-path: classpath:keys/private.pem
   public-key-path: classpath:keys/public.pem
-
+  access-token:
+    expiration: 86400000
+  refresh-token:
+    expiration: 604800000
 auth:
   jwt:
     issuer: novaplay-auth

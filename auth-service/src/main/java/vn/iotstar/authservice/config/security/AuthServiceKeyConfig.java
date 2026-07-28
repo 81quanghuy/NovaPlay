@@ -1,5 +1,6 @@
 package vn.iotstar.authservice.config.security;
 
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -18,6 +19,7 @@ import java.util.Base64;
 @Slf4j
 public class AuthServiceKeyConfig {
 
+    @Getter
     @Value("${auth.jwt.kid:v1}")
     private String kid;
 
@@ -63,7 +65,4 @@ public class AuthServiceKeyConfig {
         }
     }
 
-    public String getKid() {
-        return kid;
-    }
 }
