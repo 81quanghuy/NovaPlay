@@ -1,13 +1,16 @@
 package vn.iotstar.userservice.config.messages;
 
+import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.StringDeserializer;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.kafka.annotation.EnableKafka;
 import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
+import org.springframework.kafka.config.TopicBuilder;
 import org.springframework.kafka.core.ConsumerFactory;
 import org.springframework.kafka.core.DefaultKafkaConsumerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -16,12 +19,18 @@ import org.springframework.kafka.listener.DeadLetterPublishingRecoverer;
 import org.springframework.kafka.listener.DefaultErrorHandler;
 import org.springframework.kafka.support.ExponentialBackOffWithMaxRetries;
 import org.springframework.kafka.support.serializer.JsonDeserializer;
+import vn.iotstar.userservice.util.TopicName;
+import vn.iotstar.utils.exceptions.wrapper.ResourceNotFoundException;
 
 import java.util.HashMap;
 
 @Configuration
 @EnableKafka
 public class KafkaConsumerConfig {
+
+    private static final String DLT_SUFFIX = ".DLT";
+    private static final int TOPIC_PARTITIONS = 3;
+    private static final int LISTENER_CONCURRENCY = 3;
 
     @Bean
     public ConsumerFactory<String, Object> registerUserConsumerFactory(
@@ -43,11 +52,12 @@ public class KafkaConsumerConfig {
 
     @Bean
     public ConcurrentKafkaListenerContainerFactory<String, Object> kafkaListenerContainerFactory(
-            ConsumerFactory<String, Object> cf,
+            @Qualifier("registerUserConsumerFactory") ConsumerFactory<String, Object> cf,
             DeadLetterPublishingRecoverer dltRecoverer) {
 
         var factory = new ConcurrentKafkaListenerContainerFactory<String, Object>();
         factory.setConsumerFactory(cf);
+        factory.setConcurrency(LISTENER_CONCURRENCY);
         factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.BATCH);
 
         var backoff = new ExponentialBackOffWithMaxRetries(5);
@@ -56,7 +66,11 @@ public class KafkaConsumerConfig {
         backoff.setMaxInterval(10_000);
 
         var errorHandler = new DefaultErrorHandler(dltRecoverer, backoff);
-        errorHandler.addNotRetryableExceptions(IllegalArgumentException.class);
+        // Payload hỏng và tham chiếu tới bản ghi không tồn tại sẽ không tự khỏi khi retry —
+        // đẩy thẳng sang DLT thay vì lặp lại 5 lần một cách vô ích.
+        errorHandler.addNotRetryableExceptions(
+                IllegalArgumentException.class,
+                ResourceNotFoundException.class);
         factory.setCommonErrorHandler(errorHandler);
 
         return factory;
@@ -65,6 +79,21 @@ public class KafkaConsumerConfig {
     @Bean
     public DeadLetterPublishingRecoverer deadLetterPublishingRecoverer(KafkaTemplate<Object, Object> template) {
         return new DeadLetterPublishingRecoverer(template,
-                (r, e) -> new TopicPartition(r.topic() + ".DLT", r.partition()));
+                (r, e) -> new TopicPartition(r.topic() + DLT_SUFFIX, r.partition()));
+    }
+
+    // Khai báo tường minh các topic DLT: nếu broker tắt auto-create thì recoverer sẽ không
+    // publish được và message hỏng biến mất đúng vào lúc cần giữ lại nhất.
+
+    @Bean
+    public NewTopic activateAccountDltTopic() {
+        return TopicBuilder.name(TopicName.ACTIVATE_ACCOUNT + DLT_SUFFIX)
+                .partitions(TOPIC_PARTITIONS).replicas(1).build();
+    }
+
+    @Bean
+    public NewTopic sendStatusMediaDltTopic() {
+        return TopicBuilder.name(TopicName.SEND_STATUS_MEDIA + DLT_SUFFIX)
+                .partitions(TOPIC_PARTITIONS).replicas(1).build();
     }
 }
