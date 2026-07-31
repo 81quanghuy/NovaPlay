@@ -9,7 +9,6 @@ metadata:
 data:
   REDIS_HOST: "redis"
   REDIS_PORT: "6379"
-  EUREKA_SERVICE_URL: "http://discovery-server:8761/eureka"
   SERVER_PORT: "8600"
   # Lấy mẫu toàn bộ ở production quá tốn kém; 10% đủ để phát hiện xu hướng.
   TRACING_SAMPLE_RATE: "0.1"
