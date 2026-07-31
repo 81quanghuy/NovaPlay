@@ -24,8 +24,6 @@
     </properties>
     <modules>
         <module>utils</module>
-        <module>cloud-config</module>
-        <module>discovery-server</module>
         <module>api-gateway</module>
         <module>movie-service</module>
         <module>notification-service</module>
