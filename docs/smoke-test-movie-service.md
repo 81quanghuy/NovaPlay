@@ -12,7 +12,7 @@ docker compose -f docker-compose/qa/docker-compose.yml up -d mongodb redis
 ./mvnw spring-boot:run -pl movie-service -Dspring-boot.run.profiles=dev
 ```
 
-Muốn kiểm tra cả đường đi qua gateway thì chạy thêm `discovery-server` rồi `api-gateway`.
+Muốn kiểm tra cả đường đi qua gateway thì chạy thêm `api-gateway`.
 
 Đặt sẵn biến cho gọn:
 
@@ -33,8 +33,6 @@ ADMIN='-H "X-User-Email: admin@novaplay.vn" -H "X-User-Roles: [ROLE_ADMIN]"'
 | 1.3 | Readiness gồm cả index | `curl -s $SVC/actuator/health/readiness` | `UP`, và chi tiết có `mongo`, `redis`, `mongoIndex` |
 | 1.4 | **Khởi động lại lần hai vẫn được** | Ctrl-C rồi chạy lại | Khởi động thành công. Đây là bài kiểm tra cho lỗi 85 `IndexOptionsConflict` từng làm user-service chết mọi lần boot |
 | 1.5 | Index đã tạo đúng | `mongosh movie_service --eval 'db.movies.getIndexes()'` | Có `uk_movie_slug` (unique), `idx_movie_status_release`, `idx_movie_genre`, một text index |
-| 1.6 | Đăng ký Eureka | mở `http://localhost:8761` | `MOVIE-SERVICE` ở trạng thái UP |
-
 ## 2. Phân quyền
 
 Gọi qua gateway (`$GW`), vì phân quyền là kết quả phối hợp giữa gateway và service.

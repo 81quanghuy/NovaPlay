@@ -12,7 +12,7 @@ docker compose -f docker-compose/qa/docker-compose.yml up -d mongodb redis kafka
 ./mvnw spring-boot:run -pl notification-service -Dspring-boot.run.profiles=dev
 ```
 
-Muốn kiểm tra cả đường đi qua gateway thì chạy thêm `discovery-server` rồi `api-gateway`.
+Muốn kiểm tra cả đường đi qua gateway thì chạy thêm `api-gateway`.
 
 ```bash
 SVC=http://localhost:8900      # gọi thẳng service
@@ -51,7 +51,6 @@ phải lời giải — nó sẽ phát lại toàn bộ OTP lịch sử và gử
 | 1.4 | **Khởi động lại lần hai vẫn được** | Ctrl-C rồi chạy lại | Khởi động thành công — bài kiểm tra cho lỗi 85 `IndexOptionsConflict` |
 | 1.5 | Index đã tạo đúng | `mongosh notification_service --eval 'db.notifications.getIndexes()'` | Có `idx_notification_user_created`, `idx_notification_user_unread` (partial), `idx_notification_expires_ttl` (`expireAfterSeconds: 0`) |
 | 1.6 | Topic DLT đã tồn tại | Kafka UI → Topics | Có `send-email.v1.DLT`, `activate-account.v1.DLT`, `notification.requested.v1.DLT` |
-| 1.7 | Đăng ký Eureka | mở `http://localhost:8761` | `NOTIFICATION-SERVICE` ở trạng thái UP |
 
 ## 2. Phân quyền và ranh giới dữ liệu
 
