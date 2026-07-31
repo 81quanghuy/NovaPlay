@@ -58,7 +58,7 @@ NovaPlay is a scalable movie streaming application powered by a Java-based micro
 
 - **Backend:** Java 21, Spring Boot 3, Spring Cloud Gateway, Spring Security, OpenFeign, Resilience4j.
 - **Databases & Storage:** PostgreSQL, MongoDB, MySQL, Redis (caching/OTP), S3-compatible object storage.
-- **Message Broker:** Apache Kafka (scoped to email-service flows).
+- **Message Broker:** Apache Kafka (scoped to notification flows).
 - **DevOps & Tooling:** Docker, Docker Compose, GitHub Actions, Grafana/Prometheus/Tempo, Loki.
 - **Frontend:** React, Vite, Redux Toolkit, Tailwind CSS.
 - **Testing:** JUnit 5, Mockito, Testcontainers.
@@ -67,7 +67,7 @@ NovaPlay is a scalable movie streaming application powered by a Java-based micro
 
 ## 🏗 System Architecture
 
-NovaPlay embraces a microservices architecture with clear bounded contexts and an API Gateway fronting all client access. Configuration is centralized, synchronous communication uses OpenFeign over REST, and Kafka is intentionally limited to email workflows to reduce operational complexity.
+NovaPlay embraces a microservices architecture with clear bounded contexts and an API Gateway fronting all client access. Synchronous communication uses OpenFeign over REST, and Kafka is intentionally limited to notification workflows to reduce operational complexity.
 
 ```mermaid
 flowchart TD
@@ -87,12 +87,13 @@ flowchart TD
     DISC <--> NOTIF(Notification Service)
     subgraph Messaging
         KAFKA[(Kafka)]
-        EMAIL(Email Service)
     end
 
     AUTH -. produces .-> KAFKA
-    USER -. produces .-> KAFKA
-    KAFKA -. consumes .-> EMAIL
+    MEDIA -. produces .-> KAFKA
+    KAFKA -. consumes .-> NOTIF
+    KAFKA -. consumes .-> USER
+    NOTIF -- SMTP --> SMTP[(Mail Server)]
 
     subgraph Data
         POSTGRES[(PostgreSQL)]
@@ -114,10 +115,11 @@ flowchart TD
 
     CONFIG --> AUTH
     CONFIG --> USER
-    CONFIG --> MOVIE
     CONFIG --> PAYMENT
-    CONFIG --> EMAIL
 ```
+
+> `movie-service` và `notification-service` không còn phụ thuộc Config Server: cấu hình của
+> chúng nằm ngay trong repo (`application-dev.yml` / `application-prod.yml`).
 
 ---
 
@@ -163,7 +165,7 @@ Define the following environment variables (or entries in your centralized confi
   - `./mvnw spring-boot:run -pl discovery-server`
   - `./mvnw spring-boot:run -pl cloud-config`
   - `./mvnw spring-boot:run -pl api-gateway`
-  - `./mvnw spring-boot:run -pl auth-service,user-service,movie-service,streaming-service,media-service,email-service,payment-service,promotion-service,report-service`
+  - `./mvnw spring-boot:run -pl auth-service,user-service,movie-service,notification-service,streaming-service,media-service,payment-service,promotion-service,report-service`
 - **Access the frontend:** `cd ui && npm run dev`
 - **API documentation:** Swagger UI aggregated at `http://localhost:8072/swagger-ui.html` via the gateway.
 

@@ -145,6 +145,36 @@ spring:
                 redis-rate-limiter.burstCapacity: 60
                 key-resolver: "#{@userEmailOrIpKeyResolver}"
 
+        # Thông báo in-app. Không có endpoint đọc công khai nào — mọi request đều phải mang JWT
+        # hợp lệ, nên đường dẫn này cố tình KHÔNG nằm trong PublicEndpoints.
+        - id: notification-service
+          uri: lb://notification-service
+          predicates:
+            - Path=/api/v1/notifications/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: notification-service-cb
+                fallbackUri: forward:/fallback/message
+            # Chỉ retry GET: PATCH đánh dấu đã đọc là thao tác ghi, và dù nó idempotent thì
+            # retry vẫn chỉ làm tăng tải chứ không sửa được nguyên nhân lỗi.
+            - name: Retry
+              args:
+                retries: 3
+                methods: GET
+                backoff:
+                  firstBackoff: 100ms
+                  maxBackoff: 1000ms
+                  factor: 2
+                  basedOnPreviousValue: true
+            # Hạn mức rộng hơn auth/user-service: frontend hỏi số thông báo chưa đọc theo chu kỳ
+            # để cập nhật badge, nên một người dùng đang mở tab sinh request đều đặn.
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 20
+                redis-rate-limiter.burstCapacity: 40
+                key-resolver: "#{@userEmailOrIpKeyResolver}"
+
         - id: auth-service-swagger
           uri: lb://auth-service
           predicates:
@@ -165,6 +195,13 @@ spring:
             - Path=/swagger/movie/v3/api-docs
           filters:
             - RewritePath=/swagger/movie/(?<segment>.*), /${segment}
+
+        - id: notification-service-swagger
+          uri: lb://notification-service
+          predicates:
+            - Path=/swagger/notification/v3/api-docs
+          filters:
+            - RewritePath=/swagger/notification/(?<segment>.*), /${segment}
 
 rsa:
   public:
@@ -238,6 +275,8 @@ resilience4j:
         base-config: default
       movie-service-cb:
         base-config: default
+      notification-service-cb:
+        base-config: default
   timelimiter:
     configs:
       default:
@@ -248,4 +287,6 @@ resilience4j:
       user-service-cb:
         base-config: default
       movie-service-cb:
+        base-config: default
+      notification-service-cb:
         base-config: default

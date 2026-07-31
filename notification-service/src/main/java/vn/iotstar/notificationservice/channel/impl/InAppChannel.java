@@ -40,7 +40,7 @@ public class InAppChannel implements NotificationChannel {
                 .userId(request.userId())
                 .userEmail(request.userEmail())
                 .type(request.type())
-                .title(messageSource.getMessage(request.type().titleKey(), null, request.locale()))
+                .title(renderTitle(request))
                 .body(renderBody(request))
                 .data(request.variables() == null ? java.util.Map.of() : request.variables())
                 .expiresAt(Instant.now().plus(RETENTION))
@@ -57,7 +57,26 @@ public class InAppChannel implements NotificationChannel {
     // ra — luôn an toàn để thử lại, nên dùng mặc định isRetryable()=true, không cần ghi đè.
     // DuplicateKeyException không bao giờ thoát ra khỏi send() vì đã bị bắt ở trên.
 
+    /**
+     * Nội dung do bên phát sự kiện cung cấp được ưu tiên hơn bundle i18n.
+     * <p>
+     * Với các loại cố định (OTP, kích hoạt tài khoản), service biết trước phải hiển thị gì nên
+     * bundle là nguồn đúng. Nhưng với {@code GENERIC} thì ngược lại: chỉ producer mới biết nội
+     * dung, và bundle chỉ có một chuỗi giữ chỗ. Bỏ qua biến của producer ở đây nghĩa là mọi
+     * thông báo nghiệp vụ đều hiện ra như nhau — không dùng được.
+     */
+    private String renderTitle(NotificationRequest request) {
+        String supplied = request.variable("title");
+        return supplied != null && !supplied.isBlank()
+                ? supplied
+                : messageSource.getMessage(request.type().titleKey(), null, request.locale());
+    }
+
     private String renderBody(NotificationRequest request) {
+        String supplied = request.variable("body");
+        if (supplied != null && !supplied.isBlank()) {
+            return supplied;
+        }
         Object[] args = {request.variableOrDefault("username", request.userEmail())};
         return messageSource.getMessage(request.type().bodyKey(), args, request.locale());
     }

@@ -113,6 +113,18 @@ services:
       - AUTH_TYPE=LOGIN_FORM
       - SPRING_SECURITY_USER_NAME=admin
       - SPRING_SECURITY_USER_PASSWORD=admin
+
+  # Máy chủ SMTP giả cho môi trường QA: nhận mọi email và hiển thị ở web UI thay vì gửi thật.
+  # Không có nó thì notification-service không khởi động nổi kênh email, và tệ hơn là một cấu
+  # hình sai có thể khiến email test bay tới hộp thư người dùng thật.
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: mailhog
+    networks: [novaPLay]
+    ports:
+      - "1025:1025"   # SMTP
+      - "8025:8025"   # Web UI
+
   # ===================================================================
   # OBSERVABILITY STACK (Loki, Prometheus, Grafana, etc.)
   # ===================================================================
@@ -279,6 +291,28 @@ services:
       # transaction nên replicaSet ở đây chỉ để khớp với cụm đang chạy sẵn.
       SPRING_DATA_MONGODB_URI: "mongodb://mongodb:27017/movie_service?replicaSet=rs0"
       SPRING_DATA_REDIS_HOST: redis
+
+  notification-service:
+    image: "novaplay/notification-service:${NOTIFICATION_SERVICE_VERSION:-v0.0.1}"
+    container_name: notification-service
+    <<: *microservice-base
+    ports: ["8900:8900"]
+    depends_on:
+      mongodb: { condition: service_healthy }
+      kafka-services: { condition: service_healthy }
+      discovery-server: { condition: service_healthy }
+      mailhog: { condition: service_started }
+    environment:
+      SPRING_APPLICATION_NAME: "notification-service"
+      OTEL_SERVICE_NAME: "notification-service"
+      SPRING_CONFIG_IMPORT: ""
+      SPRING_DATA_MONGODB_URI: "mongodb://mongodb:27017/notification_service?replicaSet=rs0"
+      SPRING_DATA_REDIS_HOST: redis
+      # application-dev.yml trỏ SMTP tới localhost:1025; bên trong container đó là chính nó,
+      # không phải dịch vụ mailhog. Email gửi ra xem được ở http://localhost:8025.
+      SPRING_MAIL_HOST: mailhog
+      SPRING_MAIL_PORT: "1025"
+      APPLICATION_FRONTEND_BASE_URL: "${FRONTEND_BASE_URL:-http://localhost:3000}"
 
   api-gateway:
     image: "novaplay/apigateway:${API_GATEWAY_VERSION:-v1.0.0}"

@@ -51,8 +51,10 @@ git push -u origin <new-branch-name>
 | auth-service | 8000 | PostgreSQL + Redis + Kafka |
 | user-service | 8700 | MongoDB + Kafka (consumer) |
 | movie-service | 8600 | MongoDB + Redis (cache) |
+| notification-service | 8900 | MongoDB + Redis (dedup) + Kafka (consumer) |
 | discovery-server | 8761 | — |
 | Kafka UI | 8080 | — |
+| MailHog (SMTP giả, QA) | 1025 / 8025 | — |
 | Grafana | 3000 | — |
 | Prometheus | 9090 | — |
 
@@ -77,7 +79,16 @@ The **API Gateway** (`api-gateway`) is the single entry point:
 
 `auth-service` owns identity: RSA private key signs JWTs, RSA public key is loaded by `api-gateway` for verification. Token blacklist (logout/revoke) is stored in Redis under `jwt:blacklist:<jti>`.
 
-Email notifications (OTP, password reset) use the **Transactional Outbox pattern**: `auth-service` writes to an `OutboxEvent` table, `OutboxRelayJob` publishes to Kafka, `email-service` consumes.
+Email notifications (OTP, password reset) use the **Transactional Outbox pattern**: `auth-service` writes to an `OutboxEvent` table, `OutboxRelayJob` publishes to Kafka, `notification-service` consumes.
+
+### Notifications
+
+`notification-service` is the single consumer for all user-facing notifications (it absorbed the former `email-service`). It consumes `send-email.v1`, `activate-account.v1` and `notification.requested.v1`, then fans out to channels:
+
+- **Email** — SMTP + Thymeleaf, i18n via `messages*.properties`
+- **In-app** — MongoDB document + REST API at `/api/v1/notifications` (per-user; identity from the `X-User-Email` gateway header)
+
+Adding a channel means adding one `NotificationChannel` bean plus an entry in `ChannelRoutingPolicy`; the dispatcher and consumers stay untouched. Delivery is at-least-once with **per-channel dedup keys** in Redis, so a retry only re-sends the channel that actually failed. Topic names live in `vn.iotstar.utils.constants.TopicNames`.
 
 ### Inter-Service Communication
 

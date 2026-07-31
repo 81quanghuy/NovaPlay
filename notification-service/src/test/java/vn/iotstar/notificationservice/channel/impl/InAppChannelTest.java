@@ -79,6 +79,36 @@ class InAppChannelTest {
     }
 
     @Test
+    @DisplayName("GENERIC dùng title/body của producer, không đè bằng bundle i18n")
+    void generic_uu_tien_noi_dung_cua_producer() {
+        NotificationRequest generic = NotificationRequest.builder()
+                .dedupKey("evt-2")
+                .userEmail("user@novaplay.dev")
+                .type(NotificationType.GENERIC)
+                .locale(Locale.forLanguageTag("vi-VN"))
+                .variables(Map.of("title", "Thanh toán thành công", "body", "Đơn #123 đã được xử lý"))
+                .build();
+
+        channel.send(generic);
+
+        ArgumentCaptor<Notification> captor = ArgumentCaptor.forClass(Notification.class);
+        verify(repository).insert(captor.capture());
+        // Bundle chỉ có chuỗi giữ chỗ cho GENERIC; chỉ producer mới biết nội dung thật.
+        assertThat(captor.getValue().getTitle()).isEqualTo("Thanh toán thành công");
+        assertThat(captor.getValue().getBody()).isEqualTo("Đơn #123 đã được xử lý");
+    }
+
+    @Test
+    @DisplayName("loại cố định vẫn dùng bundle, không để producer ghi đè")
+    void loai_co_dinh_van_dung_bundle() {
+        channel.send(request());
+
+        ArgumentCaptor<Notification> captor = ArgumentCaptor.forClass(Notification.class);
+        verify(repository).insert(captor.capture());
+        assertThat(captor.getValue().getTitle()).isEqualTo("Tài khoản đã được kích hoạt");
+    }
+
+    @Test
     @DisplayName("chèn trùng được coi là đã gửi thành công, không phải lỗi")
     void chen_trung_khong_phai_loi() {
         doThrow(new DuplicateKeyException("_id trùng")).when(repository).insert(any(Notification.class));

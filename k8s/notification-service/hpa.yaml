@@ -1,0 +1,28 @@
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: notification-service
+  labels:
+    app: notification-service
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: notification-service
+  minReplicas: 2
+  # Trần thấp hơn movie-service: tải ở đây bị chặn trên bởi số partition của các topic Kafka
+  # (3 partition/topic), nên thêm pod vượt quá mức đó không tăng được thông lượng tiêu thụ.
+  # Tăng số partition trước rồi mới nới trần này.
+  maxReplicas: 6
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+  behavior:
+    scaleDown:
+      # Hạ quy mô từ từ: mỗi lần pod rời đi đều kích hoạt rebalance consumer group, làm dừng
+      # tiêu thụ trong chốc lát.
+      stabilizationWindowSeconds: 300
