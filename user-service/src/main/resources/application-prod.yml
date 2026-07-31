@@ -1,8 +1,7 @@
 # Cấu hình production. Mọi giá trị nhạy cảm và phụ thuộc môi trường đều đến từ biến môi
 # trường — không có credential nào được commit vào file này.
 #
-# Biến bắt buộc: MONGODB_URI, KAFKA_BOOTSTRAP_SERVERS, REDIS_HOST, GATEWAY_SHARED_SECRET,
-#                EUREKA_SERVICE_URL
+# Biến bắt buộc: MONGODB_URI, KAFKA_BOOTSTRAP_SERVERS, REDIS_HOST, GATEWAY_SHARED_SECRET
 spring:
   config:
     activate:
@@ -59,14 +58,8 @@ application:
   mongodb:
     transactions-enabled: true
 
-eureka:
-  client:
-    service-url:
-      defaultZone: ${EUREKA_SERVICE_URL}
-    fetch-registry: true
-    register-with-eureka: true
-  instance:
-    prefer-ip-address: true
+services:
+  media: ${MEDIA_SERVICE_URI:http://media-service:8081}
 
 management:
   endpoints:
