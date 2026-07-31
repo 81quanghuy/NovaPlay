@@ -8,10 +8,8 @@
         body { font-family: Arial, sans-serif; line-height: 1.6; margin: 0; padding: 0; }
         .container { width: 100%; max-width: 600px; margin: 0 auto; padding: 20px; }
         header { text-align: center; padding: 10px 0 20px; color: #1677ff; font-size: 24px; font-weight: bold; }
-        .message { margin-bottom: 15px; }
-        .otp { text-align: center; font-size: 40px; font-weight: bold; margin-bottom: 8px; letter-spacing: 4px; }
-        .expire { text-align: center; color: #888; margin-bottom: 24px; font-size: 14px; }
-        .verify-link {
+        .message { margin-bottom: 24px; text-align: center; }
+        .cta-link {
             display: block; cursor: pointer; text-align: center; text-decoration: none;
             background-color: #1677ff; color: white; padding: 12px 20px; border-radius: 4px;
             max-width: 300px; margin: 0 auto; border: none;
@@ -23,14 +21,11 @@
 <div class="container">
     <header>NOVAPLAY</header>
     <div class="message">
-        <p th:text="#{mail.otp.intro}">Cảm ơn bạn đã đăng ký tài khoản NovaPlay.</p>
+        <p th:text="#{mail.welcome.intro(${username})}">Tài khoản của bạn đã sẵn sàng.</p>
     </div>
-    <div class="otp" th:text="${otpCode}">000000</div>
-    <p class="expire" th:text="#{mail.otp.expire(${expireMinutes})}">Mã có hiệu lực trong 5 phút.</p>
-    <a class="verify-link" th:href="@{${frontendBaseUrl} + '/auth-email?email=' + ${verifyEmail}}"
-       th:text="#{mail.otp.cta}">ĐẾN TRANG XÁC THỰC</a>
+    <a class="cta-link" th:href="@{${frontendBaseUrl}}" th:text="#{mail.welcome.cta}">BẮT ĐẦU XEM PHIM</a>
     <div class="footer">
-        <p th:text="#{mail.otp.ignore}">Nếu bạn không yêu cầu mã này, vui lòng bỏ qua email.</p>
+        <p>&copy; NovaPlay</p>
     </div>
 </div>
 </body>

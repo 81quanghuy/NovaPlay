@@ -1,0 +1,98 @@
+# Cấu hình production. Mọi giá trị nhạy cảm và phụ thuộc môi trường đều đến từ biến môi trường —
+# không có credential nào được commit vào file này.
+#
+# Biến bắt buộc: MONGODB_URI, REDIS_HOST, KAFKA_BOOTSTRAP_SERVERS, MAIL_HOST, MAIL_USERNAME,
+# MAIL_PASSWORD, GATEWAY_SHARED_SECRET, EUREKA_SERVICE_URL, APP_FRONTEND_BASE_URL
+spring:
+  config:
+    activate:
+      on-profile: prod
+  data:
+    mongodb:
+      uri: ${MONGODB_URI}
+      auto-index-creation: true
+      # MongoIndexInitializer vẫn kiểm tra lại lúc khởi động vì auto-index-creation chạy lazy
+      # theo từng entity và nuốt lỗi im lặng.
+    redis:
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 5s
+      lettuce:
+        pool:
+          max-active: 16
+          max-idle: 8
+          min-idle: 2
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
+  mail:
+    host: ${MAIL_HOST}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME}
+    password: ${MAIL_PASSWORD}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
+  lifecycle:
+    # Cho request/consumer đang chạy kịp hoàn tất trước khi tiến trình dừng hẳn.
+    timeout-per-shutdown-phase: 30s
+
+server:
+  port: ${SERVER_PORT:8900}
+  shutdown: graceful
+
+application:
+  security:
+    gateway-secret:
+      # Bắt buộc bật ở production: nếu không, bất kỳ ai chạm được tới cổng service đều đọc được
+      # thông báo của người khác bằng cách tự đặt header X-User-Email.
+      enabled: true
+      value: ${GATEWAY_SHARED_SECRET}
+  mail:
+    from: ${MAIL_FROM:${MAIL_USERNAME}}
+  frontend:
+    base-url: ${APP_FRONTEND_BASE_URL}
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_SERVICE_URL}
+    fetch-registry: true
+    register-with-eureka: true
+  instance:
+    prefer-ip-address: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  endpoint:
+    health:
+      show-details: when-authorized
+      probes:
+        enabled: true
+      group:
+        readiness:
+          include: readinessState,mongo,redis,mongoIndex
+  health:
+    livenessstate:
+      enabled: true
+    readinessstate:
+      enabled: true
+  tracing:
+    sampling:
+      # Lấy mẫu toàn bộ ở production quá tốn kém cả về chi phí lẫn độ trễ.
+      probability: ${TRACING_SAMPLE_RATE:0.1}
+  metrics:
+    tags:
+      application: ${spring.application.name}
+
+logging:
+  level:
+    root: INFO
+    vn.iotstar: INFO

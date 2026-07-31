@@ -1,5 +1,78 @@
 spring:
   config:
-    import: optional:configserver:http://localhost:8888/
     activate:
       on-profile: dev
+  data:
+    mongodb:
+      uri: mongodb://localhost:27017/notification_service
+      auto-index-creation: true
+    redis:
+      host: localhost
+      port: 6379
+      timeout: 5s
+  kafka:
+    bootstrap-servers: localhost:9092
+  mail:
+    # Trỏ MailHog (docker run -p 1025:1025 -p 8025:8025 mailhog/mailhog) để xem mail gửi ra mà
+    # không cần tài khoản SMTP thật. Đổi sang máy chủ thật thì phải điền username/password.
+    host: localhost
+    port: 1025
+    username: dev@novaplay.local
+    password:
+    properties:
+      mail:
+        smtp:
+          auth: false
+          starttls:
+            enable: false
+
+server:
+  port: 8900
+  shutdown: graceful
+
+application:
+  security:
+    gateway-secret:
+      # Tắt ở local để gọi thẳng service khi dev; PROD bắt buộc bật.
+      enabled: false
+  frontend:
+    base-url: http://localhost:3000
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka
+    fetch-registry: true
+    register-with-eureka: true
+  instance:
+    prefer-ip-address: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  endpoint:
+    health:
+      show-details: when-authorized
+      probes:
+        enabled: true
+      group:
+        readiness:
+          include: readinessState,mongo,redis,mongoIndex
+  health:
+    livenessstate:
+      enabled: true
+    readinessstate:
+      enabled: true
+  tracing:
+    sampling:
+      probability: 1.0
+  metrics:
+    tags:
+      application: ${spring.application.name}
+
+logging:
+  level:
+    root: INFO
+    vn.iotstar: DEBUG
