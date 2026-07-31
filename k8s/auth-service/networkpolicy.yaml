@@ -1,0 +1,32 @@
+# Lớp phòng thủ thứ hai bổ trợ cho việc auth-service phát hành JWT.
+#
+# Không như các service khác, auth-service không kiểm tra X-Gateway-Auth (nó phát hành JWT chứ
+# không tin JWT của ai khác). Ràng buộc ingress dưới đây vẫn cần thiết: /api/v1/auth/** chứa cả
+# endpoint quản trị (revoke token, đổi vai trò) mà chỉ gateway mới được phép chạm tới.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: auth-service
+  labels:
+    app: auth-service
+spec:
+  podSelector:
+    matchLabels:
+      app: auth-service
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: api-gateway
+      ports:
+        - protocol: TCP
+          port: 8000
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: monitoring
+      ports:
+        - protocol: TCP
+          port: 8000

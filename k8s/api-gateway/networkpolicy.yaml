@@ -1,0 +1,29 @@
+# Gateway là điểm vào duy nhất từ bên ngoài cluster, khác các service khác — NetworkPolicy này
+# vì vậy KHÔNG giới hạn nguồn ingress theo podSelector, chỉ ràng buộc egress không nằm trong
+# phạm vi (mọi service downstream đã tự khai NetworkPolicy cho phép nhận traffic từ pod
+# app=api-gateway).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: api-gateway
+  labels:
+    app: api-gateway
+spec:
+  podSelector:
+    matchLabels:
+      app: api-gateway
+  policyTypes:
+    - Ingress
+  ingress:
+    # Traffic từ internet, qua Service type LoadBalancer — không giới hạn nguồn.
+    - ports:
+        - protocol: TCP
+          port: 8072
+    # Prometheus thu thập số liệu, thường nằm ở namespace giám sát riêng.
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: monitoring
+      ports:
+        - protocol: TCP
+          port: 8072

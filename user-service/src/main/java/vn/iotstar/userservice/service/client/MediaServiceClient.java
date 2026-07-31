@@ -6,7 +6,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import vn.iotstar.utils.dto.UploadRequestDto;
 import vn.iotstar.utils.dto.UploadResponseDto;
 
-@FeignClient(name = "media-service",contextId = "MediaClientService", path = "/api/v1/media")
+@FeignClient(name = "media-service", url = "${services.media}", contextId = "MediaClientService", path = "/api/v1/media")
 public interface MediaServiceClient {
 
     @PostMapping("/upload/request")

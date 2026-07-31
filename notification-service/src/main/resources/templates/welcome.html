@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NovaPlay</title>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; margin: 0; padding: 0; }
+        .container { width: 100%; max-width: 600px; margin: 0 auto; padding: 20px; }
+        header { text-align: center; padding: 10px 0 20px; color: #1677ff; font-size: 24px; font-weight: bold; }
+        .message { margin-bottom: 24px; text-align: center; }
+        .cta-link {
+            display: block; cursor: pointer; text-align: center; text-decoration: none;
+            background-color: #1677ff; color: white; padding: 12px 20px; border-radius: 4px;
+            max-width: 300px; margin: 0 auto; border: none;
+        }
+        .footer { text-align: center; margin-top: 30px; color: #888; font-size: 12px; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <header>NOVAPLAY</header>
+    <div class="message">
+        <p th:text="#{mail.welcome.intro(${username})}">Tài khoản của bạn đã sẵn sàng.</p>
+    </div>
+    <a class="cta-link" th:href="@{${frontendBaseUrl}}" th:text="#{mail.welcome.cta}">BẮT ĐẦU XEM PHIM</a>
+    <div class="footer">
+        <p>&copy; NovaPlay</p>
+    </div>
+</div>
+</body>
+</html>

@@ -1,7 +1,7 @@
 # Cấu hình production. Mọi giá trị nhạy cảm và phụ thuộc môi trường đều đến từ biến môi
 # trường — không có credential nào được commit vào file này.
 #
-# Biến bắt buộc: MONGODB_URI, REDIS_HOST, GATEWAY_SHARED_SECRET, EUREKA_SERVICE_URL
+# Biến bắt buộc: MONGODB_URI, REDIS_HOST, GATEWAY_SHARED_SECRET
 spring:
   config:
     activate:
@@ -41,15 +41,6 @@ application:
   cache:
     movie-detail-ttl: ${CACHE_MOVIE_DETAIL_TTL:10m}
     genre-list-ttl: ${CACHE_GENRE_LIST_TTL:1h}
-
-eureka:
-  client:
-    service-url:
-      defaultZone: ${EUREKA_SERVICE_URL}
-    fetch-registry: true
-    register-with-eureka: true
-  instance:
-    prefer-ip-address: true
 
 management:
   endpoints:

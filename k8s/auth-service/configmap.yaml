@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: auth-service-config
+  labels:
+    app: auth-service
+# Chỉ chứa giá trị không nhạy cảm. Credential nằm ở auth-service-secrets.
+data:
+  DATASOURCE_URL: "jdbc:postgresql://postgres:5432/auth_service"
+  REDIS_HOST: "redis"
+  REDIS_PORT: "6379"
+  KAFKA_BOOTSTRAP_SERVERS: "kafka:9092"
+  SERVER_PORT: "8000"
+  # Lấy mẫu toàn bộ ở production quá tốn kém; 10% đủ để phát hiện xu hướng.
+  TRACING_SAMPLE_RATE: "0.1"

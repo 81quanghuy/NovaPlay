@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: api-gateway-config
+  labels:
+    app: api-gateway
+# Chỉ chứa giá trị không nhạy cảm. Credential nằm ở api-gateway-secrets.
+data:
+  REDIS_HOST: "redis"
+  REDIS_PORT: "6379"
+  AUTH_SERVICE_URI: "http://auth-service:8000"
+  USER_SERVICE_URI: "http://user-service:8700"
+  MOVIE_SERVICE_URI: "http://movie-service:8600"
+  NOTIFICATION_SERVICE_URI: "http://notification-service:8900"
+  SERVER_PORT: "8072"
+  # Lấy mẫu toàn bộ ở production quá tốn kém; 10% đủ để phát hiện xu hướng.
+  TRACING_SAMPLE_RATE: "0.1"

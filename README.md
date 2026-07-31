@@ -36,7 +36,7 @@
 NovaPlay is a scalable movie streaming application powered by a Java-based microservices architecture. It provides a robust blueprint for engineering resilient, event-driven systems, making it an ideal learning platform for backend developers exploring cloud-native technologies and distributed computing patterns.
 **Why NovaPlay?**
 
-- 🎯 **Focus on real-world scenarios:** API Gateway, service discovery, centralized configuration, observability, CI/CD, and strict separation of concerns.
+- 🎯 **Focus on real-world scenarios:** API Gateway, Kubernetes-native service discovery, observability, CI/CD, and strict separation of concerns.
 - ⚙️ **Optimized synchronous communication:** Inter-service REST calls handled by OpenFeign with resilient patterns (timeouts, retries, circuit breakers).
 - ✉️ **Kafka for email workflows only:** Keeps the asynchronous scope focused and debuggable while preserving rapid responses for core APIs.
 - 👥 **Audience:** Backend engineers exploring microservices, DevOps practitioners testing delivery pipelines.
@@ -58,7 +58,7 @@ NovaPlay is a scalable movie streaming application powered by a Java-based micro
 
 - **Backend:** Java 21, Spring Boot 3, Spring Cloud Gateway, Spring Security, OpenFeign, Resilience4j.
 - **Databases & Storage:** PostgreSQL, MongoDB, MySQL, Redis (caching/OTP), S3-compatible object storage.
-- **Message Broker:** Apache Kafka (scoped to email-service flows).
+- **Message Broker:** Apache Kafka (scoped to notification flows).
 - **DevOps & Tooling:** Docker, Docker Compose, GitHub Actions, Grafana/Prometheus/Tempo, Loki.
 - **Frontend:** React, Vite, Redux Toolkit, Tailwind CSS.
 - **Testing:** JUnit 5, Mockito, Testcontainers.
@@ -67,7 +67,7 @@ NovaPlay is a scalable movie streaming application powered by a Java-based micro
 
 ## 🏗 System Architecture
 
-NovaPlay embraces a microservices architecture with clear bounded contexts and an API Gateway fronting all client access. Configuration is centralized, synchronous communication uses OpenFeign over REST, and Kafka is intentionally limited to email workflows to reduce operational complexity.
+NovaPlay embraces a microservices architecture with clear bounded contexts and an API Gateway fronting all client access. Synchronous communication uses OpenFeign over REST, and Kafka is intentionally limited to notification workflows to reduce operational complexity.
 
 ```mermaid
 flowchart TD
@@ -75,24 +75,24 @@ flowchart TD
         FE[React Frontend]
     end
     FE -- HTTP / JWT --> APIGW(API Gateway)
-    APIGW -- Service Discovery --> DISC(Eureka Discovery)
-    DISC <--> AUTH(Auth Service)
-    DISC <--> USER(User Service)
-    DISC <--> MOVIE(Movie Service)
-    DISC <--> STREAM(Streaming Service)
-    DISC <--> MEDIA(Media Service)
-    DISC <--> PAYMENT(Payment Service)
-    DISC <--> PROMO(Promotion Service)
-    DISC <--> REPORT(Report Service)
-    DISC <--> NOTIF(Notification Service)
+    APIGW <--> AUTH(Auth Service)
+    APIGW <--> USER(User Service)
+    APIGW <--> MOVIE(Movie Service)
+    APIGW <--> STREAM(Streaming Service)
+    APIGW <--> MEDIA(Media Service)
+    APIGW <--> PAYMENT(Payment Service)
+    APIGW <--> PROMO(Promotion Service)
+    APIGW <--> REPORT(Report Service)
+    APIGW <--> NOTIF(Notification Service)
     subgraph Messaging
         KAFKA[(Kafka)]
-        EMAIL(Email Service)
     end
 
     AUTH -. produces .-> KAFKA
-    USER -. produces .-> KAFKA
-    KAFKA -. consumes .-> EMAIL
+    MEDIA -. produces .-> KAFKA
+    KAFKA -. consumes .-> NOTIF
+    KAFKA -. consumes .-> USER
+    NOTIF -- SMTP --> SMTP[(Mail Server)]
 
     subgraph Data
         POSTGRES[(PostgreSQL)]
@@ -107,17 +107,11 @@ flowchart TD
     MEDIA --> MONGO
     REPORT--> MONGO
     STREAM --> MONGO
-
-    subgraph Config
-        CONFIG(Config Server)
-    end
-
-    CONFIG --> AUTH
-    CONFIG --> USER
-    CONFIG --> MOVIE
-    CONFIG --> PAYMENT
-    CONFIG --> EMAIL
 ```
+
+> Không còn Eureka Discovery hay Config Server: mọi service định vị lẫn nhau qua URL tường minh
+> (DNS name của k8s Service), và cấu hình nằm ngay trong repo (`application-dev.yml` /
+> `application-prod.yml`).
 
 ---
 
@@ -143,7 +137,6 @@ Define the following environment variables (or entries in your centralized confi
 | Variable | Description |
 |----------|-------------|
 | `SPRING_PROFILES_ACTIVE` | Active profile (`dev`, `stage`, `prod`) for each service. |
-| `CONFIG_GIT_URI` | Git repository URL storing shared configuration for the Config Server. |
 | `DATABASE_URL` | JDBC connection string for PostgreSQL-backed services (auth, user). |
 | `MONGODB_URI` | MongoDB connection string for the movie catalog. |
 | `MYSQL_URL` | JDBC connection for payment/promotion services. |
@@ -160,10 +153,8 @@ Define the following environment variables (or entries in your centralized confi
 ## 🚀 Usage
 
 - **Start services (dev mode):**
-  - `./mvnw spring-boot:run -pl discovery-server`
-  - `./mvnw spring-boot:run -pl cloud-config`
   - `./mvnw spring-boot:run -pl api-gateway`
-  - `./mvnw spring-boot:run -pl auth-service,user-service,movie-service,streaming-service,media-service,email-service,payment-service,promotion-service,report-service`
+  - `./mvnw spring-boot:run -pl auth-service,user-service,movie-service,notification-service,streaming-service,media-service,payment-service,promotion-service,report-service`
 - **Access the frontend:** `cd ui && npm run dev`
 - **API documentation:** Swagger UI aggregated at `http://localhost:8072/swagger-ui.html` via the gateway.
 

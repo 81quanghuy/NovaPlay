@@ -24,8 +24,6 @@
     </properties>
     <modules>
         <module>utils</module>
-        <module>cloud-config</module>
-        <module>discovery-server</module>
         <module>api-gateway</module>
         <module>movie-service</module>
         <module>notification-service</module>
@@ -34,7 +32,6 @@
         <module>streaming-service</module>
         <module>user-service</module>
         <module>report-service</module>
-        <module>email-service</module>
         <module>media-service</module>
         <module>auth-service</module>
     </modules>

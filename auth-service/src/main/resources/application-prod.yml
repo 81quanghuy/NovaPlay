@@ -1,0 +1,105 @@
+# Cấu hình production. Mọi giá trị nhạy cảm và phụ thuộc môi trường đều đến từ biến môi
+# trường — không có credential nào được commit vào file này.
+#
+# Biến bắt buộc: DATASOURCE_URL, DATASOURCE_USERNAME, DATASOURCE_PASSWORD, REDIS_HOST,
+#                KAFKA_BOOTSTRAP_SERVERS
+spring:
+  config:
+    activate:
+      on-profile: prod
+  datasource:
+    url: ${DATASOURCE_URL}
+    username: ${DATASOURCE_USERNAME}
+    password: ${DATASOURCE_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      # validate, không phải update: production không được tự ý sửa schema lúc khởi động.
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+  data:
+    redis:
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 5s
+      lettuce:
+        pool:
+          max-active: 16
+          max-idle: 8
+          min-idle: 2
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      acks: all
+      retries: 10
+      delivery-timeout-ms: 120000
+      enable-idempotence: true
+      linger-ms: 10
+      batch-size: 32768
+      properties:
+        max.in.flight.requests.per.connection: 5
+        compression.type: lz4
+        security.protocol: ${KAFKA_SECURITY_PROTOCOL:PLAINTEXT}
+
+  lifecycle:
+    # Cho request đang chạy kịp hoàn tất trước khi tiến trình dừng hẳn.
+    timeout-per-shutdown-phase: 30s
+
+server:
+  port: ${SERVER_PORT:8000}
+  shutdown: graceful
+
+jwt:
+  private-key-path: classpath:keys/private.pem
+  public-key-path: classpath:keys/public.pem
+  access-token:
+    expiration: 86400000
+  refresh-token:
+    expiration: 604800000
+auth:
+  jwt:
+    issuer: novaplay-auth
+    audience: novaplay
+    kid: v1
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  endpoint:
+    health:
+      show-details: when-authorized
+      probes:
+        enabled: true
+  health:
+    livenessstate:
+      enabled: true
+    readinessstate:
+      enabled: true
+  tracing:
+    sampling:
+      # Lấy mẫu toàn bộ ở production quá tốn kém cả về chi phí lẫn độ trễ.
+      probability: ${TRACING_SAMPLE_RATE:0.1}
+  metrics:
+    tags:
+      application: ${spring.application.name}
+
+logging:
+  level:
+    root: INFO
+    vn.iotstar: INFO
+  pattern:
+    level: "%5p [${spring.application.name},%X{traceId},%X{spanId}]"

@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.boot.actuate.health.Health;
 import org.springframework.boot.actuate.health.HealthIndicator;
 import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.index.IndexField;
 import org.springframework.data.mongodb.core.index.IndexInfo;
 import org.springframework.stereotype.Component;
 import vn.iotstar.movieservice.model.entity.Genre;
@@ -59,6 +60,6 @@ public class MongoIndexHealthIndicator implements HealthIndicator {
     private boolean hasUniqueIndexOn(Class<?> entity, List<String> keys) {
         List<IndexInfo> indexes = mongoTemplate.indexOps(entity).getIndexInfo();
         return indexes.stream().anyMatch(i -> i.isUnique()
-                && i.getIndexFields().stream().map(f -> f.getKey()).toList().equals(keys));
+                && i.getIndexFields().stream().map(IndexField::getKey).toList().equals(keys));
     }
 }

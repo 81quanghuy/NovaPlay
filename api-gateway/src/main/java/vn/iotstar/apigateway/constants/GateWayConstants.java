@@ -7,7 +7,6 @@ public class GateWayConstants {
     }
 
     public static final String API_V1 = "/api/v1/";
-    public static final String LB = "lb://";
     public static final String USER_SERVICE = "user-service";
     public static final String MOVIE_SERVICE = "movie-service";
     public static final String AUTH_SERVICE = "auth-service";

@@ -39,9 +39,8 @@ git push -u origin <new-branch-name>
 
 **Startup order (local dev):**
 1. Infrastructure: `docker compose -f docker-compose/qa/docker-compose.yml up -d`
-2. `discovery-server` (port 8761)
-3. `api-gateway` (port 8072)
-4. Other services in any order
+2. `api-gateway` (port 8072)
+3. Other services in any order
 
 ## Service Port Map
 
@@ -51,8 +50,9 @@ git push -u origin <new-branch-name>
 | auth-service | 8000 | PostgreSQL + Redis + Kafka |
 | user-service | 8700 | MongoDB + Kafka (consumer) |
 | movie-service | 8600 | MongoDB + Redis (cache) |
-| discovery-server | 8761 | — |
+| notification-service | 8900 | MongoDB + Redis (dedup) + Kafka (consumer) |
 | Kafka UI | 8080 | — |
+| MailHog (SMTP giả, QA) | 1025 / 8025 | — |
 | Grafana | 3000 | — |
 | Prometheus | 9090 | — |
 
@@ -63,7 +63,7 @@ git push -u origin <new-branch-name>
 ### Request Flow
 
 ```
-React (Vite) → API Gateway :8072 → Eureka Discovery → Downstream Services
+React (Vite) → API Gateway :8072 → Downstream Services (k8s Service DNS)
 ```
 
 The **API Gateway** (`api-gateway`) is the single entry point:
@@ -77,17 +77,26 @@ The **API Gateway** (`api-gateway`) is the single entry point:
 
 `auth-service` owns identity: RSA private key signs JWTs, RSA public key is loaded by `api-gateway` for verification. Token blacklist (logout/revoke) is stored in Redis under `jwt:blacklist:<jti>`.
 
-Email notifications (OTP, password reset) use the **Transactional Outbox pattern**: `auth-service` writes to an `OutboxEvent` table, `OutboxRelayJob` publishes to Kafka, `email-service` consumes.
+Email notifications (OTP, password reset) use the **Transactional Outbox pattern**: `auth-service` writes to an `OutboxEvent` table, `OutboxRelayJob` publishes to Kafka, `notification-service` consumes.
+
+### Notifications
+
+`notification-service` is the single consumer for all user-facing notifications (it absorbed the former `email-service`). It consumes `send-email.v1`, `activate-account.v1` and `notification.requested.v1`, then fans out to channels:
+
+- **Email** — SMTP + Thymeleaf, i18n via `messages*.properties`
+- **In-app** — MongoDB document + REST API at `/api/v1/notifications` (per-user; identity from the `X-User-Email` gateway header)
+
+Adding a channel means adding one `NotificationChannel` bean plus an entry in `ChannelRoutingPolicy`; the dispatcher and consumers stay untouched. Delivery is at-least-once with **per-channel dedup keys** in Redis, so a retry only re-sends the channel that actually failed. Topic names live in `vn.iotstar.utils.constants.TopicNames`.
 
 ### Inter-Service Communication
 
-Services call each other via **OpenFeign** (`lb://service-name`), resolved through Eureka. Example: `user-service` calls `auth-service` and `media-service` via Feign clients in `service/client/`.
+Services call each other via **OpenFeign**, resolved via explicit URL (k8s Service DNS name, injected through `services.<name>` config property). Example: `user-service` calls `media-service` via `MediaServiceClient` in `service/client/`.
 
 ### Key Configuration Patterns
 
 Each service has:
 - `application.yml` — only `spring.application.name`
-- `application-dev.yml` — full standalone config (no cloud-config dependency)
+- `application-dev.yml` — full standalone config
 
 Activate dev profile via `SPRING_PROFILES_ACTIVE=dev` or `-Dspring.profiles.active=dev`.
 

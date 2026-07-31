@@ -1,5 +1,22 @@
+# Chỉ chứa những gì đúng cho MỌI môi trường. Cấu hình riêng theo môi trường nằm ở
+# application-<profile>.yml, chọn bằng SPRING_PROFILES_ACTIVE.
+#
+# Cố tình KHÔNG đặt spring.profiles.active ở đây: nướng cứng một profile vào jar khiến bản
+# build production chạy bằng cấu hình dev nếu ai đó quên override — đúng lỗi mà bản scaffold cũ
+# của module này từng mắc.
 spring:
   application:
     name: notification-service
-  profiles:
-    active: dev
+  messages:
+    basename: messages
+    encoding: UTF-8
+    # Mặc định của Boot là true, và nó có nghĩa là: khi không tìm thấy bundle cho locale được yêu
+    # cầu, hãy thử bundle của locale HỆ ĐIỀU HÀNH trước khi về bundle cơ sở. Trên một pod chạy
+    # locale en, người dùng yêu cầu vi-VN sẽ nhận email tiếng Anh — một lỗi phụ thuộc vào môi
+    # trường triển khai, không tái hiện được trên máy dev.
+    fallback-to-system-locale: false
+
+logging:
+  pattern:
+    # traceId/spanId được OpenTelemetry javaagent đưa vào MDC.
+    level: "%5p [${spring.application.name},%X{traceId},%X{spanId}]"
