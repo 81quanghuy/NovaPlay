@@ -4,13 +4,11 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.AutoConfigurationExcludeFilter;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.TypeExcludeFilter;
-import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.FilterType;
 import vn.iotstar.utils.audit.AuditAwareImpl;
 
 @SpringBootApplication
-@EnableDiscoveryClient
 @ComponentScan(
         // Quét utils để lấy GlobalExceptionHandler dùng chung.
         basePackages = {"vn.iotstar.notificationservice", "vn.iotstar.utils"},

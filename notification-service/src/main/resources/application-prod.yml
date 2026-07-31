@@ -2,7 +2,7 @@
 # không có credential nào được commit vào file này.
 #
 # Biến bắt buộc: MONGODB_URI, REDIS_HOST, KAFKA_BOOTSTRAP_SERVERS, MAIL_HOST, MAIL_USERNAME,
-# MAIL_PASSWORD, GATEWAY_SHARED_SECRET, EUREKA_SERVICE_URL, APP_FRONTEND_BASE_URL
+# MAIL_PASSWORD, GATEWAY_SHARED_SECRET, APP_FRONTEND_BASE_URL
 spring:
   config:
     activate:
@@ -56,15 +56,6 @@ application:
     from: ${MAIL_FROM:${MAIL_USERNAME}}
   frontend:
     base-url: ${APP_FRONTEND_BASE_URL}
-
-eureka:
-  client:
-    service-url:
-      defaultZone: ${EUREKA_SERVICE_URL}
-    fetch-registry: true
-    register-with-eureka: true
-  instance:
-    prefer-ip-address: true
 
 management:
   endpoints:
