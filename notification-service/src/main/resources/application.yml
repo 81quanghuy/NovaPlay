@@ -7,6 +7,14 @@
 spring:
   application:
     name: notification-service
+  messages:
+    basename: messages
+    encoding: UTF-8
+    # Mặc định của Boot là true, và nó có nghĩa là: khi không tìm thấy bundle cho locale được yêu
+    # cầu, hãy thử bundle của locale HỆ ĐIỀU HÀNH trước khi về bundle cơ sở. Trên một pod chạy
+    # locale en, người dùng yêu cầu vi-VN sẽ nhận email tiếng Anh — một lỗi phụ thuộc vào môi
+    # trường triển khai, không tái hiện được trên máy dev.
+    fallback-to-system-locale: false
 
 logging:
   pattern:
