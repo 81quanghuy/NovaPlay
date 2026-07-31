@@ -13,16 +13,12 @@ spring:
       timeout: 1s
   cloud:
     gateway:
-      discovery:
-        locator:
-          enabled: true
-          lowerCaseServiceId: true
       httpclient:
         connect-timeout: 1000
         response-timeout: 10s
       routes:
         - id: auth-service
-          uri: lb://auth-service
+          uri: ${services.auth}
           predicates:
             - Path=/api/v1/auth/**
           filters:
@@ -46,7 +42,7 @@ spring:
                 key-resolver: "#{@userEmailOrIpKeyResolver}"
 
         - id: user-service
-          uri: lb://user-service
+          uri: ${services.user}
           predicates:
             - Path=/api/v1/users/**
           filters:
@@ -72,7 +68,7 @@ spring:
         # Ba route dưới đây cùng trỏ về movie-service: catalog phim, thể loại và nghệ sĩ là ba
         # tài nguyên ngang hàng nên có prefix riêng thay vì lồng dưới /api/v1/movies.
         - id: movie-service
-          uri: lb://movie-service
+          uri: ${services.movie}
           predicates:
             - Path=/api/v1/movies/**
           filters:
@@ -98,7 +94,7 @@ spring:
                 key-resolver: "#{@userEmailOrIpKeyResolver}"
 
         - id: genre-service
-          uri: lb://movie-service
+          uri: ${services.movie}
           predicates:
             - Path=/api/v1/genres/**
           filters:
@@ -122,7 +118,7 @@ spring:
                 key-resolver: "#{@userEmailOrIpKeyResolver}"
 
         - id: artist-service
-          uri: lb://movie-service
+          uri: ${services.movie}
           predicates:
             - Path=/api/v1/artists/**
           filters:
@@ -148,7 +144,7 @@ spring:
         # Thông báo in-app. Không có endpoint đọc công khai nào — mọi request đều phải mang JWT
         # hợp lệ, nên đường dẫn này cố tình KHÔNG nằm trong PublicEndpoints.
         - id: notification-service
-          uri: lb://notification-service
+          uri: ${services.notification}
           predicates:
             - Path=/api/v1/notifications/**
           filters:
@@ -176,32 +172,38 @@ spring:
                 key-resolver: "#{@userEmailOrIpKeyResolver}"
 
         - id: auth-service-swagger
-          uri: lb://auth-service
+          uri: ${services.auth}
           predicates:
             - Path=/swagger/auth/v3/api-docs
           filters:
             - RewritePath=/swagger/auth/(?<segment>.*), /${segment}
 
         - id: user-service-swagger
-          uri: lb://user-service
+          uri: ${services.user}
           predicates:
             - Path=/swagger/user/v3/api-docs
           filters:
             - RewritePath=/swagger/user/(?<segment>.*), /${segment}
 
         - id: movie-service-swagger
-          uri: lb://movie-service
+          uri: ${services.movie}
           predicates:
             - Path=/swagger/movie/v3/api-docs
           filters:
             - RewritePath=/swagger/movie/(?<segment>.*), /${segment}
 
         - id: notification-service-swagger
-          uri: lb://notification-service
+          uri: ${services.notification}
           predicates:
             - Path=/swagger/notification/v3/api-docs
           filters:
             - RewritePath=/swagger/notification/(?<segment>.*), /${segment}
+
+services:
+  auth: ${AUTH_SERVICE_URI:http://localhost:8000}
+  user: ${USER_SERVICE_URI:http://localhost:8700}
+  movie: ${MOVIE_SERVICE_URI:http://localhost:8600}
+  notification: ${NOTIFICATION_SERVICE_URI:http://localhost:8900}
 
 rsa:
   public:
@@ -224,6 +226,18 @@ application:
     # Để trống ở dev; production phải cấp qua biến môi trường và phải khớp với giá trị
     # cấu hình ở downstream, nếu lệch thì mọi request sẽ bị trả 403.
     gateway-secret: ${GATEWAY_SHARED_SECRET:}
+
+springdoc:
+  swagger-ui:
+    urls:
+      - name: auth
+        url: /swagger/auth/v3/api-docs
+      - name: user
+        url: /swagger/user/v3/api-docs
+      - name: movie
+        url: /swagger/movie/v3/api-docs
+      - name: notification
+        url: /swagger/notification/v3/api-docs
 
 management:
   endpoints:
