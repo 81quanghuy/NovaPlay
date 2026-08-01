@@ -3,6 +3,7 @@ package vn.iotstar.outbox;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -15,6 +16,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.within;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -82,8 +85,37 @@ class OutboxRelayServiceTest {
 
         verify(dao).recordError(eq(id), contains("kafka sập"));
         verify(dao, never()).markFailed(any(), any());
-        verify(retryScheduler).schedule(any(Runnable.class), anyLong(), eq(TimeUnit.MILLISECONDS));
+        // Khoá chặt độ trễ hẹn lại: phải bám sát đúng nextAttemptAt mà claim đã tính (~45000ms),
+        // không phải 0 hay một công thức backoff thứ hai được tính lại trong Java.
+        ArgumentCaptor<Long> delayCaptor = ArgumentCaptor.forClass(Long.class);
+        verify(retryScheduler).schedule(any(Runnable.class), delayCaptor.capture(), eq(TimeUnit.MILLISECONDS));
+        assertThat(delayCaptor.getValue()).isCloseTo(45_000L, within(2_000L));
         verify(metrics).relayFailed();
+    }
+
+    @Test
+    void loiVuotQuaGioiHanThiBiCatBotTruocKhiGhi() {
+        String loiDai = "x".repeat(2500);
+        when(dao.claimById(id)).thenReturn(Optional.of(record(3, Instant.now().plusSeconds(30))));
+        when(kafkaTemplate.send(anyString(), anyString(), anyString()))
+                .thenReturn(CompletableFuture.failedFuture(new IllegalStateException(loiDai)));
+
+        relayService.relay(id);
+
+        ArgumentCaptor<String> messageCaptor = ArgumentCaptor.forClass(String.class);
+        verify(dao).recordError(eq(id), messageCaptor.capture());
+        assertThat(messageCaptor.getValue()).hasSize(2000);
+    }
+
+    @Test
+    void loiKhongCoMessageThiGhiChuoiNull() {
+        when(dao.claimById(id)).thenReturn(Optional.of(record(3, Instant.now().plusSeconds(30))));
+        when(kafkaTemplate.send(anyString(), anyString(), anyString()))
+                .thenReturn(CompletableFuture.failedFuture(new IllegalStateException()));
+
+        relayService.relay(id);
+
+        verify(dao).recordError(id, "null");
     }
 
     @Test

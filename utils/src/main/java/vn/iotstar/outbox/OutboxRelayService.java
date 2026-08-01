@@ -41,12 +41,23 @@ public class OutboxRelayService {
     public void send(OutboxRecord record) {
         kafkaTemplate.send(record.topic(), record.key(), record.payload())
                 .whenComplete((result, throwable) -> {
-                    if (throwable == null) {
-                        dao.delete(record.id());
-                        metrics.published();
-                        log.debug("Đã gửi outbox: id={}, topic={}", record.id(), record.topic());
-                    } else {
-                        onFailure(record, throwable);
+                    // whenComplete chạy trên thread của Kafka client (hoặc thread hiện tại nếu future
+                    // đã xong); future trả về của whenComplete không ai quan sát, và
+                    // ScheduledExecutorService cũng không tự log exception ném ra từ Runnable đã nộp.
+                    // Không bọc try/catch ở đây thì một lỗi DB thoáng qua trong dao.delete/recordError/
+                    // markFailed hay retryScheduler.schedule sẽ biến mất hoàn toàn — event kẹt lại mà
+                    // không có log nào giải thích tại sao.
+                    try {
+                        if (throwable == null) {
+                            dao.delete(record.id());
+                            metrics.published();
+                            log.debug("Đã gửi outbox: id={}, topic={}", record.id(), record.topic());
+                        } else {
+                            onFailure(record, throwable);
+                        }
+                    } catch (Exception e) {
+                        log.error("Lỗi không mong đợi khi xử lý kết quả gửi outbox: id={}, topic={}",
+                                record.id(), record.topic(), e);
                     }
                 });
     }
