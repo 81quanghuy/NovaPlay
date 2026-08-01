@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: media-service-config
+  labels:
+    app: media-service
+# Chỉ chứa giá trị không nhạy cảm. Credential nằm ở media-service-secrets.
+# Không có biến Redis: media-service không dùng cache.
+data:
+  SERVER_PORT: "8081"
+  # Lấy mẫu toàn bộ ở production quá tốn kém; 10% đủ để phát hiện xu hướng.
+  TRACING_SAMPLE_RATE: "0.1"
+  AWS_REGION: "us-east-1"
+  # Tên bucket không nhạy cảm — khác AWS_SQS_QUEUE_NAME/MONGODB_URI, biết tên bucket không đủ
+  # để làm được gì nếu không có credential, vốn đến từ IRSA chứ không phải biến môi trường.
+  AWS_S3_BUCKET_NAME: "novaplay-media"
+  CDN_BASE_URL: "https://cdn.novaplay.vn"

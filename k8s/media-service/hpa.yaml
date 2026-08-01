@@ -1,0 +1,27 @@
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: media-service
+  labels:
+    app: media-service
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: media-service
+  minReplicas: 2
+  # Trần bằng user-service, không phải movie-service: media-service chỉ phục vụ traffic của
+  # người dùng đã đăng nhập (upload/quản lý media của chính họ), không phải catalog công khai
+  # nên không có đỉnh tải cao như movie-service.
+  maxReplicas: 6
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+  behavior:
+    scaleDown:
+      # Hạ quy mô từ từ để tránh dao động khi tải lên xuống thất thường.
+      stabilizationWindowSeconds: 300

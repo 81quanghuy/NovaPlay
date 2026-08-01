@@ -169,6 +169,34 @@ spring:
                 redis-rate-limiter.burstCapacity: 40
                 key-resolver: "#{@userEmailOrIpKeyResolver}"
 
+        # Upload/quản lý media của người dùng đã đăng nhập — không phải catalog công khai, nên
+        # hạn mức giống notification-service chứ không rộng như movie-service.
+        - id: media-service
+          uri: ${services.media}
+          predicates:
+            - Path=/api/v1/media/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: media-service-cb
+                fallbackUri: forward:/fallback/message
+            # Chỉ retry GET: POST xin presigned URL và DELETE là thao tác ghi, retry chỉ làm
+            # tăng tải chứ không sửa được nguyên nhân lỗi.
+            - name: Retry
+              args:
+                retries: 3
+                methods: GET
+                backoff:
+                  firstBackoff: 100ms
+                  maxBackoff: 1000ms
+                  factor: 2
+                  basedOnPreviousValue: true
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 20
+                redis-rate-limiter.burstCapacity: 40
+                key-resolver: "#{@userEmailOrIpKeyResolver}"
+
         - id: auth-service-swagger
           uri: ${services.auth}
           predicates:
@@ -197,11 +225,19 @@ spring:
           filters:
             - RewritePath=/swagger/notification/(?<segment>.*), /${segment}
 
+        - id: media-service-swagger
+          uri: ${services.media}
+          predicates:
+            - Path=/swagger/media/v3/api-docs
+          filters:
+            - RewritePath=/swagger/media/(?<segment>.*), /${segment}
+
 services:
   auth: ${AUTH_SERVICE_URI:http://auth-service:8000}
   user: ${USER_SERVICE_URI:http://user-service:8700}
   movie: ${MOVIE_SERVICE_URI:http://movie-service:8600}
   notification: ${NOTIFICATION_SERVICE_URI:http://notification-service:8900}
+  media: ${MEDIA_SERVICE_URI:http://media-service:8081}
 
 rsa:
   public:
@@ -235,6 +271,8 @@ springdoc:
         url: /swagger/movie/v3/api-docs
       - name: notification
         url: /swagger/notification/v3/api-docs
+      - name: media
+        url: /swagger/media/v3/api-docs
 
 management:
   endpoints:
@@ -281,6 +319,8 @@ resilience4j:
         base-config: default
       notification-service-cb:
         base-config: default
+      media-service-cb:
+        base-config: default
   timelimiter:
     configs:
       default:
@@ -293,4 +333,6 @@ resilience4j:
       movie-service-cb:
         base-config: default
       notification-service-cb:
+        base-config: default
+      media-service-cb:
         base-config: default

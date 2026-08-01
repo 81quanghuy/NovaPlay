@@ -26,10 +26,10 @@ public class OpenApiConfig {
     @Value("${openapi.server-url.local:http://localhost:8081}")
     private String localServer;
 
-    @Value("${openapi.server-url.dev:https://dev.api.novaplay.vn/auth-service}")
+    @Value("${openapi.server-url.dev:https://dev.api.novaplay.vn/media-service}")
     private String devServer;
 
-    @Value("${openapi.server-url.gateway:http://localhost:8072/api/v1/auth}")
+    @Value("${openapi.server-url.gateway:http://localhost:8072/api/v1/media}")
     private String gatewayServer;
 
     @Bean
@@ -46,10 +46,11 @@ public class OpenApiConfig {
 
         return new OpenAPI()
                 .info(new Info()
-                        .title("NovaPlay - Authentication Service API")
+                        .title("NovaPlay - Media Service API")
                         .description("""
-                                API chịu trách nhiệm Đăng ký, Đăng nhập, và Quản lý Token (cấp mới, làm mới).
-                                Dịch vụ này cấp phát JWT cho các dịch vụ khác trong hệ thống sử dụng.
+                                API sinh presigned URL để client upload media trực tiếp lên S3, theo dõi
+                                trạng thái xử lý upload (PENDING/COMPLETED/FAILED), và trả về CDN URL sau
+                                khi upload hoàn tất.
                                 """)
                         .version("1.0.0")
                         .contact(new Contact()
@@ -71,25 +72,13 @@ public class OpenApiConfig {
     }
 
     /**
-     * Groups all authentication-related endpoints.
+     * Groups all media endpoints.
      */
     @Bean
-    public GroupedOpenApi authApi() {
+    public GroupedOpenApi mediaApi() {
         return GroupedOpenApi.builder()
-                .group("1. Authentication")
-                .pathsToMatch("/api/v1/auth/**")
-                .build();
-    }
-
-    /**
-     * (Optional) Group for user management endpoints if they exist in this service.
-     */
-    @Bean
-    public GroupedOpenApi adminApi() {
-        return GroupedOpenApi.builder()
-                .group("2. User Management (Admin)")
-                // Example path, adjust if you have admin endpoints here.
-                .pathsToMatch("/api/v1/users/admin/**")
+                .group("media")
+                .pathsToMatch("/api/v1/media/**")
                 .build();
     }
 

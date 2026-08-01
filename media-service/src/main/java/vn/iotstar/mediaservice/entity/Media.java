@@ -26,12 +26,25 @@ public class Media extends AuditableDocument implements Serializable {
     private String id;
 
     @Field(Constants.MEDIA_OWNER_ID)
-    @Indexed(unique = true)
     private String ownerId;
+
+    /**
+     * Chủ sở hữu thực sự theo danh tính xác thực (email từ header {@code X-User-Email} do gateway
+     * bơm vào). Luôn do server tự set từ {@code SecurityContextHolder} lúc tạo record — KHÔNG bao
+     * giờ nhận trực tiếp từ input client, để tránh giả mạo chủ sở hữu (IDOR).
+     */
+    @Field(Constants.MEDIA_OWNER_EMAIL)
+    private String ownerEmail;
 
     @Field(Constants.MEDIA_ORIGINAL_FILENAME)
     private String originalFileName;
 
+    /**
+     * Namespaced theo mediaId ({@code media/{ownerId}/{mediaId}/{fileName}}) nên là bất biến: một
+     * khi đã sinh, key này không bao giờ bị ghi đè bởi một lần upload khác — an toàn để cache CDN
+     * dài hạn (ví dụ {@code Cache-Control: max-age=31536000, immutable}; header đó không cần set ở
+     * đây vì response của bước upload không đi qua CDN).
+     */
     @Field(Constants.MEDIA_S3_KEY)
     @Indexed(unique = true)
     private String s3Key;

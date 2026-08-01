@@ -1,6 +1,9 @@
 package vn.iotstar.authservice.util;
 
 public class MessageProperties {
+    private MessageProperties() {
+    }
+
 
     public static final String EMAIL_NOT_BLANK = "Email không được để trống";
     public static final String EMAIL_INVALID_FORMAT = "Định dạng email không hợp lệ";

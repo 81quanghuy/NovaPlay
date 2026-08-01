@@ -27,6 +27,15 @@ public final class TopicNames {
      */
     public static final String NOTIFICATION_REQUESTED = "notification.requested.v1";
 
+    /** Coupon vừa được đổi thành công. Producer: promotion-service. */
+    public static final String REDEEM_COUPON = "redeem-coupon.v1";
+
+    /** Một lời mời giới thiệu vừa được ghi nhận (PENDING). Producer: promotion-service. */
+    public static final String CREATE_REFERRAL = "create-referral.v1";
+
+    /** Referral đủ điều kiện, phần thưởng đã phát hành. Producer: promotion-service. */
+    public static final String QUALIFY_REFERRAL = "qualify-referral.v1";
+
     /** Hậu tố topic chết, khớp với quy ước mặc định của {@code DeadLetterPublishingRecoverer}. */
     public static final String DLT_SUFFIX = ".DLT";
 

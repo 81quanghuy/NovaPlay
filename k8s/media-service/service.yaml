@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: media-service
+  labels:
+    app: media-service
+spec:
+  # ClusterIP chứ không phải LoadBalancer/NodePort: service này chỉ được tiếp cận qua
+  # api-gateway. Expose ra ngoài sẽ mở đường đi vòng qua lớp xác thực của gateway — và với
+  # service này thì đó là đường đi thẳng tới các endpoint upload/xoá media của người dùng.
+  type: ClusterIP
+  selector:
+    app: media-service
+  ports:
+    - name: http
+      port: 8081
+      targetPort: http

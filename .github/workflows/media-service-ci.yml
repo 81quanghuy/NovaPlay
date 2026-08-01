@@ -1,0 +1,124 @@
+name: media-service CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'media-service/**'
+      - 'utils/**'
+      - 'pom.xml'
+      - '.github/workflows/media-service-ci.yml'
+  pull_request:
+    paths:
+      - 'media-service/**'
+      - 'utils/**'
+      - 'pom.xml'
+      - '.github/workflows/media-service-ci.yml'
+
+# Push mới lên cùng một branch sẽ huỷ lượt chạy đang dở.
+concurrency:
+  group: media-service-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: maven
+
+      # media-service phụ thuộc vn.iotstar:utils, mà module này phải nằm trong local repo
+      # trước khi build được. -N cài pom cha, vốn không được `install -pl utils` cài giúp.
+      - name: Install parent POM and utils
+        run: |
+          ./mvnw -B -q install -N
+          ./mvnw -B -q install -pl utils -DskipTests
+
+      # verify chạy cả unit test (surefire) lẫn integration test (failsafe), trong đó có
+      # S3UploadFlowIT (LocalStack qua Testcontainers). Bước tiếp theo kiểm tra IT đó THẬT SỰ
+      # chạy chứ không tự bỏ qua — xem comment ở bước đó để biết lý do.
+      - name: Build and test media-service
+        run: ./mvnw -B verify -pl media-service -am
+
+      # GUARD — KHÔNG xoá bước này vì tưởng là thừa.
+      #
+      # Testcontainers 1.21.0 (bị ghim bởi Spring Boot 3.5.0 BOM) đóng gói docker-java 3.4.2, và
+      # thư viện đó thương lượng Docker API ở bản 1.32. Docker daemon hiện đại (Engine 29.x trở
+      # lên) yêu cầu API >= 1.40 và từ chối kết nối với lỗi "client version 1.32 is too old".
+      # Mọi test *IT trong repo này tự bảo vệ mình bằng @EnabledIf("dockerAvailable") ->
+      # DockerClientFactory.instance().isDockerAvailable(), và hàm đó âm thầm trả về false khi
+      # gặp tình huống trên — test bị SKIP thay vì chạy, còn `mvn verify` ở bước trên vẫn báo
+      # SUCCESS như thường. Nói cách khác: một lần chạy CI mà Testcontainers không bao giờ nói
+      # chuyện được với Docker trông giống hệt một lần chạy mà mọi IT đều pass. Bước này đọc
+      # thẳng báo cáo XML của failsafe để phân biệt hai trường hợp đó, và làm ĐỎ build nếu bất kỳ
+      # test *IT nào bị skip thay vì thật sự thực thi.
+      - name: Verify integration tests actually ran (did not silently skip)
+        run: |
+          set -euo pipefail
+          REPORT_DIR="media-service/target/failsafe-reports"
+
+          if [ ! -d "$REPORT_DIR" ]; then
+            echo "::error::$REPORT_DIR không tồn tại — failsafe (integration-test) có thể chưa từng chạy."
+            exit 1
+          fi
+
+          # "*IT*" chứ không phải "*IT" ở cuối: failsafe mặc định còn nhận diện IT theo
+          # "IT*.java" (tiền tố) và "*ITCase.java" (hậu tố khác), không chỉ hậu tố "*IT.java".
+          # Khớp hẹp hơn thì một service tương lai đặt tên theo hai pattern kia sẽ lọt lưới guard
+          # này — đúng kiểu lỗi mà guard tồn tại để chặn.
+          reports=$(find "$REPORT_DIR" -maxdepth 1 -name 'TEST-*IT*.xml')
+          if [ -z "$reports" ]; then
+            echo "::error::Không tìm thấy report *IT nào trong $REPORT_DIR — integration test không hề chạy."
+            exit 1
+          fi
+
+          failed=0
+          while IFS= read -r report; do
+            name=$(basename "$report")
+            tests=$(grep -oE 'tests="[0-9]+"' "$report" | head -1 | grep -oE '[0-9]+' || true)
+            skipped=$(grep -oE 'skipped="[0-9]+"' "$report" | head -1 | grep -oE '[0-9]+' || true)
+            echo "$name: tests=${tests:-?} skipped=${skipped:-?}"
+
+            if [ -z "$tests" ] || [ "$tests" -lt 1 ] || [ -z "$skipped" ] || [ "$skipped" -gt 0 ]; then
+              echo "::error::$name — tests=${tests:-0}, skipped=${skipped:-0}. Test *IT này đã bị SKIP thay vì chạy thật."
+              failed=1
+            fi
+          done <<< "$reports"
+
+          if [ "$failed" -eq 1 ]; then
+            echo "::error::Một hoặc nhiều test *IT bị skip. Nguyên nhân nhiều khả năng là runner này không" \
+                 "thoả điều kiện Docker API mà Testcontainers/docker-java 3.4.2 cần (xem comment ở bước trên)," \
+                 "KHÔNG PHẢI vì thật sự không còn integration test nào. 'mvn verify' xanh KHÔNG có nghĩa là IT" \
+                 "đã chạy — đừng nới lỏng guard này để build xanh trở lại, hãy sửa gốc rễ (nâng cấp Testcontainers)."
+            exit 1
+          fi
+
+          echo "Toàn bộ test *IT đã thực thi thật, không có test nào bị skip."
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: media-service-test-reports
+          path: |
+            media-service/target/surefire-reports/
+            media-service/target/failsafe-reports/
+          retention-days: 7
+
+  docker-build:
+    runs-on: ubuntu-latest
+    needs: build-and-test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Chỉ kiểm chứng image build được. Chưa push vì chưa cấu hình registry.
+      - name: Build Docker image
+        run: docker build -f media-service/Dockerfile -t novaplay/media-service:${{ github.sha }} .

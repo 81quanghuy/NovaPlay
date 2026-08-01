@@ -46,7 +46,10 @@ services:
     volumes: ["../init-db:/docker-entrypoint-initdb.d"]
     networks: [novaPLay]
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $$(cat /run/secrets/db_user)"]
+      # Phải truyền cả -d: thiếu nó, pg_isready mặc định lấy tên DB trùng tên user ("admin"),
+      # database đó không tồn tại nên server ghi FATAL mỗi lần healthcheck chạy — mà lệnh vẫn
+      # exit 0, khiến container báo healthy trong khi log đầy lỗi giả.
+      test: ["CMD-SHELL", "pg_isready -U $$(cat /run/secrets/db_user) -d $$(cat /run/secrets/db_name)"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -169,6 +172,32 @@ services:
       timeout: 20s
       retries: 5
 
+  # Instance MinIO riêng cho media-service (giả lập S3 ở dev/QA) — KHÔNG dùng chung với `minio`
+  # ở trên, vốn là kho lưu trữ chunk của Loki.
+  media-minio:
+    image: minio/minio:${MINIO_VERSION:-RELEASE.2024-12-18T13-15-44Z}
+    container_name: minio-media
+    command: server /data --console-address ":9001"
+    environment:
+      - MINIO_ROOT_USER=media-dev
+      - MINIO_ROOT_PASSWORD=media-dev-secret
+    ports: ["9010:9000", "9011:9001"]
+    networks: [novaPLay]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 15s
+      timeout: 20s
+      retries: 5
+
+  # Tạo sẵn bucket novaplay-media-dev rồi thoát — media-service không tự tạo bucket lúc khởi động.
+  media-minio-init:
+    image: minio/mc:latest
+    container_name: minio-media-init
+    depends_on:
+      media-minio: { condition: service_healthy }
+    entrypoint: ["sh", "-c", "mc alias set local http://media-minio:9000 media-dev media-dev-secret && mc mb -p local/novaplay-media-dev && exit 0"]
+    networks: [novaPLay]
+
   prometheus:
     image: prom/prometheus:${PROMETHEUS_VERSION:-v3.1.0}
     container_name: prometheus-monitoring
@@ -260,6 +289,26 @@ services:
       SPRING_DATA_MONGODB_URI: "mongodb://mongodb:27017/movie_service?replicaSet=rs0"
       SPRING_DATA_REDIS_HOST: redis
 
+  media-service:
+    image: "novaplay/media-service:${MEDIA_SERVICE_VERSION:-v0.0.1}"
+    container_name: media-service
+    <<: *microservice-base
+    ports: ["8081:8081"]
+    depends_on:
+      mongodb: { condition: service_healthy }
+      kafka-services: { condition: service_healthy }
+      media-minio-init: { condition: service_completed_successfully }
+    environment:
+      SPRING_APPLICATION_NAME: "media-service"
+      OTEL_SERVICE_NAME: "media-service"
+      SPRING_DATA_MONGODB_URI: "mongodb://mongodb:27017/media_service?replicaSet=rs0"
+      # application-dev.yml trỏ MinIO tới localhost:9010; bên trong network của compose đó là
+      # chính container media-service, không phải media-minio — ghi đè bằng hostname container.
+      AWS_ENDPOINT_URL: "http://media-minio:9000"
+      AWS_ACCESS_KEY_ID: "media-dev"
+      AWS_SECRET_ACCESS_KEY: "media-dev-secret"
+      AWS_REGION: "us-east-1"
+
   notification-service:
     image: "novaplay/notification-service:${NOTIFICATION_SERVICE_VERSION:-v0.0.1}"
     container_name: notification-service
@@ -288,17 +337,19 @@ services:
     depends_on:
       auth-service: { condition: service_healthy }
       user-service: { condition: service_healthy }
+      media-service: { condition: service_healthy }
     environment:
       SPRING_APPLICATION_NAME: "api-gateway"
       OTEL_SERVICE_NAME: "api-gateway"
       SPRING_DATA_REDIS_HOST: redis
       # Container chạy profile "dev" (localhost mặc định trong yml), nhưng bên trong network
       # của compose, mỗi service khác là một container riêng có tên chính là service key —
-      # ghi đè 4 biến này để gateway gọi đúng hostname thay vì localhost.
+      # ghi đè các biến này để gateway gọi đúng hostname thay vì localhost.
       AUTH_SERVICE_URI: "http://auth-service:8000"
       USER_SERVICE_URI: "http://user-service:8700"
       MOVIE_SERVICE_URI: "http://movie-service:8600"
       NOTIFICATION_SERVICE_URI: "http://notification-service:8900"
+      MEDIA_SERVICE_URI: "http://media-service:8081"
 
 # ===================================================================
 # TOP-LEVEL DEFINITIONS

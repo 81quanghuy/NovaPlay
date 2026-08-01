@@ -3,12 +3,18 @@ package vn.iotstar.mediaservice.service.impl;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
+import software.amazon.awssdk.core.exception.SdkException;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
 import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 import software.amazon.awssdk.services.s3.model.S3Exception;
@@ -19,18 +25,28 @@ import vn.iotstar.mediaservice.entity.Media;
 import vn.iotstar.mediaservice.repository.MediaRepository;
 import vn.iotstar.mediaservice.service.MediaService;
 import vn.iotstar.mediaservice.util.MediaStatus;
-import vn.iotstar.mediaservice.util.TopicName;
+import vn.iotstar.utils.constants.TopicNames;
 import vn.iotstar.utils.dto.MediaReadyEvent;
 import vn.iotstar.utils.dto.UploadRequestDto;
 import vn.iotstar.utils.dto.UploadResponseDto;
+import vn.iotstar.utils.exceptions.wrapper.BadRequestException;
+import vn.iotstar.utils.exceptions.wrapper.ForbiddenException;
+import vn.iotstar.utils.exceptions.wrapper.ResourceNotFoundException;
 
 import java.time.Duration;
+import java.util.Objects;
 import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class MediaServiceImpl implements MediaService {
+
+    /** Mặc định chỉ chấp nhận ảnh; nới rộng khi có nhu cầu thật cho loại nội dung khác. */
+    private static final String ALLOWED_CONTENT_TYPE_PREFIX = "image/";
+
+    /** 20MB — đủ cho ảnh chất lượng cao, chặn upload file khổng lồ chiếm dung lượng/bandwidth. */
+    static final long MAX_UPLOAD_SIZE_BYTES = 20L * 1024 * 1024;
 
     private final S3Presigner s3Presigner;
 
@@ -64,8 +80,32 @@ public class MediaServiceImpl implements MediaService {
     @Override
     public void markAsFailed(Media media) {
         log.warn("Marking mediaId {} as FAILED.", media.getId());
+        deleteS3ObjectQuietly(media.getS3Key());
         media.setStatus(MediaStatus.FAILED);
         mediaRepository.save(media);
+    }
+
+    /**
+     * Dọn object mồ côi trên S3 trước khi đánh dấu record thất bại. Best-effort: lỗi xoá không
+     * được chặn việc đánh dấu FAILED — record vẫn phải chuyển trạng thái để không bị cleanup job
+     * quét lại vô hạn, object rác (nếu có) sẽ được xử lý bằng lifecycle policy của bucket.
+     * <p>
+     * Bắt {@link SdkException} (lớp cha chung của cả {@link S3Exception} lẫn
+     * {@link software.amazon.awssdk.core.exception.SdkClientException}), KHÔNG chỉ
+     * {@code S3Exception}: sự cố mạng/client-side (timeout, DNS, connection reset...) là
+     * {@code SdkClientException}, một nhánh anh em chứ không phải subtype của {@code S3Exception} —
+     * bắt hẹp sẽ để lỗi mạng thoát ra ngoài và chặn luôn việc chuyển trạng thái FAILED, phá vỡ đúng
+     * mục đích "best-effort, không bao giờ chặn" của method này.
+     */
+    private void deleteS3ObjectQuietly(String s3Key) {
+        try {
+            s3Client.deleteObject(DeleteObjectRequest.builder()
+                    .bucket(bucketName)
+                    .key(s3Key)
+                    .build());
+        } catch (SdkException e) {
+            log.error("Failed to delete orphaned S3 object for key {}", s3Key, e);
+        }
     }
 
     @Override
@@ -84,10 +124,15 @@ public class MediaServiceImpl implements MediaService {
 
     @Override
     public UploadResponseDto requestUploadUrl(UploadRequestDto request) {
+        validateUploadRequest(request);
         try {
-            String s3Key = createS3Key(request);
-            String resignUrl = generateResignedUrl(s3Key);
-            Media media = createMediaRecord(request,s3Key);
+            // UUID sinh TRƯỚC khi tính S3 key: key phải namespaced theo mediaId
+            // (media/{ownerId}/{mediaId}/{fileName}) để hai lần upload trùng tên file không bao
+            // giờ ghi đè lẫn nhau.
+            String mediaId = UUID.randomUUID().toString();
+            String s3Key = createS3Key(request, mediaId);
+            String resignUrl = generateResignedUrl(s3Key, request.contentType(), request.size());
+            Media media = createMediaRecord(request, mediaId, s3Key, currentUserEmail());
             return new UploadResponseDto(media.getId(), resignUrl);
         } catch (S3Exception e) {
             log.error("AWS S3 Error: Failed to generate presigned URL. Check IAM permissions and bucket configuration.", e);
@@ -98,14 +143,35 @@ public class MediaServiceImpl implements MediaService {
         }
     }
 
-    private String createS3Key(UploadRequestDto request) {
-        return request.ownerId() + "/" + request.fileName();
+    /**
+     * Allowlist content-type + giới hạn kích thước TRƯỚC khi cấp presigned URL — chặn client xin
+     * URL cho loại file/kích thước không hợp lệ ngay từ đầu thay vì để S3 từ chối lúc upload thật.
+     */
+    private void validateUploadRequest(UploadRequestDto request) {
+        String contentType = request.contentType();
+        if (contentType == null || contentType.isBlank() || !contentType.startsWith(ALLOWED_CONTENT_TYPE_PREFIX)) {
+            throw new BadRequestException(
+                    "Unsupported content type: " + contentType + ". Only '" + ALLOWED_CONTENT_TYPE_PREFIX + "*' is allowed.");
+        }
+        Long size = request.size();
+        if (size == null || size <= 0) {
+            throw new BadRequestException("File size must be a positive number of bytes.");
+        }
+        if (size > MAX_UPLOAD_SIZE_BYTES) {
+            throw new BadRequestException(
+                    "File size " + size + " exceeds the maximum allowed " + MAX_UPLOAD_SIZE_BYTES + " bytes.");
+        }
     }
 
-    protected Media createMediaRecord(UploadRequestDto request, String s3Key) {
+    private String createS3Key(UploadRequestDto request, String mediaId) {
+        return "media/" + request.ownerId() + "/" + mediaId + "/" + request.fileName();
+    }
+
+    protected Media createMediaRecord(UploadRequestDto request, String mediaId, String s3Key, String ownerEmail) {
         Media media = new Media();
-        media.setId(UUID.randomUUID().toString());
+        media.setId(mediaId);
         media.setOwnerId(request.ownerId());
+        media.setOwnerEmail(ownerEmail);
         media.setOriginalFileName(request.fileName());
         media.setStatus(MediaStatus.PENDING);
         media.setS3Key(s3Key);
@@ -118,13 +184,20 @@ public class MediaServiceImpl implements MediaService {
         return cdnBaseUrl + "/" + key;
     }
 
-    public String generateResignedUrl(String key) {
+    /**
+     * Ký cả {@code Content-Type}/{@code Content-Length} vào presigned PUT: SigV4 ký header nào thì
+     * S3 ép header đó lúc upload thật, nên client upload sai type/size sẽ bị S3 từ chối bằng
+     * signature mismatch thay vì âm thầm chấp nhận.
+     */
+    public String generateResignedUrl(String key, String contentType, long contentLength) {
 
         PutObjectPresignRequest resignRequest = PutObjectPresignRequest.builder()
                 .signatureDuration(Duration.ofMinutes(durationMinutes))
                 .putObjectRequest(por -> por
                                 .bucket(bucketName)
-                                .key(key))
+                                .key(key)
+                                .contentType(contentType)
+                                .contentLength(contentLength))
                 .build();
 
         PresignedPutObjectRequest resignedRequest = s3Presigner.presignPutObject(resignRequest);
@@ -134,7 +207,7 @@ public class MediaServiceImpl implements MediaService {
     @Override
     public void sendMediaReadyEvent(MediaReadyEvent event) {
         kafkaTemplate.executeInTransaction(kt -> {
-            kt.send(TopicName.SEND_STATUS_MEDIA, event);
+            kt.send(TopicNames.SEND_STATUS_MEDIA, event);
             log.info("Sent MediaReadyEvent for mediaId: {} to Kafka topic 'media-ready'", event.mediaId());
             return true;
         });
@@ -144,5 +217,57 @@ public class MediaServiceImpl implements MediaService {
     public Media getMediaByS3Key(String key) {
         return mediaRepository.findByS3Key(key)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Media not found for S3 key: " + key));
+    }
+
+    @Override
+    public Page<Media> getMyMedia(String ownerEmail, Pageable pageable) {
+        return mediaRepository.findByOwnerEmail(ownerEmail, pageable);
+    }
+
+    @Override
+    public Media getMediaById(String id, String requesterEmail, boolean isAdmin) {
+        Media media = mediaRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Media not found: " + id));
+        assertOwnerOrAdmin(media, requesterEmail, isAdmin);
+        return media;
+    }
+
+    @Override
+    public Page<Media> getMediaByOwnerId(String ownerId, Pageable pageable) {
+        return mediaRepository.findByOwnerId(ownerId, pageable);
+    }
+
+    @Override
+    public void deleteMedia(String id, String requesterEmail, boolean isAdmin) {
+        Media media = mediaRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Media not found: " + id));
+        assertOwnerOrAdmin(media, requesterEmail, isAdmin);
+
+        // Hard-delete trên S3 ngay lập tức — không thể thu hồi, đây là chủ đích của thao tác xoá.
+        // KHÔNG nuốt lỗi ở đây (khác với deleteS3ObjectQuietly ở markAsFailed): nếu S3 xoá thất
+        // bại, exception phải văng ra và chặn luôn việc soft-delete record — người dùng yêu cầu
+        // xoá cần biết ngay là thao tác không hoàn tất, thay vì im lặng để lại record đã "xoá"
+        // trong khi object vẫn còn tồn tại thật trên S3.
+        s3Client.deleteObject(DeleteObjectRequest.builder()
+                .bucket(bucketName)
+                .key(media.getS3Key())
+                .build());
+
+        media.setStatus(MediaStatus.DELETED);
+        mediaRepository.save(media);
+    }
+
+    private void assertOwnerOrAdmin(Media media, String requesterEmail, boolean isAdmin) {
+        if (isAdmin) {
+            return;
+        }
+        if (!Objects.equals(media.getOwnerEmail(), requesterEmail)) {
+            throw new ForbiddenException("You do not have permission to access this media.");
+        }
+    }
+
+    private String currentUserEmail() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        return authentication != null ? authentication.getName() : null;
     }
 }
