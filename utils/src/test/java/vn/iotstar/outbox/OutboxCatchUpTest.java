@@ -44,7 +44,7 @@ class OutboxCatchUpTest {
         properties.setBatchSize(3);
         List<OutboxRecord> loDay = IntStream.range(0, 3).mapToObj(i -> record()).toList();
         // Lô thứ hai chỉ có 1 row, ít hơn batchSize, nên vòng lặp dừng ngay — đúng 2 lần gọi DB.
-        // Stub thêm một lô rỗng thứ ba sẽ bị Mockito strict stubbing báo lỗi vì không bao giờ dùng tới.
+        // Vòng lặp dừng ngay khi thấy lô có size < batchSize, nên chỉ có 2 lần gọi claimBatch.
         when(dao.claimBatch(3)).thenReturn(loDay, List.of(record()));
 
         int nhatDuoc = new OutboxCatchUp(dao, relayService, properties).run();
@@ -64,5 +64,20 @@ class OutboxCatchUpTest {
         verify(relayService).send(row);
         verify(relayService, org.mockito.Mockito.never())
                 .relay(org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    void dungKhiThayLoCoSizeBangBatchSize() {
+        OutboxProperties properties = new OutboxProperties();
+        properties.setBatchSize(3);
+        List<OutboxRecord> loDay = IntStream.range(0, 3).mapToObj(i -> record()).toList();
+        // Lô đầu tiên đầy (size = batchSize), lô thứ hai rỗng, vòng lặp dừng ngay.
+        when(dao.claimBatch(3)).thenReturn(loDay, List.of());
+
+        int nhatDuoc = new OutboxCatchUp(dao, relayService, properties).run();
+
+        assertThat(nhatDuoc).isEqualTo(3);
+        verify(dao, times(2)).claimBatch(3);
+        verify(relayService, times(3)).send(org.mockito.ArgumentMatchers.any());
     }
 }

@@ -31,7 +31,17 @@ public class OutboxCatchUp {
             }
             // Gọi thẳng send: câu claimBatch ở trên CHÍNH LÀ bước nhận việc. Đi qua relay(id)
             // sẽ nhận việc lần nữa và tăng attempts hai lần cho cùng một lượt gửi.
-            lo.forEach(relayService::send);
+            for (OutboxRecord record : lo) {
+                try {
+                    relayService.send(record);
+                } catch (Exception e) {
+                    // Một row hỏng không được phép dừng toàn bộ catch-up. Ghi log lỗi và tiếp tục
+                    // row vẫn được tính là đã nhận việc (claimBatch đã claim nó), và run() sẽ trả
+                    // về count đã nhận, dù gửi thành công hay không. Nếu gửi thực sự thất bại,
+                    // OutboxRelayService đã cập nhật next_attempt_at, sẽ thử lại ở catch-up kế tiếp.
+                    log.error("Lỗi gửi record mồ côi: id={}, topic={}", record.id(), record.topic(), e);
+                }
+            }
             tong += lo.size();
 
             if (lo.size() < properties.getBatchSize()) {
