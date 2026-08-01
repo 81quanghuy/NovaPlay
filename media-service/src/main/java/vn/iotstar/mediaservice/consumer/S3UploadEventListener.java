@@ -18,6 +18,11 @@ import vn.iotstar.utils.dto.MediaReadyEvent;
  * Mặc định bật ({@code matchIfMissing = true}) vì prod luôn cần lắng nghe SQS thật. Chỉ tắt ở
  * dev ({@code aws.sqs.enabled=false}) vì SQS không được MinIO emulate — xem
  * {@link vn.iotstar.mediaservice.config.AwsConfig}.
+ * <p>
+ * {@link MediaService#processSuccessfulUpload(Media)} là nơi DUY NHẤT publish
+ * {@link MediaReadyEvent} (nó tự gọi {@code sendMediaReadyEvent} bên trong) — listener này KHÔNG
+ * được publish thêm lần nữa sau khi gọi {@code processSuccessfulUpload}, nếu không consumer phía
+ * dưới (Kafka topic {@code media-ready}) sẽ nhận sự kiện trùng lặp cho mỗi lần upload.
  */
 @Component
 @RequiredArgsConstructor
@@ -39,11 +44,9 @@ public class S3UploadEventListener {
                     rootNode.at("/Records/0/s3/object/key").asText(), "UTF-8");
 
             Media media = mediaService.getMediaByS3Key(key);
+            // processSuccessfulUpload() đã tự publish MediaReadyEvent bên trong nó — publish lại
+            // ở đây sẽ khiến consumer nhận sự kiện trùng lặp cho mỗi lần upload thành công.
             mediaService.processSuccessfulUpload(media);
-
-            mediaService.sendMediaReadyEvent(
-                    new MediaReadyEvent(media.getId(), media.getOwnerId(), media.getCdnUrl())
-            );
 
         } catch (Exception e) {
             log.error("Error processing S3 upload event: ", e);

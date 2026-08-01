@@ -3,6 +3,7 @@ package vn.iotstar.mediaservice.config.security;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -35,17 +36,22 @@ public class SecurityConfig {
     };
 
     /**
-     * Chưa có endpoint admin nào ở task này (Task 2 sẽ thêm endpoint admin-list media). Để trống
-     * làm placeholder; khi có nội dung, thêm {@code .requestMatchers(ADMIN_ONLY_ENDPOINTS).authenticated()}
-     * vào chain bên dưới TRƯỚC bất kỳ matcher permitAll nào có thể trùng đường dẫn.
+     * {@code GET /api/v1/media} (admin-list media theo {@code ownerId}, KHÔNG phải
+     * {@code /api/v1/media/me} hay {@code /api/v1/media/{id}} — AntPathMatcher không có wildcard
+     * nên chỉ khớp chính xác path này). Đây là lớp phòng thủ đầu tiên; lớp thứ hai là
+     * {@code @PreAuthorize("hasRole('ADMIN')")} ở {@code MediaController}, giống
+     * {@code MovieController}.
      */
-    private static final String[] ADMIN_ONLY_ENDPOINTS = {};
+    private static final String[] ADMIN_ONLY_ENDPOINTS = {
+            "/api/v1/media"
+    };
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http.csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers(PUBLIC_ENDPOINTS).permitAll()
+                        .requestMatchers(HttpMethod.GET, ADMIN_ONLY_ENDPOINTS).hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session

@@ -9,6 +9,7 @@ public final class Constants {
     // Field names
     public static final String MEDIA_ID                = "_id";
     public static final String MEDIA_OWNER_ID          = "ownerId";
+    public static final String MEDIA_OWNER_EMAIL       = "ownerEmail";
     public static final String MEDIA_ORIGINAL_FILENAME = "originalFileName";
     public static final String MEDIA_S3_KEY            = "s3Key";
     public static final String MEDIA_CDN_URL           = "cdnUrl";
