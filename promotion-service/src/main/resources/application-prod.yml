@@ -1,0 +1,86 @@
+# Cấu hình production. Mọi giá trị nhạy cảm và phụ thuộc môi trường đều đến từ biến môi
+# trường — không có credential nào được commit vào file này.
+#
+# Biến bắt buộc: DATASOURCE_URL, DATASOURCE_USERNAME, DATASOURCE_PASSWORD,
+#                KAFKA_BOOTSTRAP_SERVERS, GATEWAY_SHARED_SECRET
+spring:
+  config:
+    activate:
+      on-profile: prod
+  datasource:
+    url: ${DATASOURCE_URL}
+    username: ${DATASOURCE_USERNAME}
+    password: ${DATASOURCE_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      # validate, không phải update: production không được tự ý sửa schema lúc khởi động.
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      acks: all
+      retries: 10
+      delivery-timeout-ms: 120000
+      enable-idempotence: true
+      linger-ms: 10
+      batch-size: 32768
+      properties:
+        max.in.flight.requests.per.connection: 5
+        compression.type: lz4
+        security.protocol: ${KAFKA_SECURITY_PROTOCOL:PLAINTEXT}
+  lifecycle:
+    # Cho request đang chạy kịp hoàn tất trước khi tiến trình dừng hẳn.
+    timeout-per-shutdown-phase: 30s
+
+server:
+  port: ${SERVER_PORT:8300}
+  shutdown: graceful
+
+application:
+  security:
+    gateway-secret:
+      # Bắt buộc bật ở production: nếu không, bất kỳ ai chạm được tới cổng service đều mạo danh
+      # được người dùng bất kỳ bằng cách tự đặt header X-User-Email.
+      enabled: true
+      value: ${GATEWAY_SHARED_SECRET}
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  endpoint:
+    health:
+      show-details: when-authorized
+      probes:
+        enabled: true
+  health:
+    livenessstate:
+      enabled: true
+    readinessstate:
+      enabled: true
+  tracing:
+    sampling:
+      # Lấy mẫu toàn bộ ở production quá tốn kém cả về chi phí lẫn độ trễ.
+      probability: ${TRACING_SAMPLE_RATE:0.1}
+  metrics:
+    tags:
+      application: ${spring.application.name}
+
+logging:
+  level:
+    root: INFO
+    vn.iotstar: INFO
