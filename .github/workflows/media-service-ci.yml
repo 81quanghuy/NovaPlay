@@ -69,7 +69,11 @@ jobs:
             exit 1
           fi
 
-          reports=$(find "$REPORT_DIR" -maxdepth 1 -name 'TEST-*IT.xml')
+          # "*IT*" chứ không phải "*IT" ở cuối: failsafe mặc định còn nhận diện IT theo
+          # "IT*.java" (tiền tố) và "*ITCase.java" (hậu tố khác), không chỉ hậu tố "*IT.java".
+          # Khớp hẹp hơn thì một service tương lai đặt tên theo hai pattern kia sẽ lọt lưới guard
+          # này — đúng kiểu lỗi mà guard tồn tại để chặn.
+          reports=$(find "$REPORT_DIR" -maxdepth 1 -name 'TEST-*IT*.xml')
           if [ -z "$reports" ]; then
             echo "::error::Không tìm thấy report *IT nào trong $REPORT_DIR — integration test không hề chạy."
             exit 1

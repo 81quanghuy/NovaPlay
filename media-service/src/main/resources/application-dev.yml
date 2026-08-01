@@ -5,6 +5,9 @@ spring:
   data:
     mongodb:
       uri: mongodb://localhost:27017/media_service?replicaSet=rs0
+      # Bắt buộc, nếu không unique index trên s3Key mà MongoIndexHealthIndicator kiểm tra sẽ
+      # không tồn tại.
+      auto-index-creation: true
   kafka:
     bootstrap-servers: localhost:9092
   lifecycle:

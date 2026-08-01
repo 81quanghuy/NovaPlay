@@ -48,8 +48,9 @@ public class MongoIndexHealthIndicator implements HealthIndicator {
 
     /**
      * So khớp theo bộ field chứ không theo tên index: index có thể được tạo bởi
-     * auto-index-creation với tên do nó tự đặt, hoặc bởi khai báo {@code @Indexed} với tên của
-     * chúng ta. Điều quan trọng là ràng buộc có tồn tại hay không, không phải nó tên gì.
+     * {@code auto-index-creation} với tên do nó tự đặt, hoặc bởi
+     * {@link vn.iotstar.mediaservice.config.MongoIndexInitializer} với tên của chúng ta. Điều
+     * quan trọng là ràng buộc có tồn tại hay không, không phải nó tên gì.
      */
     private boolean hasUniqueIndexOn(Class<?> entity, List<String> keys) {
         List<IndexInfo> indexes = mongoTemplate.indexOps(entity).getIndexInfo();

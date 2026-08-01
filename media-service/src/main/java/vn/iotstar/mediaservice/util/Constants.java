@@ -19,4 +19,5 @@ public final class Constants {
 
     // Index names
     public static final String IDX_MEDIA_OWNER_ID          = "idx_media_owner_id";
+    public static final String IDX_MEDIA_S3_KEY            = "uk_media_s3_key";
 }

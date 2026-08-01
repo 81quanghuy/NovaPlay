@@ -10,6 +10,9 @@ spring:
   data:
     mongodb:
       uri: ${MONGODB_URI}
+      auto-index-creation: true
+      # MongoIndexInitializer vẫn kiểm tra lại lúc khởi động vì auto-index-creation chạy lazy
+      # theo từng entity và nuốt lỗi im lặng.
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
   lifecycle:
