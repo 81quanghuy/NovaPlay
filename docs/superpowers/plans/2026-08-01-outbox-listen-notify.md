@@ -13,7 +13,7 @@
 - Java 21, Spring Boot 3.5.0, Spring Cloud 2025.0.0 — không đổi version nào.
 - Code mới đặt ở package `vn.iotstar.outbox` trong module `utils`. **Không** đặt dưới `vn.iotstar.utils`: mọi service trong repo đều `@ComponentScan(basePackages = {..., "vn.iotstar.utils"})`, kể cả bốn service dùng MongoDB (`movie-service`, `media-service`, `user-service`, `notification-service`); đặt trong vùng scan đó sẽ khiến chúng nạp phải bean outbox và chết context vì thiếu `DataSource` JPA lẫn `KafkaTemplate`.
 - Comment trong code viết bằng tiếng Việt, theo đúng quy ước đang có của repo.
-- Mọi dependency thêm vào `utils/pom.xml` dùng scope `provided` để không transitive sang service không dùng.
+- Mọi dependency **compile** thêm vào `utils/pom.xml` dùng scope `provided` để không transitive sang service không dùng. Dependency chỉ phục vụ test thì dùng scope `test` như bình thường.
 - Không đụng `payment-service`, `report-service`, `streaming-service`, và không chuyển service MongoDB nào sang outbox.
 - Commit message kết thúc bằng dòng `Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>`.
 - Chạy build một module: `./mvnw test -pl <module>`. Sau khi sửa `utils` phải `./mvnw install -pl utils -DskipTests` trước khi build service phụ thuộc.
@@ -555,6 +555,10 @@ import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -588,9 +592,18 @@ class OutboxEventPublisherImplTest {
         // Chốt chặn cho khiếm khuyết nghiêm trọng nhất của bản cũ: EventPublisherImpl gọi
         // kafkaTemplate.send(...).get(30s) NGAY TRONG transaction nghiệp vụ, nên một transaction
         // rollback vẫn để lọt event ra ngoài. Publisher mới không được biết Kafka là gì —
-        // thể hiện bằng việc lớp này không có bất kỳ collaborator nào ngoài dao và objectMapper.
-        assertThat(OutboxEventPublisherImpl.class.getDeclaredFields())
-                .extracting(java.lang.reflect.Field::getType)
+        // thể hiện bằng việc lớp này không có collaborator nào ngoài dao và objectMapper.
+        //
+        // Lọc field static vì getDeclaredFields() trả về CẢ chúng, mà @Slf4j sinh ra một field
+        // `log` static. Và cố ý không dùng .extracting(): nó sinh kiểu capture khiến
+        // containsExactlyInAnyOrder(Class<OutboxDao>, ...) không biên dịch được.
+        List<Class<?>> kieuCuaFieldInstance = Arrays.stream(
+                        OutboxEventPublisherImpl.class.getDeclaredFields())
+                .filter(field -> !Modifier.isStatic(field.getModifiers()))
+                .map(Field::getType)
+                .toList();
+
+        assertThat(kieuCuaFieldInstance)
                 .containsExactlyInAnyOrder(OutboxDao.class, ObjectMapper.class);
     }
 
