@@ -63,6 +63,25 @@
             <groupId>jakarta.validation</groupId>
             <artifactId>jakarta.validation-api</artifactId>
         </dependency>
+		<!-- Ba dependency dưới đây phục vụ package vn.iotstar.outbox. Scope provided vì
+		     chúng không transitive: service nào dùng outbox thì tự khai báo bản của mình
+		     (auth-service và promotion-service đều đã có sẵn cả ba), còn các service Mongo
+		     không bị kéo Kafka và driver Postgres vào classpath một cách vô cớ. -->
+		<dependency>
+			<groupId>org.springframework.kafka</groupId>
+			<artifactId>spring-kafka</artifactId>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.postgresql</groupId>
+			<artifactId>postgresql</artifactId>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>io.micrometer</groupId>
+			<artifactId>micrometer-core</artifactId>
+			<scope>provided</scope>
+		</dependency>
     </dependencies>
 
 </project>
