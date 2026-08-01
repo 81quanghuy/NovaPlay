@@ -1,0 +1,80 @@
+# Cấu hình production. Mọi giá trị nhạy cảm và phụ thuộc môi trường đều đến từ biến môi
+# trường — không có credential nào được commit vào file này.
+#
+# Biến bắt buộc: MONGODB_URI, KAFKA_BOOTSTRAP_SERVERS, AWS_REGION, AWS_S3_BUCKET_NAME,
+# AWS_SQS_QUEUE_NAME, CDN_BASE_URL, GATEWAY_SHARED_SECRET
+spring:
+  config:
+    activate:
+      on-profile: prod
+  data:
+    mongodb:
+      uri: ${MONGODB_URI}
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
+  lifecycle:
+    # Cho request đang chạy kịp hoàn tất trước khi tiến trình dừng hẳn.
+    timeout-per-shutdown-phase: 30s
+
+server:
+  port: ${SERVER_PORT:8081}
+  shutdown: graceful
+
+# KHÔNG có aws.endpoint.url ở đây — phải vắng mặt để bean S3 thật (không override endpoint)
+# trong AwsConfig được kích hoạt thay vì bean trỏ MinIO.
+aws:
+  region: ${AWS_REGION}
+  s3:
+    bucket-name: ${AWS_S3_BUCKET_NAME}
+    presigned-url-duration-minutes: ${PRESIGNED_URL_DURATION_MINUTES:15}
+  sqs:
+    enabled: true
+    queue-name: ${AWS_SQS_QUEUE_NAME}
+
+cdn:
+  base-url: ${CDN_BASE_URL}
+
+application:
+  security:
+    gateway-secret:
+      # Bắt buộc bật ở production: nếu không, bất kỳ ai chạm được tới cổng service đều mạo danh
+      # được người dùng bất kỳ bằng cách tự đặt header X-User-Email.
+      enabled: true
+      value: ${GATEWAY_SHARED_SECRET}
+
+job:
+  cleanup:
+    pending-older-than-hours: ${CLEANUP_PENDING_HOURS:1}
+    fail-older-than-hours: ${CLEANUP_FAIL_HOURS:24}
+    fixed-rate-ms: ${CLEANUP_FIXED_RATE_MS:3600000}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  endpoint:
+    health:
+      show-details: when-authorized
+      probes:
+        enabled: true
+      group:
+        readiness:
+          include: readinessState,mongo
+  health:
+    livenessstate:
+      enabled: true
+    readinessstate:
+      enabled: true
+  tracing:
+    sampling:
+      # Lấy mẫu toàn bộ ở production quá tốn kém cả về chi phí lẫn độ trễ.
+      probability: ${TRACING_SAMPLE_RATE:0.1}
+  metrics:
+    tags:
+      application: ${spring.application.name}
+
+logging:
+  level:
+    root: INFO
+    vn.iotstar: INFO

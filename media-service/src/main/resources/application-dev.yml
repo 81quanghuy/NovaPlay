@@ -2,3 +2,74 @@ spring:
   config:
     activate:
       on-profile: dev
+  data:
+    mongodb:
+      uri: mongodb://localhost:27017/media_service?replicaSet=rs0
+  kafka:
+    bootstrap-servers: localhost:9092
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
+
+server:
+  port: 8081
+  shutdown: graceful
+
+aws:
+  region: us-east-1
+  endpoint:
+    # Trỏ vào MinIO local (docker-compose/qa) thay vì S3 thật. AwsConfig chỉ kích hoạt bean
+    # endpoint-override khi giá trị này khác rỗng.
+    url: http://localhost:9010
+  s3:
+    bucket-name: novaplay-media-dev
+    presigned-url-duration-minutes: 15
+  sqs:
+    # SQS không được MinIO emulate — tắt consumer ở dev để tránh liên tục thử kết nối AWS thật.
+    enabled: false
+    queue-name: media-upload-events-dev
+
+cdn:
+  base-url: http://localhost:9010/novaplay-media-dev
+
+application:
+  security:
+    gateway-secret:
+      # Tắt ở local để gọi thẳng service khi dev; PROD bắt buộc bật.
+      enabled: false
+      value: ""
+
+job:
+  cleanup:
+    pending-older-than-hours: 1
+    fail-older-than-hours: 24
+    fixed-rate-ms: 30000
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  endpoint:
+    health:
+      show-details: when-authorized
+      probes:
+        enabled: true
+      group:
+        readiness:
+          include: readinessState,mongo
+  health:
+    livenessstate:
+      enabled: true
+    readinessstate:
+      enabled: true
+  tracing:
+    sampling:
+      probability: 1.0
+  metrics:
+    tags:
+      application: ${spring.application.name}
+
+logging:
+  level:
+    root: INFO
+    vn.iotstar: DEBUG

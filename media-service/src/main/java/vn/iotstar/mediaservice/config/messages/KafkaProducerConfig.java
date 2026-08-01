@@ -11,7 +11,7 @@ import org.springframework.kafka.core.DefaultKafkaProducerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.core.ProducerFactory;
 import org.springframework.kafka.support.serializer.JsonSerializer;
-import vn.iotstar.mediaservice.util.TopicName;
+import vn.iotstar.utils.constants.TopicNames;
 import vn.iotstar.utils.dto.MediaReadyEvent;
 
 import java.util.HashMap;
@@ -144,8 +144,8 @@ public class KafkaProducerConfig {
     }
 
     @Bean
-    public NewTopic sendEmail() {
-        return TopicBuilder.name(TopicName.SEND_STATUS_MEDIA)
+    public NewTopic mediaReadyTopic() {
+        return TopicBuilder.name(TopicNames.SEND_STATUS_MEDIA)
                 .partitions(3)
                 .replicas(1)
                 .config(TopicConfig.CLEANUP_POLICY_CONFIG, TopicConfig.CLEANUP_POLICY_DELETE)

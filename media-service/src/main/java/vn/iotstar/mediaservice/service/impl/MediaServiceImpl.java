@@ -19,7 +19,7 @@ import vn.iotstar.mediaservice.entity.Media;
 import vn.iotstar.mediaservice.repository.MediaRepository;
 import vn.iotstar.mediaservice.service.MediaService;
 import vn.iotstar.mediaservice.util.MediaStatus;
-import vn.iotstar.mediaservice.util.TopicName;
+import vn.iotstar.utils.constants.TopicNames;
 import vn.iotstar.utils.dto.MediaReadyEvent;
 import vn.iotstar.utils.dto.UploadRequestDto;
 import vn.iotstar.utils.dto.UploadResponseDto;
@@ -134,7 +134,7 @@ public class MediaServiceImpl implements MediaService {
     @Override
     public void sendMediaReadyEvent(MediaReadyEvent event) {
         kafkaTemplate.executeInTransaction(kt -> {
-            kt.send(TopicName.SEND_STATUS_MEDIA, event);
+            kt.send(TopicNames.SEND_STATUS_MEDIA, event);
             log.info("Sent MediaReadyEvent for mediaId: {} to Kafka topic 'media-ready'", event.mediaId());
             return true;
         });

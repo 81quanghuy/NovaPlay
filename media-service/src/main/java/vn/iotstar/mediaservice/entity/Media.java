@@ -26,7 +26,6 @@ public class Media extends AuditableDocument implements Serializable {
     private String id;
 
     @Field(Constants.MEDIA_OWNER_ID)
-    @Indexed(unique = true)
     private String ownerId;
 
     @Field(Constants.MEDIA_ORIGINAL_FILENAME)
