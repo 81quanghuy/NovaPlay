@@ -82,6 +82,11 @@
 			<artifactId>micrometer-core</artifactId>
 			<scope>provided</scope>
 		</dependency>
+		<dependency>
+			<groupId>org.awaitility</groupId>
+			<artifactId>awaitility</artifactId>
+			<scope>test</scope>
+		</dependency>
     </dependencies>
 
 </project>
