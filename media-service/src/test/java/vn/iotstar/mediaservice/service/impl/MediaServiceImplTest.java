@@ -324,6 +324,26 @@ class MediaServiceImplTest {
             assertThatThrownBy(() -> service.deleteMedia("missing", "a@x.com", false))
                     .isInstanceOf(ResourceNotFoundException.class);
         }
+
+        @Test
+        @DisplayName("lỗi xoá S3 KHÔNG bị nuốt: văng ra ngoài và chặn luôn soft-delete record")
+        void doesNotSwallowS3ErrorsUnlikeMarkAsFailed() {
+            // Bất đối xứng có chủ đích so với markAsFailed/deleteS3ObjectQuietly: đây là thao tác
+            // xoá do người dùng chủ động yêu cầu, không thể im lặng để lại record "đã xoá" trong
+            // khi object thật vẫn còn trên S3 — brief coi thao tác này là "không thể thu hồi", nên
+            // nó phải thực sự xảy ra hoặc báo lỗi rõ ràng, không phải best-effort.
+            Media media = pendingMedia();
+            when(mediaRepository.findById("m1")).thenReturn(Optional.of(media));
+            when(s3Client.deleteObject(any(DeleteObjectRequest.class)))
+                    .thenThrow(software.amazon.awssdk.services.s3.model.S3Exception.builder()
+                            .message("boom").build());
+
+            assertThatThrownBy(() -> service.deleteMedia("m1", "a@x.com", false))
+                    .isInstanceOf(software.amazon.awssdk.services.s3.model.S3Exception.class);
+
+            verify(mediaRepository, never()).save(any(Media.class));
+            assertThat(media.getStatus()).isEqualTo(MediaStatus.COMPLETED);
+        }
     }
 
     // ---------- Cleanup job: orphaned S3 object deleted before marking FAILED (fix #4) ----------
@@ -354,7 +374,7 @@ class MediaServiceImplTest {
         }
 
         @Test
-        @DisplayName("lỗi xoá S3 không chặn việc đánh dấu FAILED (best-effort)")
+        @DisplayName("lỗi xoá S3 (S3Exception) không chặn việc đánh dấu FAILED (best-effort)")
         void continuesMarkingFailedEvenIfS3DeleteFails() {
             Media media = new Media();
             media.setId("m1");
@@ -363,6 +383,26 @@ class MediaServiceImplTest {
 
             when(s3Client.deleteObject(any(DeleteObjectRequest.class)))
                     .thenThrow(S3Exception.builder().message("boom").build());
+
+            service.markAsFailed(media);
+
+            assertThat(media.getStatus()).isEqualTo(MediaStatus.FAILED);
+            verify(mediaRepository).save(media);
+        }
+
+        @Test
+        @DisplayName("lỗi mạng/client-side (SdkClientException) cũng không chặn việc đánh dấu FAILED")
+        void continuesMarkingFailedEvenIfS3DeleteFailsWithClientException() {
+            // SdkClientException (timeout, DNS, connection reset...) là NHÁNH ANH EM của
+            // S3Exception dưới SdkException, không phải subtype của nó — bắt hẹp
+            // "catch (S3Exception e)" sẽ để lỗi này thoát ra ngoài và chặn cả việc đánh dấu FAILED.
+            Media media = new Media();
+            media.setId("m1");
+            media.setS3Key("media/owner-1/m1/orphan.jpg");
+            media.setStatus(MediaStatus.PENDING);
+
+            when(s3Client.deleteObject(any(DeleteObjectRequest.class)))
+                    .thenThrow(software.amazon.awssdk.core.exception.SdkClientException.create("network blip"));
 
             service.markAsFailed(media);
 

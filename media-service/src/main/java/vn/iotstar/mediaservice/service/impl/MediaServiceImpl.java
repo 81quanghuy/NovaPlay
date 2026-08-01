@@ -12,6 +12,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
+import software.amazon.awssdk.core.exception.SdkException;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
@@ -88,6 +89,13 @@ public class MediaServiceImpl implements MediaService {
      * Dọn object mồ côi trên S3 trước khi đánh dấu record thất bại. Best-effort: lỗi xoá không
      * được chặn việc đánh dấu FAILED — record vẫn phải chuyển trạng thái để không bị cleanup job
      * quét lại vô hạn, object rác (nếu có) sẽ được xử lý bằng lifecycle policy của bucket.
+     * <p>
+     * Bắt {@link SdkException} (lớp cha chung của cả {@link S3Exception} lẫn
+     * {@link software.amazon.awssdk.core.exception.SdkClientException}), KHÔNG chỉ
+     * {@code S3Exception}: sự cố mạng/client-side (timeout, DNS, connection reset...) là
+     * {@code SdkClientException}, một nhánh anh em chứ không phải subtype của {@code S3Exception} —
+     * bắt hẹp sẽ để lỗi mạng thoát ra ngoài và chặn luôn việc chuyển trạng thái FAILED, phá vỡ đúng
+     * mục đích "best-effort, không bao giờ chặn" của method này.
      */
     private void deleteS3ObjectQuietly(String s3Key) {
         try {
@@ -95,7 +103,7 @@ public class MediaServiceImpl implements MediaService {
                     .bucket(bucketName)
                     .key(s3Key)
                     .build());
-        } catch (S3Exception e) {
+        } catch (SdkException e) {
             log.error("Failed to delete orphaned S3 object for key {}", s3Key, e);
         }
     }
@@ -236,6 +244,10 @@ public class MediaServiceImpl implements MediaService {
         assertOwnerOrAdmin(media, requesterEmail, isAdmin);
 
         // Hard-delete trên S3 ngay lập tức — không thể thu hồi, đây là chủ đích của thao tác xoá.
+        // KHÔNG nuốt lỗi ở đây (khác với deleteS3ObjectQuietly ở markAsFailed): nếu S3 xoá thất
+        // bại, exception phải văng ra và chặn luôn việc soft-delete record — người dùng yêu cầu
+        // xoá cần biết ngay là thao tác không hoàn tất, thay vì im lặng để lại record đã "xoá"
+        // trong khi object vẫn còn tồn tại thật trên S3.
         s3Client.deleteObject(DeleteObjectRequest.builder()
                 .bucket(bucketName)
                 .key(media.getS3Key())
