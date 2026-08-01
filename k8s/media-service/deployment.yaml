@@ -1,0 +1,91 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: media-service
+  labels:
+    app: media-service
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: media-service
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: media-service
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8081"
+        prometheus.io/path: "/actuator/prometheus"
+    spec:
+      # Cho phép request đang chạy hoàn tất; khớp với server.shutdown=graceful và
+      # spring.lifecycle.timeout-per-shutdown-phase=30s.
+      terminationGracePeriodSeconds: 45
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+      containers:
+        - name: media-service
+          image: novaplay/media-service:v0.0.1
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8081
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: prod
+            # MDC traceId/spanId trong log chỉ có giá trị khi javaagent được gắn.
+            # Dockerfile đặt agent tại đúng đường dẫn này.
+            - name: JAVA_TOOL_OPTIONS
+              value: "-javaagent:/app/libs/opentelemetry-javaagent.jar"
+            - name: OTEL_SERVICE_NAME
+              value: media-service
+          envFrom:
+            - configMapRef:
+                name: media-service-config
+            - secretRef:
+                name: media-service-secrets
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+          # Startup probe cho JVM thời gian khởi động mà không phải nới lỏng liveness.
+          startupProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: http
+            failureThreshold: 30
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: http
+            periodSeconds: 15
+            failureThreshold: 3
+          # Readiness bao gồm cả kiểm tra unique index của Mongo trên s3Key: pod thiếu index sẽ
+          # âm thầm cho phép hai bản ghi Media trỏ cùng một S3 key nên không được nhận traffic.
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: http
+            periodSeconds: 10
+            failureThreshold: 3
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
