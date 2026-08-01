@@ -46,7 +46,10 @@ services:
     volumes: ["../init-db:/docker-entrypoint-initdb.d"]
     networks: [novaPLay]
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $$(cat /run/secrets/db_user)"]
+      # Phải truyền cả -d: thiếu nó, pg_isready mặc định lấy tên DB trùng tên user ("admin"),
+      # database đó không tồn tại nên server ghi FATAL mỗi lần healthcheck chạy — mà lệnh vẫn
+      # exit 0, khiến container báo healthy trong khi log đầy lỗi giả.
+      test: ["CMD-SHELL", "pg_isready -U $$(cat /run/secrets/db_user) -d $$(cat /run/secrets/db_name)"]
       interval: 10s
       timeout: 5s
       retries: 5

@@ -21,7 +21,6 @@ import vn.iotstar.authservice.model.entity.User;
 import vn.iotstar.authservice.repository.RoleRepository;
 import vn.iotstar.authservice.repository.UserRepository;
 import vn.iotstar.authservice.config.observability.AuthMetrics;
-import vn.iotstar.authservice.service.AuditLogger;
 import vn.iotstar.authservice.service.AuthService;
 import vn.iotstar.authservice.service.EventPublisher;
 import vn.iotstar.authservice.service.JwtService;

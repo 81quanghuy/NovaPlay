@@ -1,4 +1,4 @@
-package vn.iotstar.authservice.service;
+package vn.iotstar.authservice.service.impl;
 
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
