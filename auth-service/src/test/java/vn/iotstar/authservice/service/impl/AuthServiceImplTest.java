@@ -23,12 +23,12 @@ import vn.iotstar.authservice.model.entity.Token;
 import vn.iotstar.authservice.model.entity.User;
 import vn.iotstar.authservice.repository.RoleRepository;
 import vn.iotstar.authservice.repository.UserRepository;
-import vn.iotstar.authservice.service.EventPublisher;
 import vn.iotstar.authservice.service.JwtService;
 import vn.iotstar.authservice.service.OtpService;
 import vn.iotstar.authservice.service.RateLimiterService;
 import vn.iotstar.authservice.service.TokenService;
 import vn.iotstar.authservice.util.RoleName;
+import vn.iotstar.outbox.OutboxEventPublisher;
 import vn.iotstar.utils.exceptions.wrapper.BadRequestException;
 import vn.iotstar.utils.exceptions.wrapper.ForbiddenException;
 import vn.iotstar.utils.exceptions.wrapper.ResourceNotFoundException;
@@ -55,7 +55,7 @@ class AuthServiceImplTest {
     @Mock private KafkaTemplate<String, Object> kafkaTemplate;
     @Mock private OtpService otpService;
     @Mock private RateLimiterService rateLimiterService;
-    @Mock private EventPublisher eventPublisher;
+    @Mock private OutboxEventPublisher eventPublisher;
     @Mock private AuditLogger auditLogger;
     @Mock private AuthMetrics authMetrics;
 
