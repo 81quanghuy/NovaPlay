@@ -7,10 +7,10 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import vn.iotstar.authservice.config.observability.AuthMetrics;
-import vn.iotstar.authservice.service.EventPublisher;
 import vn.iotstar.authservice.service.OtpService;
 import vn.iotstar.authservice.service.RateLimiterService;
-import vn.iotstar.authservice.util.TopicName;
+import vn.iotstar.outbox.OutboxEventPublisher;
+import vn.iotstar.utils.constants.TopicNames;
 import vn.iotstar.utils.dto.EmailOtpRequested;
 
 import java.security.SecureRandom;
@@ -26,7 +26,7 @@ public class OtpServiceImpl implements OtpService {
     private final PasswordEncoder passwordEncoder;
     private final KafkaTemplate<String, Object> kafka;
     private final RateLimiterService rateLimiterService;
-    private final EventPublisher eventPublisher;
+    private final OutboxEventPublisher eventPublisher;
     private final AuthMetrics authMetrics;
 
     private static final Duration OTP_TTL = Duration.ofMinutes(5);
@@ -50,7 +50,7 @@ public class OtpServiceImpl implements OtpService {
                 UUID.randomUUID().toString(), userId, email,
                 Map.of("otp", otp, "expireMinutes", String.valueOf(OTP_TTL.toMinutes()), "locale", locale)
         );
-        eventPublisher.publish(TopicName.SEND_EMAIL, userId, evt);
+        eventPublisher.publish(TopicNames.SEND_EMAIL, userId, evt);
         authMetrics.getOtpSentCounter().increment();
         log.info("OTP generated & dispatched, userId={}, corrId={}", userId, correlationId);
     }

@@ -22,13 +22,13 @@ import vn.iotstar.authservice.repository.RoleRepository;
 import vn.iotstar.authservice.repository.UserRepository;
 import vn.iotstar.authservice.config.observability.AuthMetrics;
 import vn.iotstar.authservice.service.AuthService;
-import vn.iotstar.authservice.service.EventPublisher;
 import vn.iotstar.authservice.service.JwtService;
 import vn.iotstar.authservice.service.OtpService;
 import vn.iotstar.authservice.service.RateLimiterService;
 import vn.iotstar.authservice.service.TokenService;
 import vn.iotstar.authservice.util.RoleName;
-import vn.iotstar.authservice.util.TopicName;
+import vn.iotstar.outbox.OutboxEventPublisher;
+import vn.iotstar.utils.constants.TopicNames;
 import vn.iotstar.utils.dto.UserRegister;
 import vn.iotstar.utils.exceptions.wrapper.BadRequestException;
 import vn.iotstar.utils.exceptions.wrapper.ForbiddenException;
@@ -54,7 +54,7 @@ public class AuthServiceImpl implements AuthService {
     private final KafkaTemplate<String, Object> kafkaTemplate;
     private final OtpService otpService;
     private final RateLimiterService rateLimiterService;
-    private final EventPublisher eventPublisher;
+    private final OutboxEventPublisher eventPublisher;
     private final AuditLogger auditLogger;
     private final AuthMetrics authMetrics;
 
@@ -229,7 +229,7 @@ public class AuthServiceImpl implements AuthService {
                 user.getUsername(),
                 user.getEmail()
         );
-        eventPublisher.publish(TopicName.ACTIVATE_ACCOUNT, String.valueOf(user.getId()), userRegister);
+        eventPublisher.publish(TopicNames.ACTIVATE_ACCOUNT, String.valueOf(user.getId()), userRegister);
         auditLogger.accountActivated(String.valueOf(user.getId()), user.getEmail());
     }
 
