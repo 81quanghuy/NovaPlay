@@ -74,6 +74,7 @@ public class OutboxNotificationListener implements SmartLifecycle {
         running = false;
         closeQuietly(currentConnection);   // phá vỡ lệnh đọc đang chặn ở socket
         if (listenerThread != null) {
+            listenerThread.interrupt();    // phá vỡ Thread.sleep() lúc đang backoff chờ reconnect
             try {
                 listenerThread.join(5_000);
             } catch (InterruptedException e) {
@@ -96,6 +97,12 @@ public class OutboxNotificationListener implements SmartLifecycle {
 
         while (running) {
             try (Connection connection = DriverManager.getConnection(jdbcUrl, username, password)) {
+                if (!running) {
+                    // stop() đã được gọi trong lúc đang mở connection này (running bị đọc là true
+                    // ở while phía trên trước khi stop() chạy). Không LISTEN, không catchUp — thoát
+                    // ngay để không quét bù cả backlog trong lúc pod đang tắt.
+                    return;
+                }
                 currentConnection = connection;
                 try (Statement statement = connection.createStatement()) {
                     statement.execute("LISTEN " + properties.getChannel());

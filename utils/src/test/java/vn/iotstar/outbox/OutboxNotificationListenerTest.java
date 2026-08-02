@@ -38,4 +38,34 @@ class OutboxNotificationListenerTest {
 
         assertThat(listener.isRunning()).isFalse();
     }
+
+    @Test
+    void stopPhaiTraVeNhanhDuChoDangNguSauBackoff() {
+        // reconnectMaxDelay cố tình lớn (30s, giống mặc định prod) để mô phỏng đúng kịch bản của
+        // Finding 1: nếu stop() không interrupt() được thread listener, join(5_000) sẽ timeout
+        // và trả về muộn 5s mỗi lần pod tắt trong lúc Postgres đang down. Test này khẳng định
+        // stop() trả về gần như ngay lập tức thay vì phải đợi hết join timeout.
+        OutboxProperties properties = new OutboxProperties();
+        properties.setReconnectInitialDelay(Duration.ofSeconds(30));
+        properties.setReconnectMaxDelay(Duration.ofSeconds(30));
+
+        OutboxNotificationListener listener = new OutboxNotificationListener(
+                "jdbc:postgresql://localhost:1/khong-ton-tai", "u", "p",
+                properties, catchUp, relayService);
+
+        listener.start();
+        // Đợi tới khi listener chắc chắn đang ở trong Thread.sleep(30_000) của lần backoff đầu
+        // tiên (currentConnection == null lúc này vì connect đã thất bại).
+        await().atMost(Duration.ofSeconds(3))
+                .until(() -> listener.getFailedConnectionAttempts() >= 1);
+
+        long start = System.nanoTime();
+        listener.stop();
+        long elapsedMillis = Duration.ofNanos(System.nanoTime() - start).toMillis();
+
+        assertThat(listener.isRunning()).isFalse();
+        // Ngưỡng rộng rãi so với sleep 30s đang bị chặn — chỉ cần chứng minh interrupt() có tác
+        // dụng, không phải join(5_000) timeout ra rồi mới trả về.
+        assertThat(elapsedMillis).isLessThan(2_000);
+    }
 }
