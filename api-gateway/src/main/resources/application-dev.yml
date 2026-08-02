@@ -334,7 +334,7 @@ resilience4j:
   timelimiter:
     configs:
       default:
-        timeout-duration: 10s
+        timeout-duration: 30s
     instances:
       auth-service-cb:
         base-config: default
