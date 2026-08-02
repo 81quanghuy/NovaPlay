@@ -67,20 +67,36 @@ services:
     image: mongo:${MONGO_VERSION:-7}
     container_name: mongodb-service
     command: ["mongod", "--replSet", "rs0", "--bind_ip_all"]
-    ports: ["27017:27017"]
-    volumes: ["mongodb_data:/data/db"]
-    networks: [novaPLay]
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
     healthcheck:
-      # Tự khởi tạo replica set trong lần chạy đầu; các lần sau lệnh này là no-op.
       test: >
         mongosh --quiet --eval "
-          try { rs.status().ok }
-          catch (e) { rs.initiate({_id:'rs0',members:[{_id:0,host:'mongodb:27017'}]}).ok }
-        "
+          try { rs.status().ok } catch(e) {
+            rs.initiate({_id:'rs0', members:[{_id:0, host:'mongodb-service:27017'}]}).ok
+          }
+        " | grep -q 1
       interval: 10s
-      timeout: 10s
-      retries: 10
-      start_period: 20s
+      timeout: 5s
+      retries: 5
+    networks:
+      - novaPLay
+
+  mongo-express:
+    image: mongo-express:latest
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    ports:
+      - "9999:8081"
+    environment:
+      ME_CONFIG_MONGODB_URL: mongodb://mongodb-service:27017
+      ME_CONFIG_BASICAUTH_USERNAME: admin
+      ME_CONFIG_BASICAUTH_PASSWORD: admin123
+    networks:
+      - novaPLay
 
   kafka-services:
     image: apache/kafka:${KAFKA_VERSION:-latest}
@@ -104,7 +120,7 @@ services:
 
   kafka-ui:
     image: provectuslabs/kafka-ui:latest
-    container_name: kafka-ui
+    container_name: kafka-ui-novaplay
     depends_on: [kafka-services]
     networks: [novaPLay]           # phải cùng network với kafka-services
     ports:

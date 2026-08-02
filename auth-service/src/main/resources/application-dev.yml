@@ -24,14 +24,7 @@ spring:
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
-      acks: all
-      retries: 10
-      delivery-timeout-ms: 120000
-      enable-idempotence: true
-      linger-ms: 10
-      batch-size: 32768
       properties:
-        max.in.flight.requests.per.connection: 5
         compression.type: lz4
 
 jwt:

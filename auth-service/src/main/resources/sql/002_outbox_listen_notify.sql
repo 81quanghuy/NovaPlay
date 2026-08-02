@@ -1,7 +1,8 @@
 -- Chuyển outbox từ mô hình quét định kỳ sang mô hình Postgres đẩy qua LISTEN/NOTIFY.
 --
--- Cả hai service dùng ddl-auto: update, vốn không tạo được partial index lẫn trigger. File này
--- là nguồn sự thật cho schema outbox và PHẢI chạy tay trước khi triển khai bản mới.
+-- Chạy sau 001_create_outbox_events.sql. ddl-auto: update không tạo được partial index lẫn
+-- trigger nên các thay đổi này phải khai báo tay ở đây — file này là nguồn sự thật cho schema
+-- outbox và PHẢI chạy tay trước khi triển khai bản mới.
 
 -- 1. Mốc backoff, đồng thời là điều kiện tranh quyền xử lý giữa các pod.
 ALTER TABLE outbox_events ADD COLUMN IF NOT EXISTS next_attempt_at TIMESTAMPTZ;
