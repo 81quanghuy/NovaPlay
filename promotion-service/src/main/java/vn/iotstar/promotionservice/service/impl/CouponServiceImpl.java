@@ -19,7 +19,7 @@ import vn.iotstar.promotionservice.model.enums.RedemptionStatus;
 import vn.iotstar.promotionservice.repository.CouponRedemptionRepository;
 import vn.iotstar.promotionservice.repository.CouponRepository;
 import vn.iotstar.promotionservice.service.CouponService;
-import vn.iotstar.promotionservice.service.EventPublisher;
+import vn.iotstar.outbox.OutboxEventPublisher;
 import vn.iotstar.utils.constants.TopicNames;
 import vn.iotstar.utils.dto.CouponRedeemedEvent;
 import vn.iotstar.utils.dto.NotificationRequested;
@@ -43,7 +43,7 @@ public class CouponServiceImpl implements CouponService {
 
     private final CouponRepository couponRepository;
     private final CouponRedemptionRepository couponRedemptionRepository;
-    private final EventPublisher eventPublisher;
+    private final OutboxEventPublisher eventPublisher;
     private final ObjectMapper objectMapper;
     private final CouponRedemptionRecoveryService recoveryService;
 

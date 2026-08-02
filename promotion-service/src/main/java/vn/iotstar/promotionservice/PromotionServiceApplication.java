@@ -6,11 +6,12 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.TypeExcludeFilter;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.FilterType;
-import org.springframework.scheduling.annotation.EnableScheduling;
+import org.springframework.context.annotation.Import;
+import vn.iotstar.outbox.OutboxConfiguration;
 import vn.iotstar.utils.audit.AuditAwareImpl;
 
 @SpringBootApplication
-@EnableScheduling // OutboxRelayJob#relay chạy định kỳ qua @Scheduled(fixedDelay = 5000).
+@Import(OutboxConfiguration.class)
 @ComponentScan(basePackages = {
         "vn.iotstar.promotionservice",  // package chính
         "vn.iotstar.utils", // package Utils,
@@ -21,7 +22,7 @@ import vn.iotstar.utils.audit.AuditAwareImpl;
         @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, classes = AuditAwareImpl.class),
         // Hai filter dưới đây là mặc định của @SpringBootApplication, nhưng khai báo @ComponentScan
         // tường minh sẽ ghi đè và làm mất chúng. Thiếu TypeExcludeFilter thì các slice test
-        // (@WebMvcTest, @DataJpaTest) không lọc được bean và sẽ kéo cả OutboxRelayJob/
+        // (@WebMvcTest, @DataJpaTest) không lọc được bean và sẽ kéo cả
         // JpaAuditingConfig vào, khiến context không khởi tạo nổi vì thiếu repository/
         // EntityManagerFactory — xem cùng vấn đề đã gặp ở MediaServiceApplication.
         @ComponentScan.Filter(type = FilterType.CUSTOM, classes = TypeExcludeFilter.class),

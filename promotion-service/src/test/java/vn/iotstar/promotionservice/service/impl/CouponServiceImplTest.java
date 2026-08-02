@@ -13,7 +13,7 @@ import vn.iotstar.promotionservice.model.enums.CouponType;
 import vn.iotstar.promotionservice.model.enums.RedemptionStatus;
 import vn.iotstar.promotionservice.repository.CouponRedemptionRepository;
 import vn.iotstar.promotionservice.repository.CouponRepository;
-import vn.iotstar.promotionservice.service.EventPublisher;
+import vn.iotstar.outbox.OutboxEventPublisher;
 import vn.iotstar.utils.exceptions.wrapper.BadRequestException;
 import vn.iotstar.utils.exceptions.wrapper.ForbiddenException;
 
@@ -44,7 +44,7 @@ class CouponServiceImplTest {
 
     @Mock private CouponRepository couponRepository;
     @Mock private CouponRedemptionRepository couponRedemptionRepository;
-    @Mock private EventPublisher eventPublisher;
+    @Mock private OutboxEventPublisher eventPublisher;
     @Mock private CouponRedemptionRecoveryService recoveryService;
 
     private CouponServiceImpl couponService;
