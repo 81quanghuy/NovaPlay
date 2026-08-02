@@ -12,18 +12,26 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 import vn.iotstar.userservice.mapper.FavoriteItemMapper;
 import vn.iotstar.userservice.model.dto.AddFavoriteItemRequest;
 import vn.iotstar.userservice.model.dto.FavoriteItemDTO;
 import vn.iotstar.userservice.model.dto.PageResponse;
 import vn.iotstar.userservice.model.entity.FavoriteItem;
 import vn.iotstar.userservice.service.FavoriteMoviesService;
+import vn.iotstar.userservice.util.Constants;
 import vn.iotstar.utils.constants.GenericResponse;
 
 import java.util.Map;
 
-import static vn.iotstar.userservice.controller.PaginationLimits.MAX_PAGE_SIZE;
 
 @RestController
 @RequestMapping("/api/v1/users/favorites")
@@ -59,7 +67,7 @@ public class FavoriteMoviesController {
     public ResponseEntity<GenericResponse> getFavoriteMovies(
             @RequestHeader("X-User-Email") String email,
             @RequestParam(defaultValue = "0") @Min(0) int page,
-            @RequestParam(defaultValue = "20") @Min(1) @Max(MAX_PAGE_SIZE) int size) {
+            @RequestParam(defaultValue = "20") @Min(1) @Max(Constants.MAX_PAGE_SIZE) int size) {
         PageResponse<FavoriteItemDTO> result = PageResponse.from(
                 favoriteMoviesService.getFavoriteMovies(email, PageRequest.of(page, size)),
                 FavoriteItemMapper::toDto);

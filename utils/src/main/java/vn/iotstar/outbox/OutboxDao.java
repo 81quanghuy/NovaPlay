@@ -1,6 +1,7 @@
 package vn.iotstar.outbox;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 
@@ -24,6 +25,7 @@ import java.util.UUID;
  * khi mở transaction.
  */
 @RequiredArgsConstructor
+@Slf4j
 public class OutboxDao {
 
     /**
@@ -47,7 +49,7 @@ public class OutboxDao {
 
     private final JdbcTemplate jdbcTemplate;
 
-    private static java.time.Instant toInstant(Timestamp ts) throws SQLException {
+    private static java.time.Instant toInstant(Timestamp ts) {
         return ts == null ? null : ts.toInstant();
     }
 
@@ -57,11 +59,17 @@ public class OutboxDao {
      */
     public UUID insert(String topic, String key, String payloadJson) {
         UUID id = UUID.randomUUID();
-        jdbcTemplate.update("""
+        try {
+            int rows = jdbcTemplate.update("""
                 INSERT INTO outbox_events
                     (id, topic, event_key, payload, status, attempts, created_at, next_attempt_at)
                 VALUES (?, ?, ?, CAST(? AS jsonb), 'PENDING', 0, now(), now())
                 """, id, topic, key, payloadJson);
+            log.info("Outbox insert rows={} id={}", rows, id);
+        } catch (Exception e) {
+            log.error("Outbox insert FAILED", e);
+            throw e;
+        }
         return id;
     }
 

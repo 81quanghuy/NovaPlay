@@ -1,6 +1,7 @@
 package vn.iotstar.notificationservice.service.impl;
 
 import io.micrometer.core.instrument.Timer;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.MessageSource;
@@ -21,6 +22,7 @@ import java.util.Objects;
 
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class MailSenderImpl implements MailSender {
 
     private static final String APP_NAME = "NovaPlay Team";
@@ -29,20 +31,12 @@ public class MailSenderImpl implements MailSender {
     private final TemplateEngine templateEngine;
     private final MessageSource messageSource;
     private final NotificationMetrics metrics;
-    private final String mailFrom;
-    private final String frontendBaseUrl;
 
-    public MailSenderImpl(JavaMailSender mailSender, TemplateEngine templateEngine,
-                           MessageSource messageSource, NotificationMetrics metrics,
-                           @Value("${application.mail.from:${spring.mail.username}}") String mailFrom,
-                           @Value("${application.frontend.base-url}") String frontendBaseUrl) {
-        this.mailSender = mailSender;
-        this.templateEngine = templateEngine;
-        this.messageSource = messageSource;
-        this.metrics = metrics;
-        this.mailFrom = mailFrom;
-        this.frontendBaseUrl = frontendBaseUrl;
-    }
+    @Value("${spring.mail.username}")
+    private String mailFrom;
+
+    @Value("${application.frontend.base-url}")
+    private String frontendBaseUrl;
 
     @Override
     public void send(NotificationRequest request) {

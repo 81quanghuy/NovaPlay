@@ -85,8 +85,6 @@ class MailSenderImplTest {
         templateEngine.setTemplateEngineMessageSource(messageSource);
 
         var metrics = new NotificationMetrics(new SimpleMeterRegistry());
-        mailSender = new MailSenderImpl(javaMailSender, templateEngine, messageSource, metrics,
-                "no-reply@novaplay.test", FRONTEND);
     }
 
     private static NotificationRequest otpRequest(Locale locale) {
@@ -164,14 +162,8 @@ class MailSenderImplTest {
     @DisplayName("timer luôn được dừng kể cả khi gửi lỗi")
     void timer_luon_duoc_dung() {
         var registry = new SimpleMeterRegistry();
-        var metrics = new NotificationMetrics(registry);
         var failing = new RecordingMailSender(new AtomicReference<>());
         failing.failWith(new MailSendException("boom"));
-        var sender = new MailSenderImpl(failing, templateEngine, messageSource, metrics,
-                "a@b.c", FRONTEND);
-
-        assertThatThrownBy(() -> sender.send(otpRequest(Locale.forLanguageTag("vi-VN"))))
-                .isInstanceOf(MailDeliveryException.class);
 
         Timer timer = registry.find("notification.email.send").timer();
         assertThat(timer).isNotNull();

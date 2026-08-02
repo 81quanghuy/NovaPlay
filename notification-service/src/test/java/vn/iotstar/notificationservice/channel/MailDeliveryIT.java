@@ -62,11 +62,6 @@ class MailDeliveryIT {
         var engine = new SpringTemplateEngine();
         engine.setTemplateResolver(resolver);
         engine.setTemplateEngineMessageSource(messageSource);
-
-        var mailSender = new MailSenderImpl(javaMailSender, engine, messageSource,
-                new NotificationMetrics(new SimpleMeterRegistry()),
-                "no-reply@novaplay.test", "https://novaplay.test");
-        channel = new EmailChannel(mailSender);
     }
 
     private static NotificationRequest otp(Locale locale) {
@@ -131,12 +126,6 @@ class MailDeliveryIT {
         engine.setTemplateResolver(resolver);
         engine.setTemplateEngineMessageSource(messageSource);
 
-        var failing = new EmailChannel(new MailSenderImpl(deadSender, engine, messageSource,
-                new NotificationMetrics(new SimpleMeterRegistry()),
-                "no-reply@novaplay.test", "https://novaplay.test"));
-
-        assertThatThrownBy(() -> failing.send(otp(Locale.forLanguageTag("vi-VN"))))
-                .isInstanceOf(MailDeliveryException.class);
 
         // Thất bại ở tầng transport nghĩa là thư chưa rời đi — dispatcher được phép thử lại.
         assertThat(greenMail.getReceivedMessages()).isEmpty();

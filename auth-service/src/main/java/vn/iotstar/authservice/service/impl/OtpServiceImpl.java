@@ -24,7 +24,6 @@ import java.util.UUID;
 public class OtpServiceImpl implements OtpService {
     private final StringRedisTemplate redis;
     private final PasswordEncoder passwordEncoder;
-    private final KafkaTemplate<String, Object> kafka;
     private final RateLimiterService rateLimiterService;
     private final OutboxEventPublisher eventPublisher;
     private final AuthMetrics authMetrics;

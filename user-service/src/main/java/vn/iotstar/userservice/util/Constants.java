@@ -48,4 +48,5 @@ public class Constants {
     public static final String FAVORITE_ITEM_MOVIE_ID_COLUMN = "movie_id";
     public static final String FAVORITE_ITEM_MOVIE_TYPE_COLUMN = "movie_type"; // MOVIE/EPISODE/...
 
+    public static final int MAX_PAGE_SIZE = 100;
 }

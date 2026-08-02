@@ -20,6 +20,7 @@ import vn.iotstar.authservice.service.AuthService;
 import vn.iotstar.authservice.service.JwtService;
 import vn.iotstar.authservice.service.OtpService;
 import vn.iotstar.authservice.service.TokenBlacklist;
+import vn.iotstar.authservice.util.Constants;
 import vn.iotstar.utils.constants.GenericResponse;
 
 import java.util.Date;
@@ -40,7 +41,7 @@ public class AuthController {
     @PostMapping("/register")
     public ResponseEntity<GenericResponse> register(@Valid @RequestBody UserCreationRequest request) {
         UserResponse registeredUser = authService.register(request);
-        otpService.generateAndDispatch(registeredUser.id(), registeredUser.email(), request.locale(), MDC.get("traceId"));
+        otpService.generateAndDispatch(registeredUser.id(), registeredUser.email(), request.locale(), MDC.get(Constants.TRACE_ID));
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(GenericResponse.success(registeredUser, "User registered successfully. Check your email for OTP.", HttpStatus.CREATED.value()));
     }
@@ -73,21 +74,8 @@ public class AuthController {
     @Operation(summary = "Authenticate a user and get tokens")
     @PostMapping("/login")
     public ResponseEntity<GenericResponse> login(@Valid @RequestBody LoginRequest request, HttpServletRequest httpRequest) {
-        String clientIp = getClientIp(httpRequest);
         AuthResponse authResponse = authService.login(request);
         return ResponseEntity.ok(GenericResponse.success(authResponse, "Login successful"));
-    }
-
-    private String getClientIp(HttpServletRequest request) {
-        String xForwardedFor = request.getHeader("X-Forwarded-For");
-        if (xForwardedFor != null && !xForwardedFor.isEmpty()) {
-            return xForwardedFor.split(",")[0].trim();
-        }
-        String xRealIp = request.getHeader("X-Real-IP");
-        if (xRealIp != null && !xRealIp.isEmpty()) {
-            return xRealIp;
-        }
-        return request.getRemoteAddr();
     }
 
     @Operation(summary = "Refresh the access token",
