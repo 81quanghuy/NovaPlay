@@ -20,6 +20,8 @@ import vn.iotstar.utils.dto.UploadResponseDto;
 
 import java.time.Instant;
 
+import static vn.iotstar.userservice.util.Constants.X_USER_EMAIL;
+
 @RestController
 @RequiredArgsConstructor
 @Slf4j
@@ -31,7 +33,7 @@ public class UserController {
 
     @Operation(summary = "Lấy hồ sơ người dùng hiện tại", security = @SecurityRequirement(name = "bearer-jwt"))
     @GetMapping("/me")
-    public ResponseEntity<GenericResponse> getProfile(@RequestHeader("X-User-Email") String email) {
+    public ResponseEntity<GenericResponse> getProfile(@RequestHeader(X_USER_EMAIL) String email) {
         UserProfileDTO profile = userProfileService.getProfile(email);
         return ResponseEntity.ok(GenericResponse.success(profile, "Profile retrieved successfully"));
     }
@@ -39,7 +41,7 @@ public class UserController {
     @Operation(summary = "Cập nhật hồ sơ người dùng hiện tại", security = @SecurityRequirement(name = "bearer-jwt"))
     @PutMapping("/me")
     public ResponseEntity<GenericResponse> updateProfile(
-            @RequestHeader("X-User-Email") String email,
+            @RequestHeader(X_USER_EMAIL) String email,
             @Valid @RequestBody UpdateUserProfileRequest request) {
         UserProfileDTO updated = userProfileService.updateProfile(email, request);
         return ResponseEntity.ok(GenericResponse.success(updated, "Profile updated successfully"));
@@ -49,7 +51,7 @@ public class UserController {
     @CircuitBreaker(name = "mediaService", fallbackMethod = "fallbackForRequestUpload")
     @PostMapping("/avatar/request-upload")
     public ResponseEntity<GenericResponse> changeAvatar(
-            @RequestHeader("X-User-Email") String email,
+            @RequestHeader(X_USER_EMAIL) String email,
             @Valid @RequestBody UploadRequestDto request) {
         String traceId = MDC.get("traceId");
         UploadResponseDto uploadResponseDto = userProfileService.changeAvatar(request, email, traceId);

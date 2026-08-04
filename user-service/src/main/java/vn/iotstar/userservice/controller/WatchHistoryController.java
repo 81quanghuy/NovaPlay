@@ -29,6 +29,8 @@ import vn.iotstar.userservice.util.Constants;
 import vn.iotstar.utils.constants.GenericResponse;
 import vn.iotstar.utils.exceptions.wrapper.ResourceNotFoundException;
 
+import static vn.iotstar.userservice.util.Constants.X_USER_EMAIL;
+
 @RestController
 @RequestMapping("/api/v1/users/watch-progress")
 @Slf4j
@@ -42,7 +44,7 @@ public class WatchHistoryController {
     @Operation(summary = "Cập nhật tiến độ xem (upsert)", security = @SecurityRequirement(name = "bearer-jwt"))
     @PutMapping
     public ResponseEntity<GenericResponse> upsertWatchProgress(
-            @RequestHeader("X-User-Email") String email,
+            @RequestHeader(X_USER_EMAIL) String email,
             @Valid @RequestBody UpsertWatchProgressRequest request) {
         WatchProgress progress = watchHistoryService.upsertWatchProgress(email, request);
         return ResponseEntity.ok(GenericResponse.success(
@@ -52,7 +54,7 @@ public class WatchHistoryController {
     @Operation(summary = "Lấy danh sách 'Tiếp tục xem' (sort by lastWatchedAt)", security = @SecurityRequirement(name = "bearer-jwt"))
     @GetMapping
     public ResponseEntity<GenericResponse> getRecentWatchProgress(
-            @RequestHeader("X-User-Email") String email,
+            @RequestHeader(X_USER_EMAIL) String email,
             @RequestParam(defaultValue = "0") @Min(0) int page,
             @RequestParam(defaultValue = "20") @Min(1) @Max(Constants.MAX_PAGE_SIZE) int size) {
         PageResponse<WatchProgressDTO> result = PageResponse.from(
@@ -64,7 +66,7 @@ public class WatchHistoryController {
     @Operation(summary = "Lấy vị trí resume cho một nội dung cụ thể", security = @SecurityRequirement(name = "bearer-jwt"))
     @GetMapping("/{movieId}")
     public ResponseEntity<GenericResponse> getWatchProgress(
-            @RequestHeader("X-User-Email") String email,
+            @RequestHeader(X_USER_EMAIL) String email,
             @PathVariable String movieId) {
         WatchProgress progress = watchHistoryService.getWatchProgress(email, movieId)
                 .orElseThrow(() -> new ResourceNotFoundException("No watch progress for: " + movieId));

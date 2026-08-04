@@ -32,6 +32,8 @@ import vn.iotstar.utils.constants.GenericResponse;
 
 import java.util.Map;
 
+import static vn.iotstar.userservice.util.Constants.X_USER_EMAIL;
+
 
 @RestController
 @RequestMapping("/api/v1/users/favorites")
@@ -46,7 +48,7 @@ public class FavoriteMoviesController {
     @Operation(summary = "Thêm nội dung vào danh sách yêu thích", security = @SecurityRequirement(name = "bearer-jwt"))
     @PostMapping
     public ResponseEntity<GenericResponse> addFavoriteMovie(
-            @RequestHeader("X-User-Email") String email,
+            @RequestHeader(X_USER_EMAIL) String email,
             @Valid @RequestBody AddFavoriteItemRequest request) {
         FavoriteItem item = favoriteMoviesService.addFavoriteMovie(email, request);
         return ResponseEntity.status(HttpStatus.CREATED)
@@ -56,7 +58,7 @@ public class FavoriteMoviesController {
     @Operation(summary = "Xóa nội dung khỏi danh sách yêu thích", security = @SecurityRequirement(name = "bearer-jwt"))
     @DeleteMapping("/{movieId}")
     public ResponseEntity<Void> removeFavoriteMovie(
-            @RequestHeader("X-User-Email") String email,
+            @RequestHeader(X_USER_EMAIL) String email,
             @PathVariable String movieId) {
         favoriteMoviesService.removeFavoriteMovie(email, movieId);
         return ResponseEntity.noContent().build();
@@ -65,7 +67,7 @@ public class FavoriteMoviesController {
     @Operation(summary = "Lấy danh sách yêu thích (có phân trang)", security = @SecurityRequirement(name = "bearer-jwt"))
     @GetMapping
     public ResponseEntity<GenericResponse> getFavoriteMovies(
-            @RequestHeader("X-User-Email") String email,
+            @RequestHeader(X_USER_EMAIL) String email,
             @RequestParam(defaultValue = "0") @Min(0) int page,
             @RequestParam(defaultValue = "20") @Min(1) @Max(Constants.MAX_PAGE_SIZE) int size) {
         PageResponse<FavoriteItemDTO> result = PageResponse.from(
@@ -77,7 +79,7 @@ public class FavoriteMoviesController {
     @Operation(summary = "Kiểm tra nội dung có trong danh sách yêu thích không", security = @SecurityRequirement(name = "bearer-jwt"))
     @GetMapping("/{movieId}/exists")
     public ResponseEntity<GenericResponse> isFavoriteMovie(
-            @RequestHeader("X-User-Email") String email,
+            @RequestHeader(X_USER_EMAIL) String email,
             @PathVariable String movieId) {
         boolean exists = favoriteMoviesService.isFavoriteMovie(email, movieId);
         return ResponseEntity.ok(GenericResponse.success(Map.of("exists", exists), "Favorite check result"));
@@ -85,7 +87,7 @@ public class FavoriteMoviesController {
 
     @Operation(summary = "Xóa toàn bộ danh sách yêu thích", security = @SecurityRequirement(name = "bearer-jwt"))
     @DeleteMapping
-    public ResponseEntity<Void> deleteAllFavoriteMovies(@RequestHeader("X-User-Email") String email) {
+    public ResponseEntity<Void> deleteAllFavoriteMovies(@RequestHeader(X_USER_EMAIL) String email) {
         favoriteMoviesService.deleteAllFavoriteMovies(email);
         return ResponseEntity.noContent().build();
     }

@@ -6,8 +6,8 @@ metadata:
     app: api-gateway
 # Chỉ chứa giá trị không nhạy cảm. Credential nằm ở api-gateway-secrets.
 data:
-  REDIS_HOST: "redis"
-  REDIS_PORT: "6379"
+#  REDIS_HOST: "redis"
+#  REDIS_PORT: "6379"
   AUTH_SERVICE_URI: "http://auth-service:8000"
   USER_SERVICE_URI: "http://user-service:8700"
   MOVIE_SERVICE_URI: "http://movie-service:8600"
