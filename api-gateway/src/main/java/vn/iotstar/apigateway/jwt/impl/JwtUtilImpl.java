@@ -12,6 +12,7 @@ import vn.iotstar.apigateway.jwt.JwtUtil;
 
 import java.security.interfaces.RSAPublicKey;
 import java.util.Date;
+import java.util.Set;
 import java.util.function.Function;
 
 @Component
@@ -44,24 +45,25 @@ public class JwtUtilImpl implements JwtUtil {
 
     @Override
     public Claims extractAllClaims(final String token) {
-        return Jwts.parserBuilder()
-                .setSigningKey(this.publicKey)
+        return Jwts.parser()
+                .verifyWith(this.publicKey)
                 .build()
-                .parseClaimsJws(token)
-                .getBody();
+                .parseSignedClaims(token)
+                .getPayload();
     }
 
     @Override
     public Boolean validateToken(final String token) {
         try {
-            Claims claims = Jwts.parserBuilder()
-                    .setSigningKey(this.publicKey)
-                    .build()
-                    .parseClaimsJws(token)
-                    .getBody();
+            Claims claims =
+                    Jwts.parser()
+                            .verifyWith(publicKey)
+                            .build()
+                            .parseSignedClaims(token)
+                            .getPayload();
 
             String iss = claims.getIssuer();
-            String aud = claims.getAudience();
+            Set<String> aud = claims.getAudience();
 
             if (!expectedIssuer.equals(iss)) {
                 log.error("JWT issuer mismatch: expected={}, got={}", expectedIssuer, iss);
