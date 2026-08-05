@@ -12,6 +12,9 @@ spring:
       port: 6379
       timeout: 1s
   cloud:
+    openfeign:
+      blocking:
+        enabled: true
     gateway:
       server:
         webflux:

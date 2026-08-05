@@ -64,7 +64,7 @@ public class AuthenticationFilter implements GlobalFilter, Ordered {
             return chain.filter(stripClientIdentityHeaders(exchange));
         }
 
-        boolean hasAuthHeader = request.getHeaders().containsKey("Authorization");
+        boolean hasAuthHeader = request.getHeaders().getFirst("Authorization") != null;
 
         // Đọc catalog là xác thực TUỲ CHỌN, không phải miễn xác thực: không có token thì duyệt
         // với tư cách khách, còn có token thì vẫn phải xác thực và gắn danh tính.

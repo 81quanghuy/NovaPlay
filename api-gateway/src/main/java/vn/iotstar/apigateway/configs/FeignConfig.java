@@ -1,27 +1,22 @@
 package vn.iotstar.apigateway.configs;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import feign.codec.Decoder;
-import org.springframework.beans.factory.ObjectFactory;
-import org.springframework.boot.autoconfigure.http.HttpMessageConverters;
-import org.springframework.cloud.openfeign.support.ResponseEntityDecoder;
-import org.springframework.cloud.openfeign.support.SpringDecoder;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.cloud.openfeign.EnableFeignClients;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 
 @Configuration
+@EnableFeignClients(basePackages = "vn.iotstar.apigateway")
 public class FeignConfig {
 
     @Bean
-    public Decoder feignDecoder() {
-        ObjectFactory<HttpMessageConverters> objectFactory = () -> new HttpMessageConverters(
-                new MappingJackson2HttpMessageConverter(customObjectMapper()));
-        return new ResponseEntityDecoder(new SpringDecoder(objectFactory));
-    }
-
-    @Bean
-    public ObjectMapper customObjectMapper() {
-        return new ObjectMapper();
+    @ConditionalOnMissingBean
+    public ObjectMapper objectMapper() {
+        return new ObjectMapper()
+                .registerModule(new JavaTimeModule())
+                .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
     }
 }
