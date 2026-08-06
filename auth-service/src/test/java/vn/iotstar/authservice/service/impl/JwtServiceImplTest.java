@@ -2,7 +2,6 @@ package vn.iotstar.authservice.service.impl;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -62,11 +61,11 @@ class JwtServiceImplTest {
     void generateToken_containsIssuerAudienceJtiKid() {
         String token = jwtService.generateToken(dummyUser);
 
-        Claims claims = Jwts.parserBuilder().setSigningKey(publicKey).build()
-                .parseClaimsJws(token).getBody();
+        Claims claims = Jwts.parser().verifyWith(publicKey).build()
+                .parseSignedClaims(token).getPayload();
 
         assertEquals("novaplay-auth", claims.getIssuer());
-        assertEquals("novaplay", claims.getAudience());
+        assertEquals(Set.of("novaplay"), claims.getAudience());
         assertNotNull(claims.getId());
         assertFalse(claims.getId().isEmpty());
     }
@@ -87,9 +86,9 @@ class JwtServiceImplTest {
     @Test
     void isTokenValid_withExpiredToken_returnsFalse() {
         String token = Jwts.builder()
-                .setSubject("test@gmail.com")
-                .setExpiration(new Date(System.currentTimeMillis() - 10000))
-                .signWith(privateKey, SignatureAlgorithm.RS256)
+                .subject("test@gmail.com")
+                .expiration(new Date(System.currentTimeMillis() - 10000))
+                .signWith(privateKey, Jwts.SIG.RS256)
                 .compact();
         assertFalse(jwtService.isTokenValid(token));
     }
@@ -100,9 +99,9 @@ class JwtServiceImplTest {
         gen.initialize(2048);
         RSAPrivateKey otherPrivate = (RSAPrivateKey) gen.generateKeyPair().getPrivate();
         String token = Jwts.builder()
-                .setSubject("test@gmail.com")
-                .setExpiration(new Date(System.currentTimeMillis() + 3600000))
-                .signWith(otherPrivate, SignatureAlgorithm.RS256)
+                .subject("test@gmail.com")
+                .expiration(new Date(System.currentTimeMillis() + 3600000))
+                .signWith(otherPrivate, Jwts.SIG.RS256)
                 .compact();
         assertFalse(jwtService.isTokenValid(token));
     }

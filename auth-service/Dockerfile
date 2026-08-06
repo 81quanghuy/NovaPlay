@@ -1,35 +1,37 @@
 # Image production cho auth-service.
 #
-# Build từ thư mục gốc của repo để có thể truy cập cả module utils:
+# Build từ thư mục gốc của repo để composite build còn thấy được module utils:
 #   docker build -f auth-service/Dockerfile -t novaplay/authservice:v0.0.1 .
 
 # ---- Giai đoạn build ----
-FROM maven:3.9-eclipse-temurin-21 AS build
+FROM eclipse-temurin:25-jdk-alpine AS build
 WORKDIR /build
 
-# Pom gốc liệt kê toàn bộ 14 module nên Maven đòi tất cả phải hiện diện, kể cả khi -pl chỉ
-# chọn hai module. Copy cả cây thư mục (.dockerignore đã loại target/ và các file rác khác).
+# settings.gradle của auth-service dùng includeBuild('../utils') nên cần copy cả repo
+# (.dockerignore đã loại target/, build/ và các file rác khác).
 COPY . .
-RUN mvn -B -q clean package -pl auth-service -am -DskipTests
+WORKDIR /build/auth-service
+RUN chmod +x gradlew && ./gradlew dependencies --no-daemon -q
+RUN ./gradlew bootJar -x test --no-daemon -q
 
 # ---- Giai đoạn chạy ----
-FROM eclipse-temurin:21-jre-alpine
+FROM eclipse-temurin:25-jre-alpine
 
 RUN apk add --no-cache curl
 RUN addgroup -S novaplay && adduser -S -G novaplay novaplay
 WORKDIR /app
 
 # Agent phải nằm thành file riêng và được truyền qua -javaagent; khai báo nó như một dependency
-# Maven chỉ nhét jar vào fat jar chứ không kích hoạt được instrumentation.
+# Gradle chỉ nhét jar vào fat jar chứ không kích hoạt được instrumentation.
 # Manifest Kubernetes trỏ JAVA_TOOL_OPTIONS tới đúng đường dẫn này.
-ARG OTEL_AGENT_VERSION=2.11.0
+ARG OTEL_AGENT_VERSION=2.18.1
 RUN mkdir -p /app/libs && \
     curl -fsSL -o /app/libs/opentelemetry-javaagent.jar \
     "https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases/download/v${OTEL_AGENT_VERSION}/opentelemetry-javaagent.jar"
 
-# finalName ở pom gốc là ${project.artifactId}-v${project.version}; artifactId ở đây giữ
-# nguyên dấu gạch "auth-service".
-COPY --from=build --chown=novaplay:novaplay /build/auth-service/target/auth-service-v0.0.1.jar app.jar
+# Gradle Spring Boot plugin đặt jar tại build/libs/<rootProject.name>-<version>.jar
+# rootProject.name = 'authservice', version = '0.0.1' → authservice-0.0.1.jar
+COPY --from=build --chown=novaplay:novaplay /build/auth-service/build/libs/authservice-0.0.1.jar app.jar
 
 USER novaplay
 EXPOSE 8000

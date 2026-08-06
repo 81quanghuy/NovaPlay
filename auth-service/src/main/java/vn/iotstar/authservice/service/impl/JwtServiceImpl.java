@@ -2,7 +2,6 @@ package vn.iotstar.authservice.service.impl;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -46,15 +45,15 @@ public class JwtServiceImpl implements JwtService {
         claims.put("roles", roles);
 
         return Jwts.builder()
-                .setClaims(claims)
-                .setSubject(user.getEmail())
-                .setIssuer(issuer)
-                .setAudience(audience)
-                .setId(UUID.randomUUID().toString())
-                .setIssuedAt(new Date(System.currentTimeMillis()))
-                .setExpiration(new Date(System.currentTimeMillis() + accessTokenExpiration))
-                .setHeaderParam("kid", kid)
-                .signWith(this.rsaPrivateKey, SignatureAlgorithm.RS256)
+                .claims(claims)
+                .subject(user.getEmail())
+                .issuer(issuer)
+                .audience().add(audience).and()
+                .id(UUID.randomUUID().toString())
+                .issuedAt(new Date(System.currentTimeMillis()))
+                .expiration(new Date(System.currentTimeMillis() + accessTokenExpiration))
+                .header().keyId(kid).and()
+                .signWith(this.rsaPrivateKey, Jwts.SIG.RS256)
                 .compact();
     }
 
@@ -100,10 +99,10 @@ public class JwtServiceImpl implements JwtService {
     }
 
     private Claims extractAllClaims(String token) {
-        return Jwts.parserBuilder()
-                .setSigningKey(rsaPublicKey)
+        return Jwts.parser()
+                .verifyWith(rsaPublicKey)
                 .build()
-                .parseClaimsJws(token)
-                .getBody();
+                .parseSignedClaims(token)
+                .getPayload();
     }
 }
