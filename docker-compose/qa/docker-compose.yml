@@ -346,17 +346,21 @@ services:
       APPLICATION_FRONTEND_BASE_URL: "${FRONTEND_BASE_URL:-http://localhost:3000}"
 
   api-gateway:
+    build:
+      context: ../../api-gateway
+      dockerfile: Dockerfile
     image: "novaplay/apigateway:${API_GATEWAY_VERSION:-v1.0.0}"
     container_name: api-gateway
     <<: *microservice-base
     ports: ["8072:8072"]
-#    depends_on:
-#      auth-service: { condition: service_healthy }
-#      user-service: { condition: service_healthy }
-#      media-service: { condition: service_healthy }
+    #    depends_on:
+    #      auth-service: { condition: service_healthy }
+    #      user-service: { condition: service_healthy }
+    #      media-service: { condition: service_healthy }
     environment:
       SPRING_APPLICATION_NAME: "api-gateway"
       OTEL_SERVICE_NAME: "api-gateway"
+      JAVA_TOOL_OPTIONS: "-javaagent:/app/libs/opentelemetry-javaagent.jar"
       SPRING_DATA_REDIS_HOST: redis
       # Container chạy profile "dev" (localhost mặc định trong yml), nhưng bên trong network
       # của compose, mỗi service khác là một container riêng có tên chính là service key —

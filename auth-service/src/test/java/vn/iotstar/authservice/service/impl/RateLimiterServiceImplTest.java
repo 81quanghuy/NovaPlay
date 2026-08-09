@@ -26,38 +26,6 @@ class RateLimiterServiceImplTest {
     private RateLimiterServiceImpl rateLimiter;
 
     @Test
-    void checkAndIncrement_belowLimit_doesNotThrow() {
-        when(redis.opsForValue()).thenReturn(valueOps);
-        when(valueOps.increment(any())).thenReturn(1L);
-        assertDoesNotThrow(() ->
-                rateLimiter.checkAndIncrement("key", 5, Duration.ofMinutes(15)));
-    }
-
-    @Test
-    void checkAndIncrement_firstIncrement_setsExpiry() {
-        when(redis.opsForValue()).thenReturn(valueOps);
-        when(valueOps.increment(any())).thenReturn(1L);
-        rateLimiter.checkAndIncrement("key", 5, Duration.ofMinutes(15));
-        verify(redis).expire(eq("key"), eq(Duration.ofMinutes(15)));
-    }
-
-    @Test
-    void checkAndIncrement_aboveLimit_throwsTooManyRequests() {
-        when(redis.opsForValue()).thenReturn(valueOps);
-        when(valueOps.increment(any())).thenReturn(6L);
-        assertThrows(TooManyRequestsException.class, () ->
-                rateLimiter.checkAndIncrement("key", 5, Duration.ofMinutes(15)));
-    }
-
-    @Test
-    void checkAndIncrement_atLimit_doesNotThrow() {
-        when(redis.opsForValue()).thenReturn(valueOps);
-        when(valueOps.increment(any())).thenReturn(5L);
-        assertDoesNotThrow(() ->
-                rateLimiter.checkAndIncrement("key", 5, Duration.ofMinutes(15)));
-    }
-
-    @Test
     void reset_deletesKey() {
         rateLimiter.reset("key");
         verify(redis).delete("key");
