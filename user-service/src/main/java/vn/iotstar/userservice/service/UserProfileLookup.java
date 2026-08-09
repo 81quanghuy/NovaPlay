@@ -6,7 +6,7 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Component;
 import vn.iotstar.userservice.model.entity.UserProfile;
 import vn.iotstar.userservice.repository.IUserProfileRepository;
-import vn.iotstar.utils.exceptions.wrapper.ResourceNotFoundException;
+import vn.iotstar.userservice.exception.ResourceNotFoundException;
 
 /**
  * Tra cứu profile theo email — điểm chung của cả ba service impl.

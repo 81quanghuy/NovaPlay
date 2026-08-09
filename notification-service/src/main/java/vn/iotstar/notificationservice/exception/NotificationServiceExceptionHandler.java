@@ -11,7 +11,7 @@ import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
-import vn.iotstar.utils.constants.GenericResponse;
+import vn.iotstar.notificationservice.common.GenericResponse;
 
 import java.time.Instant;
 

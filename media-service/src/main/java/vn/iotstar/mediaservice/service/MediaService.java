@@ -4,9 +4,9 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.transaction.annotation.Transactional;
 import vn.iotstar.mediaservice.entity.Media;
-import vn.iotstar.utils.dto.MediaReadyEvent;
-import vn.iotstar.utils.dto.UploadRequestDto;
-import vn.iotstar.utils.dto.UploadResponseDto;
+import vn.iotstar.mediaservice.common.dto.MediaReadyEvent;
+import vn.iotstar.mediaservice.common.dto.UploadRequestDto;
+import vn.iotstar.mediaservice.common.dto.UploadResponseDto;
 
 public interface MediaService {
     @Transactional
@@ -41,8 +41,8 @@ public interface MediaService {
     /**
      * Chi tiết một media theo id.
      *
-     * @throws vn.iotstar.utils.exceptions.wrapper.ResourceNotFoundException nếu không tồn tại
-     * @throws vn.iotstar.utils.exceptions.wrapper.ForbiddenException nếu caller không phải chủ sở
+     * @throws vn.iotstar.mediaservice.exception.ResourceNotFoundException nếu không tồn tại
+     * @throws vn.iotstar.mediaservice.exception.ForbiddenException nếu caller không phải chủ sở
      *         hữu và không phải admin
      */
     Media getMediaById(String id, String requesterEmail, boolean isAdmin);
@@ -54,8 +54,8 @@ public interface MediaService {
      * Soft-delete record (đánh dấu {@link vn.iotstar.mediaservice.util.MediaStatus#DELETED}) rồi
      * hard-delete object trên S3 ngay lập tức — không thể thu hồi, đây là chủ đích.
      *
-     * @throws vn.iotstar.utils.exceptions.wrapper.ResourceNotFoundException nếu không tồn tại
-     * @throws vn.iotstar.utils.exceptions.wrapper.ForbiddenException nếu caller không phải chủ sở
+     * @throws vn.iotstar.mediaservice.exception.ResourceNotFoundException nếu không tồn tại
+     * @throws vn.iotstar.mediaservice.exception.ForbiddenException nếu caller không phải chủ sở
      *         hữu và không phải admin
      */
     void deleteMedia(String id, String requesterEmail, boolean isAdmin);

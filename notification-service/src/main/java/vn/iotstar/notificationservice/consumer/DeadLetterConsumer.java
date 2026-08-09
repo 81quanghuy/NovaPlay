@@ -10,7 +10,7 @@ import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Component;
 import vn.iotstar.notificationservice.config.observability.NotificationMetrics;
 import vn.iotstar.notificationservice.service.AuditLogger;
-import vn.iotstar.utils.constants.TopicNames;
+import vn.iotstar.notificationservice.util.TopicNames;
 
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;

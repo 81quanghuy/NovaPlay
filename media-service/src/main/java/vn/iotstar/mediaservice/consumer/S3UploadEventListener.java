@@ -9,7 +9,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 import vn.iotstar.mediaservice.entity.Media;
 import vn.iotstar.mediaservice.service.MediaService;
-import vn.iotstar.utils.dto.MediaReadyEvent;
+import vn.iotstar.mediaservice.common.dto.MediaReadyEvent;
 
 /**
  * Lắng nghe sự kiện "S3 object created" mà S3 chuyển tiếp qua SQS sau khi client upload xong

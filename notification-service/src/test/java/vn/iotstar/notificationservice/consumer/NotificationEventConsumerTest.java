@@ -16,9 +16,9 @@ import vn.iotstar.notificationservice.model.dto.NotificationRequest;
 import vn.iotstar.notificationservice.model.enums.ChannelType;
 import vn.iotstar.notificationservice.model.enums.NotificationType;
 import vn.iotstar.notificationservice.service.AuditLogger;
-import vn.iotstar.utils.dto.EmailOtpRequested;
-import vn.iotstar.utils.dto.NotificationRequested;
-import vn.iotstar.utils.dto.UserRegister;
+import vn.iotstar.notificationservice.common.dto.EmailOtpRequested;
+import vn.iotstar.notificationservice.common.dto.NotificationRequested;
+import vn.iotstar.notificationservice.common.dto.UserRegister;
 
 import java.util.Locale;
 import java.util.Map;

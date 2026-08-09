@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.*;
 import vn.iotstar.movieservice.model.dto.*;
 import vn.iotstar.movieservice.model.enums.MovieStatus;
 import vn.iotstar.movieservice.service.MovieService;
-import vn.iotstar.utils.constants.GenericResponse;
+import vn.iotstar.movieservice.common.GenericResponse;
 
 /**
  * Phân quyền theo method chứ không theo đường dẫn: GET là công khai, mọi thao tác ghi đều yêu cầu

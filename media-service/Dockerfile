@@ -1,17 +1,16 @@
 # Image production cho media-service.
 #
-# Build từ thư mục gốc của repo để có thể truy cập cả module utils:
+# Build từ thư mục gốc của repo vì service vẫn là module con của pom cha:
 #   docker build -f media-service/Dockerfile -t novaplay/media-service:v0.0.1 .
 
 # ---- Giai đoạn build ----
 FROM maven:3.9-eclipse-temurin-21 AS build
 WORKDIR /build
 
-# Pom gốc liệt kê toàn bộ 14 module nên Maven đòi tất cả phải hiện diện, kể cả khi -pl chỉ
-# chọn hai module. Copy cả cây thư mục (.dockerignore đã loại target/ và các file rác khác).
+# Pom gốc liệt kê toàn bộ module nên Maven đòi tất cả phải hiện diện, kể cả khi -pl chỉ
+# chọn một module. Copy cả cây thư mục (.dockerignore đã loại target/ và các file rác khác).
 COPY . .
 
-# -am kéo theo module utils mà media-service phụ thuộc.
 RUN mvn -B -q clean package -pl media-service -am -DskipTests
 
 # ---- Giai đoạn chạy ----

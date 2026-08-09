@@ -9,9 +9,9 @@ import org.springframework.stereotype.Service;
 import vn.iotstar.authservice.config.observability.AuthMetrics;
 import vn.iotstar.authservice.service.OtpService;
 import vn.iotstar.authservice.service.RateLimiterService;
-import vn.iotstar.outbox.OutboxEventPublisher;
-import vn.iotstar.utils.constants.TopicNames;
-import vn.iotstar.utils.dto.EmailOtpRequested;
+import vn.iotstar.authservice.outbox.OutboxEventPublisher;
+import vn.iotstar.authservice.util.TopicName;
+import vn.iotstar.authservice.common.dto.EmailOtpRequested;
 
 import java.security.SecureRandom;
 import java.time.Duration;
@@ -49,7 +49,7 @@ public class OtpServiceImpl implements OtpService {
                 UUID.randomUUID().toString(), userId, email,
                 Map.of("otp", otp, "expireMinutes", String.valueOf(OTP_TTL.toMinutes()), "locale", locale)
         );
-        eventPublisher.publish(TopicNames.SEND_EMAIL, userId, evt);
+        eventPublisher.publish(TopicName.SEND_EMAIL, userId, evt);
         authMetrics.getOtpSentCounter().increment();
         log.info("OTP generated & dispatched, userId={}, corrId={}", userId, correlationId);
     }

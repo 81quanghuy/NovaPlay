@@ -8,7 +8,7 @@ import org.springframework.data.mongodb.core.index.CompoundIndex;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.Field;
 import vn.iotstar.userservice.util.ContentType;
-import vn.iotstar.utils.audit.AuditableDocument;
+import vn.iotstar.userservice.common.audit.AuditableDocument;
 
 import java.io.Serial;
 import java.io.Serializable;

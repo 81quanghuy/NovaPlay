@@ -1,6 +1,6 @@
 # Image production cho notification-service.
 #
-# Build từ thư mục gốc của repo để có thể truy cập cả module utils:
+# Build từ thư mục gốc của repo vì service vẫn là module con của pom cha:
 #   docker build -f notification-service/Dockerfile -t novaplay/notification-service:v0.0.1 .
 
 # ---- Giai đoạn build ----
@@ -11,7 +11,6 @@ WORKDIR /build
 # hai module. Copy cả cây thư mục (.dockerignore đã loại target/ và các file rác khác).
 COPY . .
 
-# -am kéo theo module utils mà notification-service phụ thuộc.
 RUN mvn -B -q clean package -pl notification-service -am -DskipTests
 
 # ---- Giai đoạn chạy ----

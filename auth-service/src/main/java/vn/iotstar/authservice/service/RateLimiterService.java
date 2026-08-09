@@ -1,6 +1,6 @@
 package vn.iotstar.authservice.service;
 
-import vn.iotstar.utils.exceptions.wrapper.TooManyRequestsException;
+import vn.iotstar.authservice.exception.TooManyRequestsException;
 
 import java.time.Duration;
 

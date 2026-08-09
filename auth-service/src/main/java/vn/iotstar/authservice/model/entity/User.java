@@ -7,7 +7,7 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import vn.iotstar.authservice.util.Constants;
-import vn.iotstar.utils.AbstractBaseEntity;
+import vn.iotstar.authservice.common.audit.AbstractBaseEntity;
 
 import java.io.Serial;
 import java.io.Serializable;

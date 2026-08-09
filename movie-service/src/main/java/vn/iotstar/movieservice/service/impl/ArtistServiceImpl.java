@@ -15,8 +15,8 @@ import vn.iotstar.movieservice.repository.ArtistRepository;
 import vn.iotstar.movieservice.repository.MovieRepository;
 import vn.iotstar.movieservice.service.ArtistService;
 import vn.iotstar.movieservice.utils.CacheNames;
-import vn.iotstar.utils.exceptions.wrapper.BadRequestException;
-import vn.iotstar.utils.exceptions.wrapper.ResourceNotFoundException;
+import vn.iotstar.movieservice.exception.BadRequestException;
+import vn.iotstar.movieservice.exception.ResourceNotFoundException;
 
 import java.util.UUID;
 

@@ -8,7 +8,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import vn.iotstar.notificationservice.service.NotificationQueryService;
-import vn.iotstar.utils.constants.GenericResponse;
+import vn.iotstar.notificationservice.common.GenericResponse;
 
 @RestController
 @RequestMapping("/api/v1/notifications")

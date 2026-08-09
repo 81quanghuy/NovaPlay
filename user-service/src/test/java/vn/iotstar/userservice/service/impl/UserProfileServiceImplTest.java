@@ -22,8 +22,8 @@ import vn.iotstar.userservice.service.AuditLogger;
 import vn.iotstar.userservice.service.UserProfileLookup;
 import vn.iotstar.userservice.service.client.MediaServiceClient;
 import vn.iotstar.userservice.util.Plan;
-import vn.iotstar.utils.dto.UserRegister;
-import vn.iotstar.utils.exceptions.wrapper.ResourceNotFoundException;
+import vn.iotstar.userservice.common.dto.UserRegister;
+import vn.iotstar.userservice.exception.ResourceNotFoundException;
 
 import java.util.Optional;
 

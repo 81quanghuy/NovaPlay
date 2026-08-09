@@ -27,13 +27,13 @@ import vn.iotstar.authservice.service.OtpService;
 import vn.iotstar.authservice.service.RateLimiterService;
 import vn.iotstar.authservice.service.TokenService;
 import vn.iotstar.authservice.util.RoleName;
-import vn.iotstar.outbox.OutboxEventPublisher;
-import vn.iotstar.utils.constants.TopicNames;
-import vn.iotstar.utils.dto.UserRegister;
-import vn.iotstar.utils.exceptions.wrapper.BadRequestException;
-import vn.iotstar.utils.exceptions.wrapper.ForbiddenException;
-import vn.iotstar.utils.exceptions.wrapper.ResourceNotFoundException;
-import vn.iotstar.utils.exceptions.wrapper.UserAlreadyExistsException;
+import vn.iotstar.authservice.outbox.OutboxEventPublisher;
+import vn.iotstar.authservice.util.TopicName;
+import vn.iotstar.authservice.common.dto.UserRegister;
+import vn.iotstar.authservice.exception.BadRequestException;
+import vn.iotstar.authservice.exception.ForbiddenException;
+import vn.iotstar.authservice.exception.ResourceNotFoundException;
+import vn.iotstar.authservice.exception.UserAlreadyExistsException;
 
 import java.time.Duration;
 import java.util.Date;
@@ -87,7 +87,7 @@ public class AuthServiceImpl implements AuthService {
         String rateLimitKey = "auth:login:fail:" + request.emailOrUsername().toLowerCase();
         try {
             rateLimiterService.checkAndIncrement(rateLimitKey, LOGIN_MAX_ATTEMPTS, LOGIN_WINDOW);
-        } catch (vn.iotstar.utils.exceptions.wrapper.TooManyRequestsException e) {
+        } catch (vn.iotstar.authservice.exception.TooManyRequestsException e) {
             authMetrics.getRateLimitHitCounter().increment();
             throw e;
         }
@@ -229,7 +229,7 @@ public class AuthServiceImpl implements AuthService {
                 user.getUsername(),
                 user.getEmail()
         );
-        eventPublisher.publish(TopicNames.ACTIVATE_ACCOUNT, String.valueOf(user.getId()), userRegister);
+        eventPublisher.publish(TopicName.ACTIVATE_ACCOUNT, String.valueOf(user.getId()), userRegister);
         auditLogger.accountActivated(String.valueOf(user.getId()), user.getEmail());
     }
 

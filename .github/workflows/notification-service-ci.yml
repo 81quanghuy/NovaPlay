@@ -5,13 +5,11 @@ on:
     branches: [main]
     paths:
       - 'notification-service/**'
-      - 'utils/**'
       - 'pom.xml'
       - '.github/workflows/notification-service-ci.yml'
   pull_request:
     paths:
       - 'notification-service/**'
-      - 'utils/**'
       - 'pom.xml'
       - '.github/workflows/notification-service-ci.yml'
 
@@ -34,12 +32,10 @@ jobs:
           distribution: 'temurin'
           cache: maven
 
-      # notification-service phụ thuộc vn.iotstar:utils, mà module này phải nằm trong local repo
-      # trước khi build được. -N cài pom cha, vốn không được `install -pl utils` cài giúp.
-      - name: Install parent POM and utils
-        run: |
-          ./mvnw -B -q install -N
-          ./mvnw -B -q install -pl utils -DskipTests
+      # Service vẫn kế thừa pom cha ở gốc repo, nên pom đó phải nằm trong local repo
+      # trước khi build module con. -N chỉ cài đúng pom cha, không build module nào.
+      - name: Install parent POM
+        run: ./mvnw -B -q install -N
 
       # verify chạy cả unit test (surefire) lẫn integration test (failsafe). Runner của GitHub
       # có sẵn Docker nên NotificationRepositoryIT chạy thật trên MongoDB qua Testcontainers;

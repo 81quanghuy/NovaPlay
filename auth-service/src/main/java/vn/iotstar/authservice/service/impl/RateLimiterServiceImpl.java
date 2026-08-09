@@ -5,7 +5,7 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Service;
 import vn.iotstar.authservice.service.RateLimiterService;
-import vn.iotstar.utils.exceptions.wrapper.TooManyRequestsException;
+import vn.iotstar.authservice.exception.TooManyRequestsException;
 
 import java.time.Duration;
 import java.util.Collections;

@@ -5,5 +5,3 @@
  */
 
 rootProject.name = 'authservice'
-
-includeBuild('../utils')

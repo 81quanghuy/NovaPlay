@@ -28,8 +28,8 @@ spring:
         compression.type: lz4
 
 jwt:
-  private-key-path: classpath:keys/private.pem
-  public-key-path: classpath:keys/public.pem
+  private-key-path: ${PRIVATE_KEY_PATH:classpath:keys/private.pem}
+  public-key-path: ${PUBLIC_KEY_PATH:classpath:keys/public.pem}
   access-token:
     expiration: 86400000
   refresh-token:

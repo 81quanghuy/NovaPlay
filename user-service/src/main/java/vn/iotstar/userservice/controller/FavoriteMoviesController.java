@@ -28,7 +28,7 @@ import vn.iotstar.userservice.model.dto.PageResponse;
 import vn.iotstar.userservice.model.entity.FavoriteItem;
 import vn.iotstar.userservice.service.FavoriteMoviesService;
 import vn.iotstar.userservice.util.Constants;
-import vn.iotstar.utils.constants.GenericResponse;
+import vn.iotstar.userservice.common.GenericResponse;
 
 import java.util.Map;
 

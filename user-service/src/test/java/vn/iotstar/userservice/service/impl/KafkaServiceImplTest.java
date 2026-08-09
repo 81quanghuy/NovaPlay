@@ -13,9 +13,9 @@ import org.mockito.quality.Strictness;
 import vn.iotstar.userservice.config.observability.UserMetrics;
 import vn.iotstar.userservice.service.EventDedupStore;
 import vn.iotstar.userservice.service.UserProfileService;
-import vn.iotstar.utils.dto.MediaReadyEvent;
-import vn.iotstar.utils.dto.UserRegister;
-import vn.iotstar.utils.exceptions.wrapper.ResourceNotFoundException;
+import vn.iotstar.userservice.common.dto.MediaReadyEvent;
+import vn.iotstar.userservice.common.dto.UserRegister;
+import vn.iotstar.userservice.exception.ResourceNotFoundException;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;

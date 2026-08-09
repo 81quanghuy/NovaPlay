@@ -18,7 +18,7 @@ public interface NotificationQueryService {
     long unreadCount(String userEmail);
 
     /**
-     * @throws vn.iotstar.utils.exceptions.wrapper.ResourceNotFoundException nếu không có thông
+     * @throws vn.iotstar.notificationservice.exception.ResourceNotFoundException nếu không có thông
      *         báo nào khớp cả {@code id} lẫn {@code userEmail} — cố tình trả 404 thay vì 403 để
      *         không tiết lộ rằng thông báo đó tồn tại và thuộc về người khác.
      */

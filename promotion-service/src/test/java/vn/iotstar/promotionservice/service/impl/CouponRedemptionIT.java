@@ -21,8 +21,8 @@ import vn.iotstar.promotionservice.model.enums.RedemptionStatus;
 import vn.iotstar.promotionservice.repository.CouponRedemptionRepository;
 import vn.iotstar.promotionservice.repository.CouponRepository;
 import vn.iotstar.promotionservice.service.CouponService;
-import vn.iotstar.promotionservice.service.EventPublisher;
-import vn.iotstar.utils.exceptions.wrapper.BadRequestException;
+import vn.iotstar.promotionservice.outbox.OutboxEventPublisher;
+import vn.iotstar.promotionservice.exception.BadRequestException;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -87,14 +87,14 @@ class CouponRedemptionIT {
     /**
      * Publish sự kiện đi qua {@code EventPublisherImpl} thật sẽ cần Kafka thật — không phải thứ
      * test này muốn kiểm chứng (đó là {@code KafkaTemplate}/outbox, đã review riêng bằng mắt vì
-     * pattern nguyên vẹn từ auth-service). Mock hẳn {@link EventPublisher} để cô lập test vào
+     * pattern nguyên vẹn từ auth-service). Mock hẳn {@link OutboxEventPublisher} để cô lập test vào
      * đúng một biến số: hành vi CAS của Postgres.
      */
     @TestConfiguration
     static class NoOpEventPublisherConfig {
         @Bean
-        EventPublisher eventPublisher() {
-            EventPublisher mock = org.mockito.Mockito.mock(EventPublisher.class);
+        OutboxEventPublisher eventPublisher() {
+            OutboxEventPublisher mock = org.mockito.Mockito.mock(OutboxEventPublisher.class);
             lenient().doNothing().when(mock).publish(org.mockito.ArgumentMatchers.anyString(),
                     org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.any());
             return mock;

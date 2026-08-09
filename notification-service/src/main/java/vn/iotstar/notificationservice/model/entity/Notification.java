@@ -12,7 +12,7 @@ import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.Field;
 import vn.iotstar.notificationservice.model.enums.NotificationType;
 import vn.iotstar.notificationservice.util.Constants;
-import vn.iotstar.utils.audit.AuditableDocument;
+import vn.iotstar.notificationservice.common.audit.AuditableDocument;
 
 import java.time.Instant;
 import java.util.LinkedHashMap;

@@ -28,12 +28,12 @@ import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignReques
 import vn.iotstar.mediaservice.entity.Media;
 import vn.iotstar.mediaservice.repository.MediaRepository;
 import vn.iotstar.mediaservice.util.MediaStatus;
-import vn.iotstar.utils.dto.MediaReadyEvent;
-import vn.iotstar.utils.dto.UploadRequestDto;
-import vn.iotstar.utils.dto.UploadResponseDto;
-import vn.iotstar.utils.exceptions.wrapper.BadRequestException;
-import vn.iotstar.utils.exceptions.wrapper.ForbiddenException;
-import vn.iotstar.utils.exceptions.wrapper.ResourceNotFoundException;
+import vn.iotstar.mediaservice.common.dto.MediaReadyEvent;
+import vn.iotstar.mediaservice.common.dto.UploadRequestDto;
+import vn.iotstar.mediaservice.common.dto.UploadResponseDto;
+import vn.iotstar.mediaservice.exception.BadRequestException;
+import vn.iotstar.mediaservice.exception.ForbiddenException;
+import vn.iotstar.mediaservice.exception.ResourceNotFoundException;
 
 import java.net.MalformedURLException;
 import java.net.URI;

@@ -18,9 +18,9 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import vn.iotstar.mediaservice.entity.Media;
 import vn.iotstar.mediaservice.service.MediaService;
-import vn.iotstar.utils.constants.GenericResponse;
-import vn.iotstar.utils.dto.UploadRequestDto;
-import vn.iotstar.utils.dto.UploadResponseDto;
+import vn.iotstar.mediaservice.common.GenericResponse;
+import vn.iotstar.mediaservice.common.dto.UploadRequestDto;
+import vn.iotstar.mediaservice.common.dto.UploadResponseDto;
 
 @RestController
 @RequestMapping("/api/v1/media")

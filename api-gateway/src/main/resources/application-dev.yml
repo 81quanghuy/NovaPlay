@@ -247,10 +247,6 @@ services:
   notification: ${NOTIFICATION_SERVICE_URI:http://localhost:8900}
   media: ${MEDIA_SERVICE_URI:http://localhost:8081}
 
-rsa:
-  public:
-    key-location: classpath:certs/public.pem
-
 auth:
   jwt:
     issuer: novaplay-auth

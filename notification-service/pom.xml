@@ -50,11 +50,6 @@
             <artifactId>lombok</artifactId>
             <scope>annotationProcessor</scope>
         </dependency>
-        <dependency>
-            <groupId>vn.iotstar</groupId>
-            <artifactId>utils</artifactId>
-            <version>0.0.1</version>
-        </dependency>
 
         <!-- Lưu trữ. MongoDB giữ thông báo in-app, Redis giữ khoá chống trùng theo từng kênh. -->
         <dependency>

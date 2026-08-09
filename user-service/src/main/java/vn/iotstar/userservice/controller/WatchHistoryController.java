@@ -26,8 +26,8 @@ import vn.iotstar.userservice.model.dto.WatchProgressDTO;
 import vn.iotstar.userservice.model.entity.WatchProgress;
 import vn.iotstar.userservice.service.WatchHistoryService;
 import vn.iotstar.userservice.util.Constants;
-import vn.iotstar.utils.constants.GenericResponse;
-import vn.iotstar.utils.exceptions.wrapper.ResourceNotFoundException;
+import vn.iotstar.userservice.common.GenericResponse;
+import vn.iotstar.userservice.exception.ResourceNotFoundException;
 
 import static vn.iotstar.userservice.util.Constants.X_USER_EMAIL;
 

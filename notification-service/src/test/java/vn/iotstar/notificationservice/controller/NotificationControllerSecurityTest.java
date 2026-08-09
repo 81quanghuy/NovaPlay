@@ -21,7 +21,7 @@ import vn.iotstar.notificationservice.config.security.RestAuthenticationHandlers
 import vn.iotstar.notificationservice.config.security.SecurityConfig;
 import vn.iotstar.notificationservice.model.dto.NotificationDTO;
 import vn.iotstar.notificationservice.service.NotificationQueryService;
-import vn.iotstar.utils.exceptions.wrapper.ResourceNotFoundException;
+import vn.iotstar.notificationservice.exception.ResourceNotFoundException;
 
 import java.util.List;
 

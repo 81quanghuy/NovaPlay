@@ -13,7 +13,7 @@ import vn.iotstar.notificationservice.model.dto.NotificationDTO;
 import vn.iotstar.notificationservice.model.entity.Notification;
 import vn.iotstar.notificationservice.repository.NotificationRepository;
 import vn.iotstar.notificationservice.service.NotificationQueryService;
-import vn.iotstar.utils.exceptions.wrapper.ResourceNotFoundException;
+import vn.iotstar.notificationservice.exception.ResourceNotFoundException;
 
 import java.time.Instant;
 

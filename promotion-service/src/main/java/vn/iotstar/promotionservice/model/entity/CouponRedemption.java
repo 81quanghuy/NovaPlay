@@ -3,7 +3,7 @@ package vn.iotstar.promotionservice.model.entity;
 import jakarta.persistence.*;
 import lombok.*;
 import vn.iotstar.promotionservice.model.enums.RedemptionStatus;
-import vn.iotstar.utils.AbstractBaseEntity;
+import vn.iotstar.promotionservice.common.audit.AbstractBaseEntity;
 
 import java.math.BigDecimal;
 import java.time.Instant;
