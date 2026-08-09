@@ -23,216 +23,218 @@ spring:
         enabled: ${REDIS_SSL_ENABLED:true}
   cloud:
     gateway:
-      httpclient:
-        connect-timeout: 1000
-        response-timeout: 10s
-      routes:
-        - id: auth-service
-          uri: ${services.auth}
-          predicates:
-            - Path=/api/v1/auth/**
-          filters:
-            - name: CircuitBreaker
-              args:
-                name: auth-service-cb
-                fallbackUri: forward:/fallback/message
-            - name: Retry
-              args:
-                retries: 3
-                methods: GET
-                backoff:
-                  firstBackoff: 100ms
-                  maxBackoff: 1000ms
-                  factor: 2
-                  basedOnPreviousValue: true
-            - name: RequestRateLimiter
-              args:
-                redis-rate-limiter.replenishRate: 10
-                redis-rate-limiter.burstCapacity: 20
-                key-resolver: "#{@userEmailOrIpKeyResolver}"
+      server:
+        webflux:
+          httpclient:
+            connect-timeout: 1000
+            response-timeout: 10s
+          routes:
+            - id: auth-service
+              uri: ${services.auth}
+              predicates:
+                - Path=/api/v1/auth/**
+              filters:
+                - name: CircuitBreaker
+                  args:
+                    name: auth-service-cb
+                    fallbackUri: forward:/fallback/message
+                - name: Retry
+                  args:
+                    retries: 3
+                    methods: GET
+                    backoff:
+                      firstBackoff: 100ms
+                      maxBackoff: 1000ms
+                      factor: 2
+                      basedOnPreviousValue: true
+                - name: RequestRateLimiter
+                  args:
+                    redis-rate-limiter.replenishRate: 10
+                    redis-rate-limiter.burstCapacity: 20
+                    key-resolver: "#{@userEmailOrIpKeyResolver}"
 
-        - id: user-service
-          uri: ${services.user}
-          predicates:
-            - Path=/api/v1/users/**
-          filters:
-            - name: CircuitBreaker
-              args:
-                name: user-service-cb
-                fallbackUri: forward:/fallback/message
-            - name: Retry
-              args:
-                retries: 3
-                methods: GET
-                backoff:
-                  firstBackoff: 100ms
-                  maxBackoff: 1000ms
-                  factor: 2
-                  basedOnPreviousValue: true
-            - name: RequestRateLimiter
-              args:
-                redis-rate-limiter.replenishRate: 10
-                redis-rate-limiter.burstCapacity: 20
-                key-resolver: "#{@userEmailOrIpKeyResolver}"
+            - id: user-service
+              uri: ${services.user}
+              predicates:
+                - Path=/api/v1/users/**
+              filters:
+                - name: CircuitBreaker
+                  args:
+                    name: user-service-cb
+                    fallbackUri: forward:/fallback/message
+                - name: Retry
+                  args:
+                    retries: 3
+                    methods: GET
+                    backoff:
+                      firstBackoff: 100ms
+                      maxBackoff: 1000ms
+                      factor: 2
+                      basedOnPreviousValue: true
+                - name: RequestRateLimiter
+                  args:
+                    redis-rate-limiter.replenishRate: 10
+                    redis-rate-limiter.burstCapacity: 20
+                    key-resolver: "#{@userEmailOrIpKeyResolver}"
 
-        - id: movie-service
-          uri: ${services.movie}
-          predicates:
-            - Path=/api/v1/movies/**
-          filters:
-            - name: CircuitBreaker
-              args:
-                name: movie-service-cb
-                fallbackUri: forward:/fallback/message
-            - name: Retry
-              args:
-                retries: 3
-                methods: GET
-                backoff:
-                  firstBackoff: 100ms
-                  maxBackoff: 1000ms
-                  factor: 2
-                  basedOnPreviousValue: true
-            - name: RequestRateLimiter
-              args:
-                redis-rate-limiter.replenishRate: 30
-                redis-rate-limiter.burstCapacity: 60
-                key-resolver: "#{@userEmailOrIpKeyResolver}"
+            - id: movie-service
+              uri: ${services.movie}
+              predicates:
+                - Path=/api/v1/movies/**
+              filters:
+                - name: CircuitBreaker
+                  args:
+                    name: movie-service-cb
+                    fallbackUri: forward:/fallback/message
+                - name: Retry
+                  args:
+                    retries: 3
+                    methods: GET
+                    backoff:
+                      firstBackoff: 100ms
+                      maxBackoff: 1000ms
+                      factor: 2
+                      basedOnPreviousValue: true
+                - name: RequestRateLimiter
+                  args:
+                    redis-rate-limiter.replenishRate: 30
+                    redis-rate-limiter.burstCapacity: 60
+                    key-resolver: "#{@userEmailOrIpKeyResolver}"
 
-        - id: genre-service
-          uri: ${services.movie}
-          predicates:
-            - Path=/api/v1/genres/**
-          filters:
-            - name: CircuitBreaker
-              args:
-                name: movie-service-cb
-                fallbackUri: forward:/fallback/message
-            - name: Retry
-              args:
-                retries: 3
-                methods: GET
-                backoff:
-                  firstBackoff: 100ms
-                  maxBackoff: 1000ms
-                  factor: 2
-                  basedOnPreviousValue: true
-            - name: RequestRateLimiter
-              args:
-                redis-rate-limiter.replenishRate: 30
-                redis-rate-limiter.burstCapacity: 60
-                key-resolver: "#{@userEmailOrIpKeyResolver}"
+            - id: genre-service
+              uri: ${services.movie}
+              predicates:
+                - Path=/api/v1/genres/**
+              filters:
+                - name: CircuitBreaker
+                  args:
+                    name: movie-service-cb
+                    fallbackUri: forward:/fallback/message
+                - name: Retry
+                  args:
+                    retries: 3
+                    methods: GET
+                    backoff:
+                      firstBackoff: 100ms
+                      maxBackoff: 1000ms
+                      factor: 2
+                      basedOnPreviousValue: true
+                - name: RequestRateLimiter
+                  args:
+                    redis-rate-limiter.replenishRate: 30
+                    redis-rate-limiter.burstCapacity: 60
+                    key-resolver: "#{@userEmailOrIpKeyResolver}"
 
-        - id: artist-service
-          uri: ${services.movie}
-          predicates:
-            - Path=/api/v1/artists/**
-          filters:
-            - name: CircuitBreaker
-              args:
-                name: movie-service-cb
-                fallbackUri: forward:/fallback/message
-            - name: Retry
-              args:
-                retries: 3
-                methods: GET
-                backoff:
-                  firstBackoff: 100ms
-                  maxBackoff: 1000ms
-                  factor: 2
-                  basedOnPreviousValue: true
-            - name: RequestRateLimiter
-              args:
-                redis-rate-limiter.replenishRate: 30
-                redis-rate-limiter.burstCapacity: 60
-                key-resolver: "#{@userEmailOrIpKeyResolver}"
+            - id: artist-service
+              uri: ${services.movie}
+              predicates:
+                - Path=/api/v1/artists/**
+              filters:
+                - name: CircuitBreaker
+                  args:
+                    name: movie-service-cb
+                    fallbackUri: forward:/fallback/message
+                - name: Retry
+                  args:
+                    retries: 3
+                    methods: GET
+                    backoff:
+                      firstBackoff: 100ms
+                      maxBackoff: 1000ms
+                      factor: 2
+                      basedOnPreviousValue: true
+                - name: RequestRateLimiter
+                  args:
+                    redis-rate-limiter.replenishRate: 30
+                    redis-rate-limiter.burstCapacity: 60
+                    key-resolver: "#{@userEmailOrIpKeyResolver}"
 
-        - id: notification-service
-          uri: ${services.notification}
-          predicates:
-            - Path=/api/v1/notifications/**
-          filters:
-            - name: CircuitBreaker
-              args:
-                name: notification-service-cb
-                fallbackUri: forward:/fallback/message
-            - name: Retry
-              args:
-                retries: 3
-                methods: GET
-                backoff:
-                  firstBackoff: 100ms
-                  maxBackoff: 1000ms
-                  factor: 2
-                  basedOnPreviousValue: true
-            - name: RequestRateLimiter
-              args:
-                redis-rate-limiter.replenishRate: 20
-                redis-rate-limiter.burstCapacity: 40
-                key-resolver: "#{@userEmailOrIpKeyResolver}"
+            - id: notification-service
+              uri: ${services.notification}
+              predicates:
+                - Path=/api/v1/notifications/**
+              filters:
+                - name: CircuitBreaker
+                  args:
+                    name: notification-service-cb
+                    fallbackUri: forward:/fallback/message
+                - name: Retry
+                  args:
+                    retries: 3
+                    methods: GET
+                    backoff:
+                      firstBackoff: 100ms
+                      maxBackoff: 1000ms
+                      factor: 2
+                      basedOnPreviousValue: true
+                - name: RequestRateLimiter
+                  args:
+                    redis-rate-limiter.replenishRate: 20
+                    redis-rate-limiter.burstCapacity: 40
+                    key-resolver: "#{@userEmailOrIpKeyResolver}"
 
-        # Upload/quản lý media của người dùng đã đăng nhập — không phải catalog công khai, nên
-        # hạn mức giống notification-service chứ không rộng như movie-service.
-        - id: media-service
-          uri: ${services.media}
-          predicates:
-            - Path=/api/v1/media/**
-          filters:
-            - name: CircuitBreaker
-              args:
-                name: media-service-cb
-                fallbackUri: forward:/fallback/message
-            # Chỉ retry GET: POST xin presigned URL và DELETE là thao tác ghi, retry chỉ làm
-            # tăng tải chứ không sửa được nguyên nhân lỗi.
-            - name: Retry
-              args:
-                retries: 3
-                methods: GET
-                backoff:
-                  firstBackoff: 100ms
-                  maxBackoff: 1000ms
-                  factor: 2
-                  basedOnPreviousValue: true
-            - name: RequestRateLimiter
-              args:
-                redis-rate-limiter.replenishRate: 20
-                redis-rate-limiter.burstCapacity: 40
-                key-resolver: "#{@userEmailOrIpKeyResolver}"
+            # Upload/quản lý media của người dùng đã đăng nhập — không phải catalog công khai, nên
+            # hạn mức giống notification-service chứ không rộng như movie-service.
+            - id: media-service
+              uri: ${services.media}
+              predicates:
+                - Path=/api/v1/media/**
+              filters:
+                - name: CircuitBreaker
+                  args:
+                    name: media-service-cb
+                    fallbackUri: forward:/fallback/message
+                # Chỉ retry GET: POST xin presigned URL và DELETE là thao tác ghi, retry chỉ làm
+                # tăng tải chứ không sửa được nguyên nhân lỗi.
+                - name: Retry
+                  args:
+                    retries: 3
+                    methods: GET
+                    backoff:
+                      firstBackoff: 100ms
+                      maxBackoff: 1000ms
+                      factor: 2
+                      basedOnPreviousValue: true
+                - name: RequestRateLimiter
+                  args:
+                    redis-rate-limiter.replenishRate: 20
+                    redis-rate-limiter.burstCapacity: 40
+                    key-resolver: "#{@userEmailOrIpKeyResolver}"
 
-        - id: auth-service-swagger
-          uri: ${services.auth}
-          predicates:
-            - Path=/swagger/auth/v3/api-docs
-          filters:
-            - RewritePath=/swagger/auth/(?<segment>.*), /${segment}
+            - id: auth-service-swagger
+              uri: ${services.auth}
+              predicates:
+                - Path=/swagger/auth/v3/api-docs
+              filters:
+                - RewritePath=/swagger/auth/(?<segment>.*), /${segment}
 
-        - id: user-service-swagger
-          uri: ${services.user}
-          predicates:
-            - Path=/swagger/user/v3/api-docs
-          filters:
-            - RewritePath=/swagger/user/(?<segment>.*), /${segment}
+            - id: user-service-swagger
+              uri: ${services.user}
+              predicates:
+                - Path=/swagger/user/v3/api-docs
+              filters:
+                - RewritePath=/swagger/user/(?<segment>.*), /${segment}
 
-        - id: movie-service-swagger
-          uri: ${services.movie}
-          predicates:
-            - Path=/swagger/movie/v3/api-docs
-          filters:
-            - RewritePath=/swagger/movie/(?<segment>.*), /${segment}
+            - id: movie-service-swagger
+              uri: ${services.movie}
+              predicates:
+                - Path=/swagger/movie/v3/api-docs
+              filters:
+                - RewritePath=/swagger/movie/(?<segment>.*), /${segment}
 
-        - id: notification-service-swagger
-          uri: ${services.notification}
-          predicates:
-            - Path=/swagger/notification/v3/api-docs
-          filters:
-            - RewritePath=/swagger/notification/(?<segment>.*), /${segment}
+            - id: notification-service-swagger
+              uri: ${services.notification}
+              predicates:
+                - Path=/swagger/notification/v3/api-docs
+              filters:
+                - RewritePath=/swagger/notification/(?<segment>.*), /${segment}
 
-        - id: media-service-swagger
-          uri: ${services.media}
-          predicates:
-            - Path=/swagger/media/v3/api-docs
-          filters:
-            - RewritePath=/swagger/media/(?<segment>.*), /${segment}
+            - id: media-service-swagger
+              uri: ${services.media}
+              predicates:
+                - Path=/swagger/media/v3/api-docs
+              filters:
+                - RewritePath=/swagger/media/(?<segment>.*), /${segment}
 
 services:
   auth: ${AUTH_SERVICE_URI:http://auth-service:8000}

@@ -1,0 +1,46 @@
+# Bitnami Kafka cho auth-service (cluster dev, docker-desktop).
+#
+#   helm install kafka bitnami/kafka -f kafka-values.yaml
+#
+# fullnameOverride=kafka => Service "kafka", cổng client 9092 (khớp KAFKA_BOOTSTRAP_SERVERS).
+# KRaft, 1 node combined controller+broker, PLAINTEXT không auth — chỉ dùng cho dev.
+#
+# Bitnami đã xóa tag phiên bản của kafka khỏi repo free `bitnami/*` (kể cả `latest`),
+# chỉ còn ở namespace `bitnamilegacy` (đóng băng). Trỏ image sang đó; allowInsecureImages
+# để bỏ qua bước chart verify image "chính chủ".
+global:
+  security:
+    allowInsecureImages: true
+
+image:
+  registry: docker.io
+  repository: bitnamilegacy/kafka
+  tag: 4.0.0-debian-12-r10
+
+fullnameOverride: kafka
+
+controller:
+  replicaCount: 1
+  persistence:
+    enabled: false
+  resourcesPreset: "small"
+
+broker:
+  # 0 => controller chạy chế độ combined (vừa controller vừa broker).
+  replicaCount: 0
+
+listeners:
+  client:
+    protocol: PLAINTEXT
+  interbroker:
+    protocol: PLAINTEXT
+  controller:
+    protocol: PLAINTEXT
+  external:
+    protocol: PLAINTEXT
+
+sasl:
+  # Không dùng SASL ở dev.
+  enabledMechanisms: ""
+  controllerMechanism: ""
+  interBrokerMechanism: ""

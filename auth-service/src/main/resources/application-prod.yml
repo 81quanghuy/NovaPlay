@@ -25,6 +25,10 @@ spring:
       host: ${REDIS_HOST}
       port: ${REDIS_PORT:6379}
       password: ${REDIS_PASSWORD:}
+      # Default false: Redis in-cluster (Bitnami) chạy plaintext. Redis cloud thường bắt TLS
+      # → đặt REDIS_SSL_ENABLED=true trong env của deployment.
+      ssl:
+        enabled: ${REDIS_SSL_ENABLED:false}
       timeout: 5s
       lettuce:
         pool:
