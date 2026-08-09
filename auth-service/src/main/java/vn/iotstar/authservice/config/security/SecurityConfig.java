@@ -29,7 +29,13 @@ public class SecurityConfig {
             "/v3/api-docs/**",
             "/swagger-ui/**",
             "/swagger-ui.html",
-            "/webjars/**"
+            "/webjars/**",
+            // Probe k8s (liveness/readiness) và scrape Prometheus phải gọi được không cần JWT,
+            // nếu không kubelet nhận 403 => startup probe fail => pod bị giết liên tục.
+            "/actuator/health",
+            "/actuator/health/**",
+            "/actuator/info",
+            "/actuator/prometheus"
     };
 
     @Bean

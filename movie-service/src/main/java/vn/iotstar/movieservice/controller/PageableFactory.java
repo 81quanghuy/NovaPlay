@@ -3,7 +3,7 @@ package vn.iotstar.movieservice.controller;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
-import vn.iotstar.utils.exceptions.wrapper.BadRequestException;
+import vn.iotstar.movieservice.exception.BadRequestException;
 
 import java.util.Set;
 

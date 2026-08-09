@@ -7,7 +7,8 @@ metadata:
 # Chỉ chứa giá trị không nhạy cảm. Credential nằm ở auth-service-secrets.
 data:
   DATASOURCE_URL: "jdbc:postgresql://postgres:5432/auth_service"
-  REDIS_HOST: "redis"
+  # Chart Redis (standalone) tạo Service tên "redis-master", không phải "redis".
+  REDIS_HOST: "redis-master"
   REDIS_PORT: "6379"
   KAFKA_BOOTSTRAP_SERVERS: "kafka:9092"
   SERVER_PORT: "8000"

@@ -8,7 +8,7 @@ import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.Field;
 import vn.iotstar.mediaservice.util.Constants;
 import vn.iotstar.mediaservice.util.MediaStatus;
-import vn.iotstar.utils.audit.AuditableDocument;
+import vn.iotstar.mediaservice.common.audit.AuditableDocument;
 
 import java.io.Serial;
 import java.io.Serializable;

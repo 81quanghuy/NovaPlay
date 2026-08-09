@@ -1,0 +1,19 @@
+# Bitnami Redis cho auth-service (cluster dev, docker-desktop).
+#
+#   helm install redis bitnami/redis -f redis-values.yaml
+#
+# architecture=standalone => chỉ 1 node master, Service tên "redis-master".
+# => auth-service-config phải đặt REDIS_HOST: "redis-master".
+# Password khớp REDIS_PASSWORD trong Secret auth-service-secrets.
+fullnameOverride: redis
+
+architecture: standalone
+
+auth:
+  enabled: true
+  password: "redis123"
+
+master:
+  persistence:
+    enabled: false
+  resourcesPreset: "small"

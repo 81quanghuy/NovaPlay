@@ -22,9 +22,9 @@ import software.amazon.awssdk.services.s3.model.CreateBucketRequest;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import vn.iotstar.mediaservice.entity.Media;
 import vn.iotstar.mediaservice.repository.MediaRepository;
-import vn.iotstar.utils.dto.MediaReadyEvent;
-import vn.iotstar.utils.dto.UploadRequestDto;
-import vn.iotstar.utils.dto.UploadResponseDto;
+import vn.iotstar.mediaservice.common.dto.MediaReadyEvent;
+import vn.iotstar.mediaservice.common.dto.UploadRequestDto;
+import vn.iotstar.mediaservice.common.dto.UploadResponseDto;
 
 import java.net.URI;
 import java.net.http.HttpClient;

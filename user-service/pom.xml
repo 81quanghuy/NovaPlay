@@ -69,11 +69,6 @@
             <artifactId>lombok</artifactId>
             <scope>annotationProcessor</scope>
         </dependency>
-        <dependency>
-            <groupId>vn.iotstar</groupId>
-            <artifactId>utils</artifactId>
-            <version>0.0.1</version>
-        </dependency>
         <!-- Data store -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

@@ -23,11 +23,11 @@ import org.springframework.kafka.listener.DefaultErrorHandler;
 import org.springframework.kafka.support.ExponentialBackOffWithMaxRetries;
 import org.springframework.kafka.support.serializer.JsonDeserializer;
 import org.springframework.kafka.support.serializer.JsonSerializer;
-import vn.iotstar.utils.constants.TopicNames;
-import vn.iotstar.utils.dto.EmailOtpRequested;
-import vn.iotstar.utils.dto.NotificationRequested;
-import vn.iotstar.utils.dto.UserRegister;
-import vn.iotstar.utils.exceptions.wrapper.ResourceNotFoundException;
+import vn.iotstar.notificationservice.util.TopicNames;
+import vn.iotstar.notificationservice.common.dto.EmailOtpRequested;
+import vn.iotstar.notificationservice.common.dto.NotificationRequested;
+import vn.iotstar.notificationservice.common.dto.UserRegister;
+import vn.iotstar.notificationservice.exception.ResourceNotFoundException;
 
 import java.util.HashMap;
 
@@ -70,7 +70,7 @@ public class KafkaConsumerConfig {
         props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
         props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
         props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, JsonDeserializer.class);
-        props.put(JsonDeserializer.TRUSTED_PACKAGES, "vn.iotstar.utils.*");
+        props.put(JsonDeserializer.TRUSTED_PACKAGES, "vn.iotstar.notificationservice.*");
         props.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, 200);
         return new DefaultKafkaConsumerFactory<>(
                 props, new StringDeserializer(), new JsonDeserializer<>(targetType, false));
@@ -195,7 +195,7 @@ public class KafkaConsumerConfig {
         props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
         props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
         props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, JsonDeserializer.class);
-        props.put(JsonDeserializer.TRUSTED_PACKAGES, "vn.iotstar.utils.*");
+        props.put(JsonDeserializer.TRUSTED_PACKAGES, "vn.iotstar.notificationservice.*");
         return new DefaultKafkaConsumerFactory<>(
                 props, new StringDeserializer(), new JsonDeserializer<>(Object.class, false));
     }

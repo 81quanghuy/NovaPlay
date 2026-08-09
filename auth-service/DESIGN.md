@@ -190,7 +190,7 @@ Signature: HMAC-SHA256 bằng RSA private key
 ```
 
 **Lý do RSA-256 (asymmetric):**
-- Auth-service ký bằng **private key** (`src/main/resources/keys/private.pem`)
+- Auth-service ký bằng **private key** (`../docker-compose/secrets/private.pem`)
 - API Gateway xác minh bằng **public key** (không cần private key)
 - Nếu downstream service cần xác minh JWT → có public key, không cần auth-service
 

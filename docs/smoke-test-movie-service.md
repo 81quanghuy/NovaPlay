@@ -8,7 +8,7 @@ mất auditing) đều xanh trong CI và chỉ lộ ra khi chạy service thật
 
 ```bash
 docker compose -f docker-compose/qa/docker-compose.yml up -d mongodb redis
-./mvnw -q install -N && ./mvnw -q install -pl utils -DskipTests
+./mvnw -q install -N
 ./mvnw spring-boot:run -pl movie-service -Dspring-boot.run.profiles=dev
 ```
 

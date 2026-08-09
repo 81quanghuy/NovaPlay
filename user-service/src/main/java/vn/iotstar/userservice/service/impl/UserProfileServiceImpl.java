@@ -16,10 +16,10 @@ import vn.iotstar.userservice.service.UserProfileService;
 import vn.iotstar.userservice.service.client.MediaServiceClient;
 import vn.iotstar.userservice.util.Constants;
 import vn.iotstar.userservice.util.Plan;
-import vn.iotstar.utils.dto.UploadRequestDto;
-import vn.iotstar.utils.dto.UploadResponseDto;
-import vn.iotstar.utils.dto.UserRegister;
-import vn.iotstar.utils.exceptions.wrapper.ResourceNotFoundException;
+import vn.iotstar.userservice.common.dto.UploadRequestDto;
+import vn.iotstar.userservice.common.dto.UploadResponseDto;
+import vn.iotstar.userservice.common.dto.UserRegister;
+import vn.iotstar.userservice.exception.ResourceNotFoundException;
 
 import java.time.Instant;
 

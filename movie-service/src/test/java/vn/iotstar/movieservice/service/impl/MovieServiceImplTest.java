@@ -22,8 +22,8 @@ import vn.iotstar.movieservice.model.enums.MovieStatus;
 import vn.iotstar.movieservice.repository.ArtistRepository;
 import vn.iotstar.movieservice.repository.GenreRepository;
 import vn.iotstar.movieservice.repository.MovieRepository;
-import vn.iotstar.utils.exceptions.wrapper.BadRequestException;
-import vn.iotstar.utils.exceptions.wrapper.ResourceNotFoundException;
+import vn.iotstar.movieservice.exception.BadRequestException;
+import vn.iotstar.movieservice.exception.ResourceNotFoundException;
 
 import java.util.List;
 import java.util.Optional;

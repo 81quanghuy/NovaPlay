@@ -77,7 +77,7 @@ class FavoriteMoviesServiceImplTest {
         when(favoriteItemRepository.existsByUserIdAndMovieId(USER_ID, MOVIE_ID)).thenReturn(true);
 
         assertThatThrownBy(() -> service.addFavoriteMovie(EMAIL, REQUEST))
-                .isInstanceOf(vn.iotstar.utils.exceptions.wrapper.UserAlreadyExistsException.class);
+                .isInstanceOf(vn.iotstar.userservice.exception.UserAlreadyExistsException.class);
 
         verify(favoriteItemRepository, never()).save(any());
     }
@@ -89,7 +89,7 @@ class FavoriteMoviesServiceImplTest {
         when(favoriteItemRepository.save(any())).thenThrow(new DuplicateKeyException("dup"));
 
         assertThatThrownBy(() -> service.addFavoriteMovie(EMAIL, REQUEST))
-                .isInstanceOf(vn.iotstar.utils.exceptions.wrapper.UserAlreadyExistsException.class);
+                .isInstanceOf(vn.iotstar.userservice.exception.UserAlreadyExistsException.class);
     }
 
     @Test

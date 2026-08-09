@@ -49,21 +49,17 @@
             <artifactId>lombok</artifactId>
             <scope>annotationProcessor</scope>
         </dependency>
-        <dependency>
-            <groupId>vn.iotstar</groupId>
-            <artifactId>utils</artifactId>
-            <version>0.0.1</version>
-        </dependency>
 
         <!-- Lưu trữ: coupons + coupon_redemptions + outbox_events, tất cả trên Postgres. -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-jpa</artifactId>
         </dependency>
+        <!-- Không còn scope runtime được: OutboxNotificationListener nay nằm trong service này và
+             biên dịch trực tiếp với PGConnection/PGNotification để nghe LISTEN/NOTIFY. -->
         <dependency>
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
-            <scope>runtime</scope>
         </dependency>
 
         <!-- Phát sự kiện qua transactional outbox. spring-cloud-starter-bus-kafka KHÔNG phải một

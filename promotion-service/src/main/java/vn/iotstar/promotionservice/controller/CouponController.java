@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.*;
 import vn.iotstar.promotionservice.dto.CouponRequest;
 import vn.iotstar.promotionservice.dto.RedeemRequest;
 import vn.iotstar.promotionservice.service.CouponService;
-import vn.iotstar.utils.constants.GenericResponse;
+import vn.iotstar.promotionservice.common.GenericResponse;
 
 import java.math.BigDecimal;
 import java.util.UUID;

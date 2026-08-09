@@ -14,9 +14,9 @@ import org.springframework.web.bind.annotation.*;
 import vn.iotstar.userservice.model.dto.UpdateUserProfileRequest;
 import vn.iotstar.userservice.model.dto.UserProfileDTO;
 import vn.iotstar.userservice.service.UserProfileService;
-import vn.iotstar.utils.constants.GenericResponse;
-import vn.iotstar.utils.dto.UploadRequestDto;
-import vn.iotstar.utils.dto.UploadResponseDto;
+import vn.iotstar.userservice.common.GenericResponse;
+import vn.iotstar.userservice.common.dto.UploadRequestDto;
+import vn.iotstar.userservice.common.dto.UploadResponseDto;
 
 import java.time.Instant;
 

@@ -13,9 +13,9 @@ import vn.iotstar.promotionservice.model.enums.CouponType;
 import vn.iotstar.promotionservice.model.enums.RedemptionStatus;
 import vn.iotstar.promotionservice.repository.CouponRedemptionRepository;
 import vn.iotstar.promotionservice.repository.CouponRepository;
-import vn.iotstar.outbox.OutboxEventPublisher;
-import vn.iotstar.utils.exceptions.wrapper.BadRequestException;
-import vn.iotstar.utils.exceptions.wrapper.ForbiddenException;
+import vn.iotstar.promotionservice.outbox.OutboxEventPublisher;
+import vn.iotstar.promotionservice.exception.BadRequestException;
+import vn.iotstar.promotionservice.exception.ForbiddenException;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -194,7 +194,7 @@ class CouponServiceImplTest {
 
         assertThatThrownBy(() -> couponService.redeem("NOPE", USER_EMAIL, PLAN_ID,
                 BigDecimal.valueOf(100), IDEMPOTENCY_KEY))
-                .isInstanceOf(vn.iotstar.utils.exceptions.wrapper.ResourceNotFoundException.class);
+                .isInstanceOf(vn.iotstar.promotionservice.exception.ResourceNotFoundException.class);
 
         verify(couponRepository, never()).tryReserveRedemption(any(), any());
     }

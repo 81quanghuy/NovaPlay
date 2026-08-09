@@ -11,7 +11,7 @@ import vn.iotstar.movieservice.model.entity.embedded.Episode;
 import vn.iotstar.movieservice.model.entity.embedded.GenreRef;
 import vn.iotstar.movieservice.model.enums.MovieStatus;
 import vn.iotstar.movieservice.utils.Constants;
-import vn.iotstar.utils.audit.AuditableDocument;
+import vn.iotstar.movieservice.common.audit.AuditableDocument;
 
 import java.io.Serial;
 import java.io.Serializable;

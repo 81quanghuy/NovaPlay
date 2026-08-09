@@ -5,7 +5,7 @@ import lombok.*;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 import vn.iotstar.promotionservice.model.enums.CouponType;
-import vn.iotstar.utils.AbstractBaseEntity;
+import vn.iotstar.promotionservice.common.audit.AbstractBaseEntity;
 
 import java.math.BigDecimal;
 import java.time.Instant;

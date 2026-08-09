@@ -15,7 +15,7 @@ import org.springframework.data.mongodb.core.query.Query;
 import vn.iotstar.notificationservice.mapper.NotificationMapper;
 import vn.iotstar.notificationservice.model.entity.Notification;
 import vn.iotstar.notificationservice.repository.NotificationRepository;
-import vn.iotstar.utils.exceptions.wrapper.ResourceNotFoundException;
+import vn.iotstar.notificationservice.exception.ResourceNotFoundException;
 
 import java.util.List;
 import java.util.Optional;

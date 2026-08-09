@@ -4,7 +4,7 @@ import jakarta.persistence.*;
 import lombok.*;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 import vn.iotstar.authservice.util.Constants;
-import vn.iotstar.utils.AbstractBaseEntity;
+import vn.iotstar.authservice.common.audit.AbstractBaseEntity;
 
 import java.io.Serial;
 import java.io.Serializable;

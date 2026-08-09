@@ -7,7 +7,7 @@ import org.springframework.data.annotation.Version;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.Field;
 import vn.iotstar.movieservice.utils.Constants;
-import vn.iotstar.utils.audit.AuditableDocument;
+import vn.iotstar.movieservice.common.audit.AuditableDocument;
 
 import java.io.Serial;
 import java.io.Serializable;

@@ -8,7 +8,7 @@ dụng, email tiếng Anh gửi cho người dùng Việt — đều xanh trong 
 
 ```bash
 docker compose -f docker-compose/qa/docker-compose.yml up -d mongodb redis kafka-services kafka-ui mailhog
-./mvnw -q install -N && ./mvnw -q install -pl utils -DskipTests
+./mvnw -q install -N
 ./mvnw spring-boot:run -pl notification-service -Dspring-boot.run.profiles=dev
 ```
 

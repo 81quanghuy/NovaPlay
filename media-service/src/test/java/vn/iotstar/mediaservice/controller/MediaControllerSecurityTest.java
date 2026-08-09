@@ -135,7 +135,7 @@ class MediaControllerSecurityTest {
     @DisplayName("người dùng khác không phải chủ sở hữu, không phải admin bị chặn 403 (IDOR)")
     void nonOwnerNonAdminIsForbiddenOnDetail() throws Exception {
         when(mediaService.getMediaById(eq("m1"), eq(OTHER_EMAIL), eq(false)))
-                .thenThrow(new vn.iotstar.utils.exceptions.wrapper.ForbiddenException(
+                .thenThrow(new vn.iotstar.mediaservice.exception.ForbiddenException(
                         "You do not have permission to access this media."));
 
         mockMvc.perform(get("/api/v1/media/m1")
@@ -206,7 +206,7 @@ class MediaControllerSecurityTest {
     @Test
     @DisplayName("người khác không phải chủ sở hữu, không phải admin bị chặn 403 khi xoá")
     void nonOwnerNonAdminIsForbiddenOnDelete() throws Exception {
-        org.mockito.Mockito.doThrow(new vn.iotstar.utils.exceptions.wrapper.ForbiddenException(
+        org.mockito.Mockito.doThrow(new vn.iotstar.mediaservice.exception.ForbiddenException(
                         "You do not have permission to access this media."))
                 .when(mediaService).deleteMedia(eq("m1"), eq(OTHER_EMAIL), eq(false));
 

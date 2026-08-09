@@ -86,7 +86,7 @@ Email notifications (OTP, password reset) use the **Transactional Outbox pattern
 - **Email** — SMTP + Thymeleaf, i18n via `messages*.properties`
 - **In-app** — MongoDB document + REST API at `/api/v1/notifications` (per-user; identity from the `X-User-Email` gateway header)
 
-Adding a channel means adding one `NotificationChannel` bean plus an entry in `ChannelRoutingPolicy`; the dispatcher and consumers stay untouched. Delivery is at-least-once with **per-channel dedup keys** in Redis, so a retry only re-sends the channel that actually failed. Topic names live in `vn.iotstar.utils.constants.TopicNames`.
+Adding a channel means adding one `NotificationChannel` bean plus an entry in `ChannelRoutingPolicy`; the dispatcher and consumers stay untouched. Delivery is at-least-once with **per-channel dedup keys** in Redis, so a retry only re-sends the channel that actually failed. Topic names live in `vn.iotstar.notificationservice.util.TopicNames` — each service keeps its own copy of this constants class.
 
 ### Inter-Service Communication
 
@@ -104,9 +104,22 @@ RSA keys location:
 - `auth-service`: `src/main/resources/keys/private.pem` + `public.pem`
 - `api-gateway`: `src/main/resources/certs/public.pem`
 
-### `utils` Module
+### No Shared Library
 
-Shared library (`vn.iotstar:utils:0.0.1`) included by other services. Contains shared DTOs, common exceptions, and base response wrappers. Always build this first when modifying shared types: `./mvnw install -pl utils`.
+There is **no shared `utils` artifact** — it was removed deliberately. Every service owns a private copy of the code it needs (`GenericResponse`, `GlobalExceptionHandler` + exception types, auditing base classes, Kafka event records, and the outbox package), each under its own `vn.iotstar.<service>` namespace:
+
+| Concern | Location in every service |
+|---------|---------------------------|
+| Response wrapper | `<svc>.common.GenericResponse` |
+| Auditing base classes | `<svc>.common.audit.*` |
+| Kafka event records | `<svc>.common.dto.*` |
+| Exception handler + types | `<svc>.exception.*` |
+| Topic name constants | `<svc>.util.TopicName(s)` |
+| Transactional outbox | `<svc>.outbox.*` (auth-service, promotion-service) |
+
+Duplication across services is intentional: it's what lets each service build, version, and deploy on its own. **Do not reintroduce a shared module.** When a change touches a duplicated type, apply it to each service that needs it — and only those.
+
+Because copies are independent, a Kafka event's class name is a *local* detail. Cross-service topics must not rely on Jackson's `__TypeId__` FQCN header: use `JsonSerializer.TYPE_MAPPINGS` / `JsonDeserializer.TYPE_MAPPINGS` with a logical name (see `send-status-media.v1` between media-service and user-service), or disable type headers and declare the target type explicitly (see notification-service).
 
 ## Observability
 

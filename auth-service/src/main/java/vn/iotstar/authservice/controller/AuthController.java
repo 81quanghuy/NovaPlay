@@ -21,7 +21,7 @@ import vn.iotstar.authservice.service.JwtService;
 import vn.iotstar.authservice.service.OtpService;
 import vn.iotstar.authservice.service.TokenBlacklist;
 import vn.iotstar.authservice.util.Constants;
-import vn.iotstar.utils.constants.GenericResponse;
+import vn.iotstar.authservice.common.GenericResponse;
 
 import java.util.Date;
 import java.util.Map;

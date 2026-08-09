@@ -5,7 +5,7 @@ import lombok.*;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 import vn.iotstar.authservice.util.Constants;
 import vn.iotstar.authservice.util.RoleName;
-import vn.iotstar.utils.AbstractBaseEntity;
+import vn.iotstar.authservice.common.audit.AbstractBaseEntity;
 
 import java.io.Serial;
 import java.io.Serializable;

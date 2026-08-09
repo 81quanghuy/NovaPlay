@@ -13,7 +13,7 @@ import vn.iotstar.userservice.repository.IFavoriteItemRepository;
 import vn.iotstar.userservice.service.AuditLogger;
 import vn.iotstar.userservice.service.FavoriteMoviesService;
 import vn.iotstar.userservice.service.UserProfileLookup;
-import vn.iotstar.utils.exceptions.wrapper.UserAlreadyExistsException;
+import vn.iotstar.userservice.exception.UserAlreadyExistsException;
 
 import java.util.UUID;
 

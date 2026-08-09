@@ -6,7 +6,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import vn.iotstar.userservice.util.Plan;
-import vn.iotstar.utils.exceptions.wrapper.BadRequestException;
+import vn.iotstar.userservice.exception.BadRequestException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;

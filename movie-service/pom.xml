@@ -49,11 +49,6 @@
             <artifactId>lombok</artifactId>
             <scope>annotationProcessor</scope>
         </dependency>
-        <dependency>
-            <groupId>vn.iotstar</groupId>
-            <artifactId>utils</artifactId>
-            <version>0.0.1</version>
-        </dependency>
 
         <!-- Data store. Chỉ MongoDB: entity ở service này là document, không phải bảng quan hệ.
              spring-boot-starter-data-jpa từng được khai báo ở đây nhưng không có datasource nào

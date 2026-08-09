@@ -11,7 +11,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import vn.iotstar.movieservice.model.dto.ArtistRequest;
 import vn.iotstar.movieservice.service.ArtistService;
-import vn.iotstar.utils.constants.GenericResponse;
+import vn.iotstar.movieservice.common.GenericResponse;
 
 @RestController
 @RequestMapping("/api/v1/artists")

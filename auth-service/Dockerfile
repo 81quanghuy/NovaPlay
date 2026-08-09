@@ -1,17 +1,27 @@
 # Image production cho auth-service.
 #
-# Build từ thư mục gốc của repo để composite build còn thấy được module utils:
-#   docker build -f auth-service/Dockerfile -t novaplay/authservice:v0.0.1 .
+# Service đứng độc lập, build context là chính thư mục auth-service:
+#   docker build -t novaplay/authservice:v0.0.1 auth-service/
 
 # ---- Giai đoạn build ----
 FROM eclipse-temurin:25-jdk-alpine AS build
 WORKDIR /build
 
-# settings.gradle của auth-service dùng includeBuild('../utils') nên cần copy cả repo
-# (.dockerignore đã loại target/, build/ và các file rác khác).
-COPY . .
-WORKDIR /build/auth-service
-RUN chmod +x gradlew && ./gradlew dependencies --no-daemon -q
+COPY gradlew ./gradlew
+COPY gradlew.bat ./gradlew.bat
+COPY gradle.properties ./gradle.properties
+COPY settings.gradle ./settings.gradle
+COPY build.gradle ./build.gradle
+COPY gradle ./gradle
+
+COPY src ./src
+
+# Build auth-service
+WORKDIR /build
+
+RUN chmod +x gradlew && \
+    ./gradlew dependencies --no-daemon -q
+
 RUN ./gradlew bootJar -x test --no-daemon -q
 
 # ---- Giai đoạn chạy ----
@@ -31,8 +41,7 @@ RUN mkdir -p /app/libs && \
 
 # Gradle Spring Boot plugin đặt jar tại build/libs/<rootProject.name>-<version>.jar
 # rootProject.name = 'authservice', version = '0.0.1' → authservice-0.0.1.jar
-COPY --from=build --chown=novaplay:novaplay /build/auth-service/build/libs/authservice-0.0.1.jar app.jar
-
+COPY --from=build --chown=novaplay:novaplay /build/build/libs/authservice-0.0.1.jar app.jar
 USER novaplay
 EXPOSE 8000
 

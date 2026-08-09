@@ -23,8 +23,7 @@
         <jib-maven-plugin.version>3.4.2</jib-maven-plugin.version>
     </properties>
     <modules>
-        <module>utils</module>
-<module>movie-service</module>
+        <module>movie-service</module>
         <module>notification-service</module>
         <module>payment-service</module>
         <module>promotion-service</module>

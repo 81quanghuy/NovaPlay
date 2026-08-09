@@ -1,4 +1,0 @@
-# Đường dẫn đến public key
-rsa:
-  public:
-    key-location: classpath:certs/public.pem

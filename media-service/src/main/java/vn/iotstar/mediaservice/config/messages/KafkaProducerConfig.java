@@ -11,8 +11,8 @@ import org.springframework.kafka.core.DefaultKafkaProducerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.core.ProducerFactory;
 import org.springframework.kafka.support.serializer.JsonSerializer;
-import vn.iotstar.utils.constants.TopicNames;
-import vn.iotstar.utils.dto.MediaReadyEvent;
+import vn.iotstar.mediaservice.util.TopicNames;
+import vn.iotstar.mediaservice.common.dto.MediaReadyEvent;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -31,6 +31,13 @@ public class KafkaProducerConfig {
         configProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
         configProps.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
         configProps.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class);
+
+        // Ghi tên logic "mediaReady" vào header __TypeId__ thay vì FQCN của class.
+        // Mỗi service nay giữ bản MediaReadyEvent riêng trong package của mình, nên nếu để mặc
+        // định thì consumer (user-service) sẽ nhận được một FQCN thuộc package của media-service
+        // và không load nổi class. Tên logic tách hợp đồng trên wire khỏi cấu trúc package.
+        configProps.put(JsonSerializer.TYPE_MAPPINGS,
+                "mediaReady:vn.iotstar.mediaservice.common.dto.MediaReadyEvent");
 
         //================================================================================
         // CÁC CẤU HÌNH CHI TIẾT VỀ ĐỘ TIN CẬY VÀ HIỆU SUẤT

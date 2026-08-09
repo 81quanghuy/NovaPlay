@@ -28,12 +28,12 @@ import vn.iotstar.authservice.service.OtpService;
 import vn.iotstar.authservice.service.RateLimiterService;
 import vn.iotstar.authservice.service.TokenService;
 import vn.iotstar.authservice.util.RoleName;
-import vn.iotstar.outbox.OutboxEventPublisher;
-import vn.iotstar.utils.exceptions.wrapper.BadRequestException;
-import vn.iotstar.utils.exceptions.wrapper.ForbiddenException;
-import vn.iotstar.utils.exceptions.wrapper.ResourceNotFoundException;
-import vn.iotstar.utils.exceptions.wrapper.TooManyRequestsException;
-import vn.iotstar.utils.exceptions.wrapper.UserAlreadyExistsException;
+import vn.iotstar.authservice.outbox.OutboxEventPublisher;
+import vn.iotstar.authservice.exception.BadRequestException;
+import vn.iotstar.authservice.exception.ForbiddenException;
+import vn.iotstar.authservice.exception.ResourceNotFoundException;
+import vn.iotstar.authservice.exception.TooManyRequestsException;
+import vn.iotstar.authservice.exception.UserAlreadyExistsException;
 
 import java.util.Optional;
 import java.util.Set;

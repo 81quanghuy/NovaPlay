@@ -1,0 +1,22 @@
+# Bitnami PostgreSQL cho auth-service (cluster dev, docker-desktop).
+# Chart free tier hiện chỉ còn image tag `latest` — để nguyên default của chart.
+#
+#   helm install postgres bitnami/postgresql -f postgresql-values.yaml
+#
+# fullnameOverride=postgres => Service tên đúng "postgres" (khớp DATASOURCE_URL trong
+# auth-service-config). Schema được nạp thủ công sau khi pod Ready (xem README.md),
+# vì prod dùng ddl-auto=validate nên bảng phải có sẵn.
+fullnameOverride: postgres
+
+auth:
+  username: admin
+  password: admin123
+  database: auth_service
+
+primary:
+  # Dev: dữ liệu ephemeral, tránh phụ thuộc PVC/StorageClass.
+  persistence:
+    enabled: false
+
+# docker-desktop node nhỏ — nới lỏng resource preset.
+primaryResourcesPreset: "small"
