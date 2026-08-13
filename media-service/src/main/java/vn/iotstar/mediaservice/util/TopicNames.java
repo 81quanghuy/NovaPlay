@@ -18,8 +18,18 @@ public final class TopicNames {
     /** Tài khoản vừa được kích hoạt. Producer: auth-service. */
     public static final String ACTIVATE_ACCOUNT = "activate-account.v1";
 
-    /** Media đã xử lý xong. Producer: media-service. */
+    /**
+     * Ảnh đã xử lý xong. Producer: media-service. CHỈ dùng cho {@code image/*} — user-service's
+     * consumer áp mọi event trên topic này thành cập nhật avatar không điều kiện, publish video
+     * vào đây sẽ ghi đè avatar người dùng. Video dùng {@link #VIDEO_SOURCE_READY} riêng.
+     */
     public static final String SEND_STATUS_MEDIA = "send-status-media.v1";
+
+    /** Video thô vừa upload xong, sẵn sàng transcode. Producer: media-service. Consumer: transcoding-worker. */
+    public static final String VIDEO_SOURCE_READY = "video-source-ready.v1";
+
+    /** HLS transcode xong. Producer: media-service (khi worker gọi PATCH /complete). */
+    public static final String VIDEO_TRANSCODE_COMPLETED = "video-transcode-completed.v1";
 
     /**
      * Yêu cầu gửi thông báo đa kênh. Chưa có producer nào — đây là điểm mở rộng để các service

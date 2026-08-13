@@ -24,10 +24,10 @@ import vn.iotstar.mediaservice.config.StorageClientConfig.ProviderClients;
 import vn.iotstar.mediaservice.entity.Media;
 import vn.iotstar.mediaservice.repository.MediaRepository;
 import vn.iotstar.mediaservice.service.MediaStorageService;
+import vn.iotstar.mediaservice.service.VideoManifestService;
 import vn.iotstar.mediaservice.storage.StorageProvider;
 import vn.iotstar.mediaservice.storage.StorageProviderProperties;
 import vn.iotstar.mediaservice.storage.StorageProviderResolver;
-import vn.iotstar.mediaservice.common.dto.MediaReadyEvent;
 import vn.iotstar.mediaservice.common.dto.UploadRequestDto;
 import vn.iotstar.mediaservice.common.dto.UploadResponseDto;
 
@@ -115,7 +115,8 @@ class S3UploadFlowIT {
         mediaRepository = mock(MediaRepository.class);
         when(mediaRepository.save(any(Media.class))).thenAnswer(inv -> inv.getArgument(0));
         @SuppressWarnings("unchecked")
-        KafkaTemplate<String, MediaReadyEvent> kafkaTemplate = mock(KafkaTemplate.class);
+        KafkaTemplate<String, Object> kafkaTemplate = mock(KafkaTemplate.class);
+        VideoManifestService videoManifestService = mock(VideoManifestService.class);
 
         StorageProviderProperties properties = new StorageProviderProperties();
         properties.getAwsS3().setBucketName(BUCKET);
@@ -130,7 +131,8 @@ class S3UploadFlowIT {
         when(openFeatureClient.getStringValue(anyString(), anyString())).thenReturn("aws-s3");
         StorageProviderResolver storageProviderResolver = new StorageProviderResolver(openFeatureClient);
 
-        mediaService = new MediaServiceImpl(mediaStorageService, storageProviderResolver, mediaRepository, kafkaTemplate);
+        mediaService = new MediaServiceImpl(
+                mediaStorageService, storageProviderResolver, mediaRepository, videoManifestService, kafkaTemplate);
     }
 
     @AfterEach

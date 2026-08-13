@@ -1,6 +1,9 @@
 package vn.iotstar.mediaservice.service;
 
+import vn.iotstar.mediaservice.common.dto.CompletedPartDto;
 import vn.iotstar.mediaservice.storage.StorageProvider;
+
+import java.util.List;
 
 /**
  * Thao tác object storage, tách khỏi AWS SDK để {@link MediaService}/{@code MediaServiceImpl} không
@@ -24,4 +27,19 @@ public interface MediaStorageService {
     void deleteObjectQuietly(StorageProvider provider, String key);
 
     String generateCdnUrl(StorageProvider provider, String key);
+
+    // ---------- Multipart upload (bắt buộc cho video — single-PUT presigned URL không dùng được
+    // với file cỡ GB: mất kết nối giữa chừng là mất toàn bộ, không resume được) ----------
+
+    /** Khởi tạo một multipart upload, trả về uploadId để ký từng part. */
+    String initiateMultipartUpload(StorageProvider provider, String key, String contentType);
+
+    /** Presigned PUT URL cho một part cụ thể (1-based, tối đa 10 000 theo giới hạn S3). */
+    String presignUploadPart(StorageProvider provider, String key, String uploadId, int partNumber);
+
+    /** Ghép các part đã upload thành object hoàn chỉnh. ETag của mỗi part bắt buộc phải khớp. */
+    void completeMultipartUpload(StorageProvider provider, String key, String uploadId, List<CompletedPartDto> parts);
+
+    /** Huỷ upload dở dang, giải phóng các part đã lưu tạm trên storage. */
+    void abortMultipartUpload(StorageProvider provider, String key, String uploadId);
 }

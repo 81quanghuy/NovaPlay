@@ -16,9 +16,15 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import jakarta.validation.Valid;
 import vn.iotstar.mediaservice.entity.Media;
 import vn.iotstar.mediaservice.service.MediaService;
 import vn.iotstar.mediaservice.common.GenericResponse;
+import vn.iotstar.mediaservice.common.dto.AbortMultipartRequest;
+import vn.iotstar.mediaservice.common.dto.CompleteMultipartRequest;
+import vn.iotstar.mediaservice.common.dto.MultipartInitRequest;
+import vn.iotstar.mediaservice.common.dto.MultipartInitResponse;
+import vn.iotstar.mediaservice.common.dto.PartUrlResponse;
 import vn.iotstar.mediaservice.common.dto.UploadRequestDto;
 import vn.iotstar.mediaservice.common.dto.UploadResponseDto;
 
@@ -41,6 +47,33 @@ public class MediaController {
     @PostMapping("/upload/request")
     public UploadResponseDto requestUploadUrl(@RequestBody UploadRequestDto request) {
         return mediaService.requestUploadUrl(request);
+    }
+
+    @Operation(summary = "[Video] Khởi tạo multipart upload — bắt buộc cho file lớn hơn ngưỡng single-PUT")
+    @PostMapping("/upload/multipart/init")
+    public MultipartInitResponse initiateMultipartUpload(@RequestBody MultipartInitRequest request) {
+        return mediaService.initiateMultipartUpload(request);
+    }
+
+    @Operation(summary = "[Video] Presigned PUT URL cho một phần cụ thể của multipart upload")
+    @PostMapping("/upload/multipart/part-url")
+    public PartUrlResponse presignUploadPart(
+            @RequestParam String mediaId, @RequestParam String uploadId, @RequestParam int partNumber) {
+        return mediaService.presignUploadPart(mediaId, uploadId, partNumber);
+    }
+
+    @Operation(summary = "[Video] Hoàn tất multipart upload sau khi mọi phần đã PUT xong")
+    @PostMapping("/upload/multipart/complete")
+    public ResponseEntity<GenericResponse> completeMultipartUpload(@Valid @RequestBody CompleteMultipartRequest request) {
+        mediaService.completeMultipartUpload(request);
+        return ResponseEntity.ok(GenericResponse.ok("Multipart upload completed"));
+    }
+
+    @Operation(summary = "[Video] Huỷ multipart upload dở dang")
+    @PostMapping("/upload/multipart/abort")
+    public ResponseEntity<GenericResponse> abortMultipartUpload(@Valid @RequestBody AbortMultipartRequest request) {
+        mediaService.abortMultipartUpload(request.mediaId(), request.uploadId());
+        return ResponseEntity.ok(GenericResponse.ok("Multipart upload aborted"));
     }
 
     @Operation(summary = "Media của người dùng hiện tại, có phân trang")

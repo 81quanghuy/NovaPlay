@@ -9,6 +9,7 @@ import org.springframework.data.mongodb.core.mapping.Field;
 import vn.iotstar.movieservice.model.entity.embedded.CastMember;
 import vn.iotstar.movieservice.model.entity.embedded.Episode;
 import vn.iotstar.movieservice.model.entity.embedded.GenreRef;
+import vn.iotstar.movieservice.model.enums.MinPlan;
 import vn.iotstar.movieservice.model.enums.MovieStatus;
 import vn.iotstar.movieservice.utils.Constants;
 import vn.iotstar.movieservice.common.audit.AuditableDocument;
@@ -60,6 +61,10 @@ public class Movie extends AuditableDocument implements Serializable {
     @Field(Constants.MOVIE_POSTER_URL)
     private String posterUrl;
 
+    /** Id đục trỏ vào media-service, chỉ có ý nghĩa khi phim lẻ ({@code !isSeries}). */
+    @Field(Constants.MOVIE_MEDIA_ID)
+    private String mediaId;
+
     // @Builder.Default là bắt buộc trên mọi field có giá trị khởi tạo: không có nó Lombok âm thầm
     // bỏ qua giá trị này và builder sinh ra false/null. Đây đúng là bug mà user-service từng dính
     // với UserProfile.active, khiến mọi user đăng ký qua Kafka đều bị vô hiệu hoá.
@@ -70,6 +75,11 @@ public class Movie extends AuditableDocument implements Serializable {
     @Builder.Default
     @Field(Constants.MOVIE_STATUS)
     private MovieStatus status = MovieStatus.DRAFT;
+
+    /** Gói cước tối thiểu cần để xem — streaming-service so sánh với gói của user trước khi phát. */
+    @Builder.Default
+    @Field(Constants.MOVIE_MIN_PLAN)
+    private MinPlan minPlan = MinPlan.MEMBER;
 
     @Builder.Default
     @Field(Constants.MOVIE_GENRES)
@@ -95,6 +105,7 @@ public class Movie extends AuditableDocument implements Serializable {
         if (posterUrl != null) posterUrl = posterUrl.trim();
         if (slug != null) slug = slug.trim().toLowerCase();
         if (status == null) status = MovieStatus.DRAFT;
+        if (minPlan == null) minPlan = MinPlan.MEMBER;
 
         if (genres == null) genres = new ArrayList<>();
         if (cast == null) cast = new ArrayList<>();
@@ -106,6 +117,9 @@ public class Movie extends AuditableDocument implements Serializable {
         } else {
             episodes.sort(Comparator.comparing(
                     Episode::getEpisodeNumber, Comparator.nullsLast(Comparator.naturalOrder())));
+            // Đối xứng với episodes.clear() ở trên: phim bộ không dùng mediaId của Movie, video
+            // nằm ở từng Episode.mediaId. Giữ lại sẽ tạo dữ liệu mâu thuẫn khi admin đổi is_series.
+            mediaId = null;
         }
     }
 }

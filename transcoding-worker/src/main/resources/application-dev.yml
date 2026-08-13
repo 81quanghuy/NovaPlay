@@ -1,0 +1,76 @@
+spring:
+  config:
+    activate:
+      on-profile: dev
+  kafka:
+    bootstrap-servers: localhost:9092
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
+
+server:
+  port: ${SERVER_PORT:8400}
+  shutdown: graceful
+
+storage:
+  providers:
+    # Cùng bucket MinIO dev với media-service — worker đọc/ghi trực tiếp bằng credentials thật,
+    # không qua presigned URL (đó chỉ dành cho trình duyệt).
+    aws-s3:
+      region: us-east-1
+      endpoint: http://localhost:9010
+      bucket-name: novaplay-media-dev
+      force-path-style: true
+    cloudflare-r2:
+      region: auto
+      endpoint: ${R2_ENDPOINT:}
+      bucket-name: ${R2_BUCKET_NAME:novaplay-media-dev-r2}
+      access-key-id: ${R2_ACCESS_KEY_ID:}
+      secret-access-key: ${R2_SECRET_ACCESS_KEY:}
+      force-path-style: true
+    backblaze-b2:
+      region: ${B2_REGION:us-west-002}
+      endpoint: ${B2_ENDPOINT:}
+      bucket-name: ${B2_BUCKET_NAME:novaplay-media-dev-b2}
+      access-key-id: ${B2_KEY_ID:}
+      secret-access-key: ${B2_APPLICATION_KEY:}
+      force-path-style: true
+
+transcode:
+  ffprobe-binary: ffprobe
+  ffmpeg-binary: ffmpeg
+  scratch-dir: ${TRANSCODE_SCRATCH_DIR:./transcoding-scratch}
+  # Chỉ dùng cho dev local — KHÔNG phải secret thật, giá trị base64 của 32 byte cố định để mọi
+  # dev machine ra cùng một kết quả. Prod BẮT BUỘC set qua biến môi trường, xem application-prod.yml.
+  key-wrap-secret: ${TRANSCODE_KEY_WRAP_SECRET:MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=}
+
+application:
+  security:
+    gateway-secret:
+      value: ""
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  endpoint:
+    health:
+      show-details: when-authorized
+      probes:
+        enabled: true
+  health:
+    livenessstate:
+      enabled: true
+    readinessstate:
+      enabled: true
+  tracing:
+    sampling:
+      probability: 1.0
+  metrics:
+    tags:
+      application: ${spring.application.name}
+
+logging:
+  level:
+    root: INFO
+    vn.iotstar: DEBUG

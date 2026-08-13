@@ -1,0 +1,99 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: transcoding-worker
+  labels:
+    app: transcoding-worker
+spec:
+  # Không có HPA theo CPU ở đây (cố ý): ffmpeg bão hoà CPU ngay cả khi vận hành bình thường,
+  # nên CPU utilization vô nghĩa làm tín hiệu scale. Scale bằng cách chỉnh replicas thủ công, hoặc
+  # gắn KEDA ScaledObject theo độ sâu queue Kafka khi hạ tầng có KEDA — chưa có ở repo này.
+  replicas: 1
+  selector:
+    matchLabels:
+      app: transcoding-worker
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: transcoding-worker
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8400"
+        prometheus.io/path: "/actuator/prometheus"
+    spec:
+      # Rất dài so với các service khác (45s): một job transcode có thể chạy hàng chục phút, pod
+      # bị xoá giữa chừng phải kịp cho job hiện tại hoàn tất hoặc thất bại sạch sẽ, không bị kill.
+      terminationGracePeriodSeconds: 600
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+      containers:
+        - name: transcoding-worker
+          image: novaplay/transcoding-worker:v0.0.1
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8400
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: prod
+            - name: JAVA_TOOL_OPTIONS
+              value: "-javaagent:/app/libs/opentelemetry-javaagent.jar"
+            - name: OTEL_SERVICE_NAME
+              value: transcoding-worker
+          envFrom:
+            - configMapRef:
+                name: transcoding-worker-config
+            - secretRef:
+                name: transcoding-worker-secrets
+          # Lớn hơn hẳn mọi service khác trong repo: ffmpeg multi-rendition encode ăn nhiều CPU/
+          # RAM cùng lúc theo thiết kế (một lần chạy sinh cả 4 rendition), không phải bug cần tối ưu.
+          resources:
+            requests:
+              memory: "4Gi"
+              cpu: "2"
+            limits:
+              memory: "8Gi"
+              cpu: "4"
+          startupProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: http
+            failureThreshold: 30
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: http
+            periodSeconds: 15
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: http
+            periodSeconds: 10
+            failureThreshold: 3
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: scratch
+              mountPath: /scratch
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        # Video thô + segment HLS trong lúc xử lý — /tmp mặc định của các service khác (không giới
+        # hạn size rõ ràng) quá rủi ro cho file cỡ GB; đặt trần tường minh để một job hỏng không
+        # làm đầy đĩa node.
+        - name: scratch
+          emptyDir:
+            sizeLimit: 100Gi

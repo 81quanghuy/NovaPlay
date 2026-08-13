@@ -21,10 +21,10 @@ import software.amazon.awssdk.services.s3.model.S3Exception;
 import vn.iotstar.mediaservice.entity.Media;
 import vn.iotstar.mediaservice.repository.MediaRepository;
 import vn.iotstar.mediaservice.service.MediaStorageService;
+import vn.iotstar.mediaservice.service.VideoManifestService;
 import vn.iotstar.mediaservice.storage.StorageProvider;
 import vn.iotstar.mediaservice.storage.StorageProviderResolver;
 import vn.iotstar.mediaservice.util.MediaStatus;
-import vn.iotstar.mediaservice.common.dto.MediaReadyEvent;
 import vn.iotstar.mediaservice.common.dto.UploadRequestDto;
 import vn.iotstar.mediaservice.common.dto.UploadResponseDto;
 import vn.iotstar.mediaservice.exception.BadRequestException;
@@ -50,7 +50,8 @@ class MediaServiceImplTest {
     @Mock private MediaStorageService mediaStorageService;
     @Mock private StorageProviderResolver storageProviderResolver;
     @Mock private MediaRepository mediaRepository;
-    @Mock private org.springframework.kafka.core.KafkaTemplate<String, MediaReadyEvent> kafkaTemplate;
+    @Mock private VideoManifestService videoManifestService;
+    @Mock private org.springframework.kafka.core.KafkaTemplate<String, Object> kafkaTemplate;
 
     @InjectMocks
     private MediaServiceImpl service;
@@ -187,7 +188,7 @@ class MediaServiceImplTest {
         @Test
         @DisplayName("file vượt quá kích thước tối đa bị từ chối")
         void rejectsOversizedFile() {
-            long tooBig = MediaServiceImpl.MAX_UPLOAD_SIZE_BYTES + 1;
+            long tooBig = MediaServiceImpl.MAX_UPLOAD_SIZE_BYTES_IMAGE + 1;
             UploadRequestDto request = new UploadRequestDto("owner-1", "big.jpg", "image/jpeg", tooBig);
 
             assertThatThrownBy(() -> service.requestUploadUrl(request))
@@ -387,6 +388,62 @@ class MediaServiceImplTest {
             inOrder.verify(mediaStorageService).deleteObjectQuietly(StorageProvider.AWS_S3, "media/owner-1/m1/orphan.jpg");
             inOrder.verify(mediaRepository).save(media);
             assertThat(media.getStatus()).isEqualTo(MediaStatus.FAILED);
+        }
+    }
+
+    // ---------- processSuccessfulUpload: fork theo content-type (tách khỏi send-status-media.v1) ----------
+
+    @Nested
+    @DisplayName("processSuccessfulUpload — fork theo content-type")
+    class ProcessSuccessfulUpload {
+
+        private Media pendingImage() {
+            Media media = new Media();
+            media.setId("m1");
+            media.setOwnerId("owner-1");
+            media.setS3Key("media/owner-1/m1/photo.jpg");
+            media.setContentType("image/jpeg");
+            media.setStatus(MediaStatus.PENDING);
+            media.setStorageProvider(StorageProvider.AWS_S3);
+            return media;
+        }
+
+        private Media pendingVideo() {
+            Media media = new Media();
+            media.setId("m1");
+            media.setOwnerId("owner-1");
+            media.setS3Key("media/owner-1/m1/movie.mp4");
+            media.setContentType("video/mp4");
+            media.setStatus(MediaStatus.PENDING);
+            media.setStorageProvider(StorageProvider.AWS_S3);
+            return media;
+        }
+
+        @Test
+        @DisplayName("ảnh: set cdnUrl và gửi MediaReadyEvent lên send-status-media.v1 như trước")
+        void imagePublishesMediaReadyEvent() {
+            when(mediaStorageService.generateCdnUrl(any(), any())).thenReturn("https://cdn.local/photo.jpg");
+            Media media = pendingImage();
+
+            service.processSuccessfulUpload(media);
+
+            assertThat(media.getStatus()).isEqualTo(MediaStatus.COMPLETED);
+            assertThat(media.getCdnUrl()).isEqualTo("https://cdn.local/photo.jpg");
+            verify(kafkaTemplate).executeInTransaction(any());
+            verifyNoInteractions(videoManifestService);
+        }
+
+        @Test
+        @DisplayName("video: KHÔNG gửi gì lên send-status-media.v1 (chặn ghi đè avatar), tạo VideoManifest QUEUED thay thế")
+        void videoNeverTouchesMediaReadyTopic() {
+            Media media = pendingVideo();
+
+            service.processSuccessfulUpload(media);
+
+            assertThat(media.getStatus()).isEqualTo(MediaStatus.COMPLETED);
+            assertThat(media.getCdnUrl()).isNull();
+            verifyNoInteractions(kafkaTemplate);
+            verify(videoManifestService).createQueuedFor(media);
         }
     }
 

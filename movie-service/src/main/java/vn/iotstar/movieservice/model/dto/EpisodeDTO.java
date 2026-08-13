@@ -13,8 +13,8 @@ public record EpisodeDTO(
         @Schema(description = "Tiêu đề tập.", example = "Bí mật bị chôn giấu")
         String title,
 
-        @Schema(description = "URL video của tập.", format = "uri")
-        String videoUrl,
+        @Schema(description = "Id đục trỏ vào media-service; dùng streaming-service để phân giải URL phát.")
+        String mediaId,
 
         @Schema(description = "Thời lượng tập tính bằng phút.", example = "45")
         Integer durationInMinutes

@@ -28,11 +28,13 @@ public class Episode implements Serializable {
     private String title;
 
     /**
-     * Nợ kỹ thuật đã biết: quyền sở hữu URL phát video thuộc về streaming-service. Catalog nên chỉ
-     * giữ một asset id. Giữ nguyên ở đợt này để không mở rộng phạm vi.
+     * Id đục trỏ vào một asset trong media-service (Media/VideoManifest). Catalog không bao giờ
+     * gọi sang media-service để xác thực giá trị này — chỉ streaming-service phân giải nó thành
+     * URL phát được lúc xem, nên id treo (media chưa upload/bị xoá) chỉ lộ ra thành 404 khi phát,
+     * không ảnh hưởng catalog. Vì là id đục, an toàn khi trả về qua endpoint public GET.
      */
-    @Field(Constants.EPISODE_VIDEO_URL)
-    private String videoUrl;
+    @Field(Constants.EPISODE_MEDIA_ID)
+    private String mediaId;
 
     @Field(Constants.EPISODE_DURATION)
     private Integer durationInMinutes;

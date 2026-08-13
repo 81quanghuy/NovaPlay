@@ -85,9 +85,8 @@ public class UserProfileServiceImpl implements UserProfileService {
         if (request.locale() != null) {
             profile.setLocale(request.locale());
         }
-        if (request.plan() != null) {
-            profile.setPlan(request.plan());
-        }
+        // KHÔNG nhận plan từ input người dùng — plan chỉ đổi qua updatePlan() (ADMIN-only), xem
+        // đó để biết lý do: cho phép tự đặt ở đây từng là một lỗ hổng cho phép user tự nâng lên PRO.
         if (request.marketingOptIn() != null) {
             boolean current = profile.isMarketingOptIn();
             profile.setMarketingOptIn(request.marketingOptIn());
@@ -100,6 +99,16 @@ public class UserProfileServiceImpl implements UserProfileService {
         UserProfile saved = userProfileRepository.save(profile);
         metrics.getProfileUpdated().increment();
         auditLogger.profileUpdated(email);
+        return UserProfileMapper.toUserProfileDTO(saved);
+    }
+
+    @Override
+    public UserProfileDTO updatePlan(String email, Plan plan) {
+        UserProfile profile = userProfileLookup.findByEmailOrThrow(email);
+        Plan oldPlan = profile.getPlan();
+        profile.setPlan(plan);
+        UserProfile saved = userProfileRepository.save(profile);
+        auditLogger.planChanged(email, oldPlan, plan);
         return UserProfileMapper.toUserProfileDTO(saved);
     }
 

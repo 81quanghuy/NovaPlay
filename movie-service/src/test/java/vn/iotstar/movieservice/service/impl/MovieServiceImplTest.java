@@ -53,7 +53,7 @@ class MovieServiceImplTest {
     }
 
     private MovieRequest request(String title, boolean series, List<EpisodeRequest> episodes) {
-        return new MovieRequest(title, "Mô tả", null, null, null, series, null, null, episodes);
+        return new MovieRequest(title, "Mô tả", null, null, null, null, series, null, null, null, episodes);
     }
 
     @Nested
@@ -129,7 +129,7 @@ class MovieServiceImplTest {
         void rejectsUnknownGenre() {
             when(genreRepository.findAllByIdIn(any())).thenReturn(List.of());
 
-            MovieRequest req = new MovieRequest("Phim", "Mô tả", null, null, null, false,
+            MovieRequest req = new MovieRequest("Phim", "Mô tả", null, null, null, null, false, null,
                     List.of("khong-ton-tai"), null, null);
 
             assertThatThrownBy(() -> service.create(req))
@@ -143,7 +143,7 @@ class MovieServiceImplTest {
             Genre genre = Genre.builder().id("g1").name("Hành động").slug("hanh-dong").build();
             when(genreRepository.findAllByIdIn(List.of("g1"))).thenReturn(List.of(genre));
 
-            MovieRequest req = new MovieRequest("Phim", "Mô tả", null, null, null, false,
+            MovieRequest req = new MovieRequest("Phim", "Mô tả", null, null, null, null, false, null,
                     List.of("g1"), null, null);
             service.create(req);
 
@@ -163,7 +163,7 @@ class MovieServiceImplTest {
             Artist artist = Artist.builder().id("a1").fullName("Trấn Thành").build();
             when(artistRepository.findAllByIdIn(List.of("a1"))).thenReturn(List.of(artist));
 
-            MovieRequest req = new MovieRequest("Phim", "Mô tả", null, null, null, false, null,
+            MovieRequest req = new MovieRequest("Phim", "Mô tả", null, null, null, null, false, null, null,
                     List.of(new CastMemberRequest("a1", "ACTOR", "Ba Sang")), null);
             service.create(req);
 

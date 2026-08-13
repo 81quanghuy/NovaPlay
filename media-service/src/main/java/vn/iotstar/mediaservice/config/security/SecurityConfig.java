@@ -46,12 +46,24 @@ public class SecurityConfig {
             "/api/v1/media"
     };
 
+    /**
+     * Manifest HLS phải đọc/ghi được bởi streaming-service và transcoding-worker — hai service
+     * không phải chủ sở hữu video gốc, nên KHÔNG dùng owner-gate như {@code /api/v1/media/{id}}.
+     * {@code ROLE_SERVICE} là authority chỉ tồn tại ở header {@code X-User-Roles} do một service
+     * khác tự gắn (qua Feign interceptor) — không bao giờ được mint vào JWT hay seed vào bảng roles
+     * của auth-service, xem ghi chú tại {@link HeaderAuthenticationFilter}.
+     */
+    private static final String[] SERVICE_OR_ADMIN_ENDPOINTS = {
+            "/api/v1/media/video-manifests/**"
+    };
+
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http.csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers(PUBLIC_ENDPOINTS).permitAll()
                         .requestMatchers(HttpMethod.GET, ADMIN_ONLY_ENDPOINTS).hasRole("ADMIN")
+                        .requestMatchers(SERVICE_OR_ADMIN_ENDPOINTS).hasAnyRole("ADMIN", "SERVICE")
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session

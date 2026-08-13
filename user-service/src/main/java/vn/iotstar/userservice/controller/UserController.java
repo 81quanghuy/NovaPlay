@@ -10,7 +10,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import vn.iotstar.userservice.model.dto.UpdatePlanRequest;
 import vn.iotstar.userservice.model.dto.UpdateUserProfileRequest;
 import vn.iotstar.userservice.model.dto.UserProfileDTO;
 import vn.iotstar.userservice.service.UserProfileService;
@@ -45,6 +47,21 @@ public class UserController {
             @Valid @RequestBody UpdateUserProfileRequest request) {
         UserProfileDTO updated = userProfileService.updateProfile(email, request);
         return ResponseEntity.ok(GenericResponse.success(updated, "Profile updated successfully"));
+    }
+
+    /**
+     * Đường DUY NHẤT để đổi gói cước — {@code PUT /me} (updateProfile) không còn nhận field
+     * {@code plan} trong request nữa, chính vì lỗ hổng cho phép user tự nâng mình lên PRO đã bị
+     * phát hiện. Chỉ ADMIN gọi được.
+     */
+    @Operation(summary = "[ADMIN] Đổi gói cước của một người dùng", security = @SecurityRequirement(name = "bearer-jwt"))
+    @PreAuthorize("hasRole('ADMIN')")
+    @PatchMapping("/{email}/plan")
+    public ResponseEntity<GenericResponse> updatePlan(
+            @PathVariable String email,
+            @Valid @RequestBody UpdatePlanRequest request) {
+        UserProfileDTO updated = userProfileService.updatePlan(email, request.plan());
+        return ResponseEntity.ok(GenericResponse.success(updated, "Plan updated successfully"));
     }
 
     @Operation(summary = "Yêu cầu upload avatar mới", security = @SecurityRequirement(name = "bearer-jwt"))

@@ -1,0 +1,82 @@
+# Cấu hình production. Mọi giá trị nhạy cảm và phụ thuộc môi trường đều đến từ biến môi trường.
+#
+# Biến bắt buộc: KAFKA_BOOTSTRAP_SERVERS, MEDIA_SERVICE_URI, GATEWAY_SHARED_SECRET,
+# AWS_REGION, AWS_S3_BUCKET_NAME, TRANSCODE_KEY_WRAP_SECRET (base64, 32 byte — CÙNG giá trị phải
+# được cấp cho streaming-service để mở lại khoá HLS lúc phát).
+#
+# Biến cho storage provider thay thế: giống media-service (R2_*, B2_*) — xem media-service's
+# application-prod.yml, cùng bucket nên phải trỏ đúng như nhau.
+spring:
+  config:
+    activate:
+      on-profile: prod
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
+
+server:
+  port: ${SERVER_PORT:8400}
+  shutdown: graceful
+
+services:
+  media: ${MEDIA_SERVICE_URI}
+
+storage:
+  providers:
+    aws-s3:
+      region: ${AWS_REGION}
+      bucket-name: ${AWS_S3_BUCKET_NAME}
+      force-path-style: false
+    cloudflare-r2:
+      region: auto
+      endpoint: https://${R2_ACCOUNT_ID:}.r2.cloudflarestorage.com
+      bucket-name: ${R2_BUCKET_NAME:}
+      access-key-id: ${R2_ACCESS_KEY_ID:}
+      secret-access-key: ${R2_SECRET_ACCESS_KEY:}
+      force-path-style: true
+    backblaze-b2:
+      region: ${B2_REGION:}
+      endpoint: ${B2_ENDPOINT:}
+      bucket-name: ${B2_BUCKET_NAME:}
+      access-key-id: ${B2_KEY_ID:}
+      secret-access-key: ${B2_APPLICATION_KEY:}
+      force-path-style: true
+
+transcode:
+  ffprobe-binary: ffprobe
+  ffmpeg-binary: ffmpeg
+  scratch-dir: ${TRANSCODE_SCRATCH_DIR:/scratch}
+  key-wrap-secret: ${TRANSCODE_KEY_WRAP_SECRET}
+
+application:
+  security:
+    gateway-secret:
+      value: ${GATEWAY_SHARED_SECRET}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  endpoint:
+    health:
+      show-details: when-authorized
+      probes:
+        enabled: true
+  health:
+    livenessstate:
+      enabled: true
+    readinessstate:
+      enabled: true
+  tracing:
+    sampling:
+      probability: ${TRACING_SAMPLE_RATE:0.1}
+  metrics:
+    tags:
+      application: ${spring.application.name}
+
+logging:
+  level:
+    root: INFO
+    vn.iotstar: INFO

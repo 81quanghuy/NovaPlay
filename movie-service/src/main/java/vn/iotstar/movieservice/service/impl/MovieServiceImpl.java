@@ -87,8 +87,10 @@ public class MovieServiceImpl implements MovieService {
                 .releaseDate(request.releaseDate())
                 .durationInMinutes(request.durationInMinutes())
                 .posterUrl(request.posterUrl())
+                .mediaId(request.mediaId())
                 .isSeries(Boolean.TRUE.equals(request.series()))
                 .status(MovieStatus.DRAFT)
+                .minPlan(request.minPlan())
                 .genres(resolveGenres(request.genreIds()))
                 .cast(resolveCast(request.cast()))
                 .episodes(toEpisodes(request.episodes()))
@@ -112,7 +114,9 @@ public class MovieServiceImpl implements MovieService {
         movie.setReleaseDate(request.releaseDate());
         movie.setDurationInMinutes(request.durationInMinutes());
         movie.setPosterUrl(request.posterUrl());
+        movie.setMediaId(request.mediaId());
         movie.setSeries(Boolean.TRUE.equals(request.series()));
+        movie.setMinPlan(request.minPlan());
         movie.setGenres(resolveGenres(request.genreIds()));
         movie.setCast(resolveCast(request.cast()));
         movie.setEpisodes(toEpisodes(request.episodes()));
@@ -289,7 +293,7 @@ public class MovieServiceImpl implements MovieService {
                 .map(e -> Episode.builder()
                         .episodeNumber(e.episodeNumber())
                         .title(e.title())
-                        .videoUrl(e.videoUrl())
+                        .mediaId(e.mediaId())
                         .durationInMinutes(e.durationInMinutes())
                         .build())
                 .collect(Collectors.toCollection(ArrayList::new));

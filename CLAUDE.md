@@ -51,6 +51,10 @@ git push -u origin <new-branch-name>
 | user-service | 8700 | MongoDB + Kafka (consumer) |
 | movie-service | 8600 | MongoDB + Redis (cache) |
 | notification-service | 8900 | MongoDB + Redis (dedup) + Kafka (consumer) |
+| media-service | 8081 | MongoDB + Kafka (producer) |
+| config-service | 8500 | MongoDB |
+| streaming-service | 8200 | MongoDB + Redis (cache/dedup) + Kafka (consumer, optional) |
+| transcoding-worker | 8400 | — (không DB riêng; đọc/ghi trực tiếp object storage) |
 | Kafka UI | 8080 | — |
 | MailHog (SMTP giả, QA) | 1025 / 8025 | — |
 | Grafana | 3000 | — |

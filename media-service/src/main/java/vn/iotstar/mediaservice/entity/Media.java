@@ -64,6 +64,14 @@ public class Media extends AuditableDocument implements Serializable {
     private MediaStatus status = MediaStatus.PENDING;
 
     /**
+     * Chỉ set khi upload đi qua đường multipart (video lớn) — bắt buộc cho video vì presigned PUT
+     * đơn không dùng được với file GB (mất kết nối là mất sạch, không resume). Null với ảnh (vẫn
+     * dùng single-PUT presigned URL như trước).
+     */
+    @Field("multipartUploadId")
+    private String multipartUploadId;
+
+    /**
      * Provider đã dùng lúc upload — ghi lại tại thời điểm tạo record, KHÔNG BAO GIỜ suy ra lại từ
      * cờ sống sau đó. Xem {@link #getEffectiveStorageProvider()}.
      */

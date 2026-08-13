@@ -34,6 +34,12 @@ public class AuditLogger {
         log.info("event=user.profile.registered email={} traceId={}", email, traceId());
     }
 
+    /** [ADMIN] Thay đổi gói cước — điểm duy nhất plan được ghi, nên log này là nguồn audit đáng tin. */
+    public void planChanged(String email, Object oldPlan, Object newPlan) {
+        log.info("event=user.plan.changed email={} oldPlan={} newPlan={} traceId={}",
+                email, oldPlan, newPlan, traceId());
+    }
+
     private static String traceId() {
         String traceId = MDC.get("traceId");
         return traceId == null ? "none" : traceId;

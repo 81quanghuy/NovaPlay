@@ -57,7 +57,7 @@ class MovieControllerSecurityTest {
 
     private String validMovieJson() throws Exception {
         return objectMapper.writeValueAsString(new MovieRequest(
-                "Phim Test", "Mô tả phim test", null, null, null, false, null, null, null));
+                "Phim Test", "Mô tả phim test", null, null, null, null, false, null, null, null, null));
     }
 
     // ---------- Đọc công khai ----------

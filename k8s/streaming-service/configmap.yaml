@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: streaming-service-config
+  labels:
+    app: streaming-service
+# Chỉ chứa giá trị không nhạy cảm. Credential nằm ở streaming-service-secrets.
+data:
+  SERVER_PORT: "8200"
+  TRACING_SAMPLE_RATE: "0.1"
+  AWS_REGION: "us-east-1"
+  # Cùng bucket với media-service/transcoding-worker — nơi worker đã ghi output HLS vào.
+  AWS_S3_BUCKET_NAME: "novaplay-media"
+  SEGMENT_URL_DURATION_MINUTES: "360"
+  PLAYBACK_TOKEN_TTL_HOURS: "4"
+  VIEW_DEDUP_WINDOW_MINUTES: "30"

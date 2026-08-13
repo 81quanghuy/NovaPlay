@@ -2,3 +2,132 @@ spring:
   config:
     activate:
       on-profile: dev
+  data:
+    mongodb:
+      uri: mongodb://localhost:27017/streaming_service?replicaSet=rs0
+      auto-index-creation: true
+    redis:
+      host: localhost
+      port: 6379
+      timeout: 5s
+      lettuce:
+        pool:
+          max-active: 16
+          max-idle: 8
+          min-idle: 2
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
+
+server:
+  port: ${SERVER_PORT:8200}
+  shutdown: graceful
+
+storage:
+  providers:
+    # Cùng bucket MinIO dev với media-service/transcoding-worker — segment/playlist đã được worker
+    # ghi vào đây, streaming-service chỉ đọc + ký GET, không bao giờ ghi.
+    aws-s3:
+      region: us-east-1
+      endpoint: http://localhost:9010
+      bucket-name: novaplay-media-dev
+      force-path-style: true
+      presigned-url-duration-minutes: 360
+    cloudflare-r2:
+      region: auto
+      endpoint: ${R2_ENDPOINT:}
+      bucket-name: ${R2_BUCKET_NAME:novaplay-media-dev-r2}
+      access-key-id: ${R2_ACCESS_KEY_ID:}
+      secret-access-key: ${R2_SECRET_ACCESS_KEY:}
+      force-path-style: true
+      presigned-url-duration-minutes: 360
+    backblaze-b2:
+      region: ${B2_REGION:us-west-002}
+      endpoint: ${B2_ENDPOINT:}
+      bucket-name: ${B2_BUCKET_NAME:novaplay-media-dev-b2}
+      access-key-id: ${B2_KEY_ID:}
+      secret-access-key: ${B2_APPLICATION_KEY:}
+      force-path-style: true
+      presigned-url-duration-minutes: 360
+
+playback:
+  # Dev only — KHÔNG phải secret thật. Base64 của 32 byte cố định để mọi dev machine ra cùng kết quả.
+  token-secret: ${PLAYBACK_TOKEN_SECRET:MTIzNDU2Nzg5MGFiY2RlZjEyMzQ1Njc4OTBhYmNkZWY=}
+  token-ttl-hours: 4
+
+transcode:
+  # PHẢI khớp transcoding-worker's application-dev.yml — cùng bí mật để mở lại khoá worker đã bọc.
+  key-wrap-secret: ${TRANSCODE_KEY_WRAP_SECRET:MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=}
+
+streaming:
+  view-dedup-window-minutes: 30
+
+feign:
+  client:
+    config:
+      default:
+        connect-timeout: 1000
+        read-timeout: 3000
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      movieService:
+        register-health-indicator: true
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 10
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 10s
+        permitted-number-of-calls-in-half-open-state: 3
+        automatic-transition-from-open-to-half-open-enabled: true
+      mediaService:
+        register-health-indicator: true
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 10
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 10s
+        permitted-number-of-calls-in-half-open-state: 3
+        automatic-transition-from-open-to-half-open-enabled: true
+      userService:
+        register-health-indicator: true
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 10
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 10s
+        permitted-number-of-calls-in-half-open-state: 3
+        automatic-transition-from-open-to-half-open-enabled: true
+
+application:
+  security:
+    gateway-secret:
+      enabled: false
+      value: ""
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  endpoint:
+    health:
+      show-details: when-authorized
+      probes:
+        enabled: true
+      group:
+        readiness:
+          include: readinessState,mongo,redis
+  health:
+    livenessstate:
+      enabled: true
+    readinessstate:
+      enabled: true
+  tracing:
+    sampling:
+      probability: 1.0
+  metrics:
+    tags:
+      application: ${spring.application.name}
+
+logging:
+  level:
+    root: INFO
+    vn.iotstar: DEBUG

@@ -4,7 +4,11 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.transaction.annotation.Transactional;
 import vn.iotstar.mediaservice.entity.Media;
+import vn.iotstar.mediaservice.common.dto.CompleteMultipartRequest;
 import vn.iotstar.mediaservice.common.dto.MediaReadyEvent;
+import vn.iotstar.mediaservice.common.dto.MultipartInitRequest;
+import vn.iotstar.mediaservice.common.dto.MultipartInitResponse;
+import vn.iotstar.mediaservice.common.dto.PartUrlResponse;
 import vn.iotstar.mediaservice.common.dto.UploadRequestDto;
 import vn.iotstar.mediaservice.common.dto.UploadResponseDto;
 
@@ -27,6 +31,21 @@ public interface MediaService {
     boolean doesS3ObjectExist(Media media);
 
     UploadResponseDto requestUploadUrl(UploadRequestDto request);
+
+    /**
+     * Bắt buộc cho video: khởi tạo một multipart upload và tạo sẵn record {@code Media} ở trạng
+     * thái {@code PENDING}, tương tự {@link #requestUploadUrl}.
+     */
+    MultipartInitResponse initiateMultipartUpload(MultipartInitRequest request);
+
+    /** Presigned PUT URL cho một part cụ thể của multipart upload đã khởi tạo. */
+    PartUrlResponse presignUploadPart(String mediaId, String uploadId, int partNumber);
+
+    /** Ghép các part lại, đánh dấu Media hoàn tất — kích hoạt {@link #processSuccessfulUpload}. */
+    void completeMultipartUpload(CompleteMultipartRequest request);
+
+    /** Huỷ multipart upload dở dang; xoá luôn record {@code Media} PENDING tương ứng. */
+    void abortMultipartUpload(String mediaId, String uploadId);
 
     /**
      * Send media ready event to Kafka topic

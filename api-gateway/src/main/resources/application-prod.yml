@@ -201,6 +201,56 @@ spring:
                     redis-rate-limiter.burstCapacity: 40
                     key-resolver: "#{@userEmailOrIpKeyResolver}"
 
+            # Route riêng cho /hls/**, phải đứng TRƯỚC route streaming-service bên dưới — xem
+            # giải thích ở application-dev.yml.
+            - id: streaming-service-hls
+              uri: ${services.streaming}
+              predicates:
+                - Path=/api/v1/streaming/hls/**
+              filters:
+                - name: CircuitBreaker
+                  args:
+                    name: streaming-service-cb
+                    fallbackUri: forward:/fallback/message
+                - name: Retry
+                  args:
+                    retries: 3
+                    methods: GET
+                    backoff:
+                      firstBackoff: 100ms
+                      maxBackoff: 1000ms
+                      factor: 2
+                      basedOnPreviousValue: true
+                - name: RequestRateLimiter
+                  args:
+                    redis-rate-limiter.replenishRate: 200
+                    redis-rate-limiter.burstCapacity: 400
+                    key-resolver: "#{@userEmailOrIpKeyResolver}"
+
+            - id: streaming-service
+              uri: ${services.streaming}
+              predicates:
+                - Path=/api/v1/streaming/**
+              filters:
+                - name: CircuitBreaker
+                  args:
+                    name: streaming-service-cb
+                    fallbackUri: forward:/fallback/message
+                - name: Retry
+                  args:
+                    retries: 3
+                    methods: GET
+                    backoff:
+                      firstBackoff: 100ms
+                      maxBackoff: 1000ms
+                      factor: 2
+                      basedOnPreviousValue: true
+                - name: RequestRateLimiter
+                  args:
+                    redis-rate-limiter.replenishRate: 30
+                    redis-rate-limiter.burstCapacity: 60
+                    key-resolver: "#{@userEmailOrIpKeyResolver}"
+
             - id: auth-service-swagger
               uri: ${services.auth}
               predicates:
@@ -236,12 +286,20 @@ spring:
               filters:
                 - RewritePath=/swagger/media/(?<segment>.*), /${segment}
 
+            - id: streaming-service-swagger
+              uri: ${services.streaming}
+              predicates:
+                - Path=/swagger/streaming/v3/api-docs
+              filters:
+                - RewritePath=/swagger/streaming/(?<segment>.*), /${segment}
+
 services:
   auth: ${AUTH_SERVICE_URI:http://auth-service:8000}
   user: ${USER_SERVICE_URI:http://user-service:8700}
   movie: ${MOVIE_SERVICE_URI:http://movie-service:8600}
   notification: ${NOTIFICATION_SERVICE_URI:http://notification-service:8900}
   media: ${MEDIA_SERVICE_URI:http://media-service:8081}
+  streaming: ${STREAMING_SERVICE_URI:http://streaming-service:8200}
 
 rsa:
   public:
@@ -277,6 +335,8 @@ springdoc:
         url: /swagger/notification/v3/api-docs
       - name: media
         url: /swagger/media/v3/api-docs
+      - name: streaming
+        url: /swagger/streaming/v3/api-docs
 
 management:
   endpoints:
@@ -325,6 +385,8 @@ resilience4j:
         base-config: default
       media-service-cb:
         base-config: default
+      streaming-service-cb:
+        base-config: default
   timelimiter:
     configs:
       default:
@@ -339,4 +401,6 @@ resilience4j:
       notification-service-cb:
         base-config: default
       media-service-cb:
+        base-config: default
+      streaming-service-cb:
         base-config: default

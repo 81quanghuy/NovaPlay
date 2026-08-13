@@ -3,6 +3,7 @@ package vn.iotstar.movieservice.model.dto;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
+import vn.iotstar.movieservice.model.enums.MinPlan;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -40,10 +41,19 @@ public record MovieRequest(
         @Size(max = 1024)
         String posterUrl,
 
+        @Schema(description = "Id đục trỏ vào media-service; chỉ dùng khi series=false. " +
+                "Bỏ trống với phim bộ, video của phim bộ nằm ở từng episode.")
+        @Size(max = 64)
+        String mediaId,
+
         @Schema(description = "Là phim bộ hay phim lẻ.", example = "false",
                 requiredMode = Schema.RequiredMode.REQUIRED)
         @NotNull
         Boolean series,
+
+        @Schema(description = "Gói cước tối thiểu cần để xem. Bỏ trống mặc định MEMBER (ai cũng xem được).",
+                example = "MEMBER")
+        MinPlan minPlan,
 
         @Schema(description = "Danh sách mã thể loại. Tên thể loại được service tự điền.")
         @Size(max = 20, message = "Một phim không thể có quá 20 thể loại")

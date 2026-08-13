@@ -15,9 +15,9 @@ public record EpisodeRequest(
         @NotBlank @Size(max = 300)
         String title,
 
-        @Schema(description = "URL video của tập.", requiredMode = Schema.RequiredMode.REQUIRED)
-        @NotBlank @Size(max = 1024)
-        String videoUrl,
+        @Schema(description = "Id đục trỏ vào media-service.", requiredMode = Schema.RequiredMode.REQUIRED)
+        @NotBlank @Size(max = 64)
+        String mediaId,
 
         @Schema(description = "Thời lượng tập tính bằng phút.", example = "45")
         @Min(1) @Max(1000)

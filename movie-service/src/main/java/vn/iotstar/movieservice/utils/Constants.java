@@ -25,8 +25,10 @@ public final class Constants {
     public static final String MOVIE_RELEASE_DATE = "release_date";
     public static final String MOVIE_DURATION = "duration_in_minutes";
     public static final String MOVIE_POSTER_URL = "poster_url";
+    public static final String MOVIE_MEDIA_ID = "media_id";
     public static final String MOVIE_IS_SERIES = "is_series";
     public static final String MOVIE_STATUS = "status";
+    public static final String MOVIE_MIN_PLAN = "min_plan";
     public static final String MOVIE_GENRES = "genres";
     public static final String MOVIE_CAST = "cast";
     public static final String MOVIE_EPISODES = "episodes";
@@ -47,7 +49,7 @@ public final class Constants {
     // --- Field nhúng trong episodes[] của movie ---
     public static final String EPISODE_NUMBER = "episode_number";
     public static final String EPISODE_TITLE = "title";
-    public static final String EPISODE_VIDEO_URL = "video_url";
+    public static final String EPISODE_MEDIA_ID = "media_id";
     public static final String EPISODE_DURATION = "duration_in_minutes";
 
     // --- Field của genre ---

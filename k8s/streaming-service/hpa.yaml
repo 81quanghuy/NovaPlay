@@ -1,0 +1,25 @@
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: streaming-service
+  labels:
+    app: streaming-service
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: streaming-service
+  minReplicas: 2
+  # Trần gần với movie-service: traffic phát video (mọi người xem đang gọi) có thể cao hơn cả
+  # traffic quản lý media, dù mỗi request ở đây rất nhẹ (chỉ ký URL/viết lại playlist text).
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300

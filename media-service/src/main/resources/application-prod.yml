@@ -108,6 +108,8 @@ job:
     pending-older-than-hours: ${CLEANUP_PENDING_HOURS:1}
     fail-older-than-hours: ${CLEANUP_FAIL_HOURS:24}
     fixed-rate-ms: ${CLEANUP_FIXED_RATE_MS:3600000}
+    transcode-stuck-after-minutes: ${CLEANUP_TRANSCODE_STUCK_MINUTES:120}
+    transcode-max-attempts: ${CLEANUP_TRANSCODE_MAX_ATTEMPTS:3}
 
 management:
   endpoints:

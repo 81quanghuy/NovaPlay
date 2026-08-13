@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: transcoding-worker-config
+  labels:
+    app: transcoding-worker
+data:
+  SERVER_PORT: "8400"
+  TRACING_SAMPLE_RATE: "0.1"
+  AWS_REGION: "us-east-1"
+  AWS_S3_BUCKET_NAME: "novaplay-media"
+  TRANSCODE_SCRATCH_DIR: "/scratch"

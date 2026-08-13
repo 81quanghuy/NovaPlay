@@ -394,6 +394,54 @@ services:
       B2_BUCKET_NAME: "${B2_BUCKET_NAME:-novaplay-media-qa-b2}"
       B2_CDN_BASE_URL: "${B2_CDN_BASE_URL:-}"
 
+  streaming-service:
+    image: "novaplay/streaming-service:${STREAMING_SERVICE_VERSION:-v0.0.1}"
+    container_name: streaming-service
+    <<: *microservice-base
+    ports: ["8200:8200"]
+    depends_on:
+      mongodb: { condition: service_healthy }
+      redis: { condition: service_started }
+      media-minio-init: { condition: service_completed_successfully }
+      movie-service: { condition: service_started }
+      media-service: { condition: service_started }
+    environment:
+      SPRING_APPLICATION_NAME: "streaming-service"
+      OTEL_SERVICE_NAME: "streaming-service"
+      SPRING_DATA_MONGODB_URI: "mongodb://mongodb:27017/streaming_service?replicaSet=rs0"
+      SPRING_DATA_REDIS_HOST: redis
+      MOVIE_SERVICE_URI: "http://movie-service:8600"
+      MEDIA_SERVICE_URI: "http://media-service:8081"
+      # Cùng bucket MinIO với media-service/transcoding-worker — streaming-service tự đọc playlist
+      # + ký presigned GET, không đi qua presigned PUT như media-service.
+      STORAGE_PROVIDERS_AWSS3_ENDPOINT: "http://media-minio:9000"
+      AWS_ACCESS_KEY_ID: "media-dev"
+      AWS_SECRET_ACCESS_KEY: "media-dev-secret"
+      AWS_REGION: "us-east-1"
+      # PHẢI khớp giá trị ở transcoding-worker bên dưới — cùng bí mật bọc/mở khoá HLS.
+      TRANSCODE_KEY_WRAP_SECRET: "${TRANSCODE_KEY_WRAP_SECRET:-MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=}"
+      PLAYBACK_TOKEN_SECRET: "${PLAYBACK_TOKEN_SECRET:-MTIzNDU2Nzg5MGFiY2RlZjEyMzQ1Njc4OTBhYmNkZWY=}"
+
+  transcoding-worker:
+    image: "novaplay/transcoding-worker:${TRANSCODING_WORKER_VERSION:-v0.0.1}"
+    container_name: transcoding-worker
+    <<: *microservice-base
+    ports: ["8400:8400"]
+    depends_on:
+      kafka-services: { condition: service_healthy }
+      media-minio-init: { condition: service_completed_successfully }
+      media-service: { condition: service_started }
+    environment:
+      SPRING_APPLICATION_NAME: "transcoding-worker"
+      OTEL_SERVICE_NAME: "transcoding-worker"
+      MEDIA_SERVICE_URI: "http://media-service:8081"
+      STORAGE_PROVIDERS_AWSS3_ENDPOINT: "http://media-minio:9000"
+      AWS_ACCESS_KEY_ID: "media-dev"
+      AWS_SECRET_ACCESS_KEY: "media-dev-secret"
+      AWS_REGION: "us-east-1"
+      # PHẢI khớp giá trị ở streaming-service phía trên.
+      TRANSCODE_KEY_WRAP_SECRET: "${TRANSCODE_KEY_WRAP_SECRET:-MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=}"
+
   notification-service:
     image: "novaplay/notification-service:${NOTIFICATION_SERVICE_VERSION:-v0.0.1}"
     container_name: notification-service
@@ -439,6 +487,7 @@ services:
       MOVIE_SERVICE_URI: "http://movie-service:8600"
       NOTIFICATION_SERVICE_URI: "http://notification-service:8900"
       MEDIA_SERVICE_URI: "http://media-service:8081"
+      STREAMING_SERVICE_URI: "http://streaming-service:8200"
 
 # ===================================================================
 # TOP-LEVEL DEFINITIONS

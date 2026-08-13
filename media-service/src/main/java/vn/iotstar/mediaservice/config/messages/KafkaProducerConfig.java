@@ -12,7 +12,6 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.core.ProducerFactory;
 import org.springframework.kafka.support.serializer.JsonSerializer;
 import vn.iotstar.mediaservice.util.TopicNames;
-import vn.iotstar.mediaservice.common.dto.MediaReadyEvent;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -23,8 +22,14 @@ public class KafkaProducerConfig {
     @Value("${spring.kafka.bootstrap-servers}")
     private String bootstrapServers;
 
+    /**
+     * Kiểu generic {@code Object} thay vì {@code MediaReadyEvent}: media-service giờ publish hai
+     * loại event khác nhau ({@code MediaReadyEvent} cho ảnh, {@code VideoSourceReadyEvent} cho
+     * video) trên hai topic khác nhau, cùng chia sẻ một producer/transaction. TYPE_MAPPINGS bên
+     * dưới quyết định tên logic ghi vào header {@code __TypeId__} theo type thực tế của value.
+     */
     @Bean
-    public ProducerFactory<String, MediaReadyEvent> producerFactory() {
+    public ProducerFactory<String, Object> producerFactory() {
         Map<String, Object> configProps = new HashMap<>();
 
         // Cấu hình cơ bản, chỉ định địa chỉ broker và cách serialize key/value
@@ -32,12 +37,14 @@ public class KafkaProducerConfig {
         configProps.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
         configProps.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class);
 
-        // Ghi tên logic "mediaReady" vào header __TypeId__ thay vì FQCN của class.
-        // Mỗi service nay giữ bản MediaReadyEvent riêng trong package của mình, nên nếu để mặc
-        // định thì consumer (user-service) sẽ nhận được một FQCN thuộc package của media-service
-        // và không load nổi class. Tên logic tách hợp đồng trên wire khỏi cấu trúc package.
+        // Ghi tên logic vào header __TypeId__ thay vì FQCN của class. Mỗi service giữ bản DTO event
+        // riêng trong package của mình (không có shared lib), nên nếu để mặc định thì consumer sẽ
+        // nhận được một FQCN thuộc package của media-service và không load nổi class. Tên logic
+        // tách hợp đồng trên wire khỏi cấu trúc package.
         configProps.put(JsonSerializer.TYPE_MAPPINGS,
-                "mediaReady:vn.iotstar.mediaservice.common.dto.MediaReadyEvent");
+                "mediaReady:vn.iotstar.mediaservice.common.dto.MediaReadyEvent,"
+                        + "videoSourceReady:vn.iotstar.mediaservice.common.dto.VideoSourceReadyEvent,"
+                        + "videoTranscodeCompleted:vn.iotstar.mediaservice.common.dto.VideoTranscodeCompletedEvent");
 
         //================================================================================
         // CÁC CẤU HÌNH CHI TIẾT VỀ ĐỘ TIN CẬY VÀ HIỆU SUẤT
@@ -137,7 +144,7 @@ public class KafkaProducerConfig {
          */
         configProps.put(ProducerConfig.COMPRESSION_TYPE_CONFIG, "lz4");
 
-        DefaultKafkaProducerFactory<String, MediaReadyEvent> factory = new DefaultKafkaProducerFactory<>(configProps);
+        DefaultKafkaProducerFactory<String, Object> factory = new DefaultKafkaProducerFactory<>(configProps);
 
         // Bật tính năng transaction nếu cần.
         factory.setTransactionIdPrefix("tx-");
@@ -146,13 +153,31 @@ public class KafkaProducerConfig {
     }
 
     @Bean
-    public KafkaTemplate<String, MediaReadyEvent> kafkaTemplate() {
+    public KafkaTemplate<String, Object> kafkaTemplate() {
         return new KafkaTemplate<>(producerFactory());
     }
 
     @Bean
     public NewTopic mediaReadyTopic() {
         return TopicBuilder.name(TopicNames.SEND_STATUS_MEDIA)
+                .partitions(3)
+                .replicas(1)
+                .config(TopicConfig.CLEANUP_POLICY_CONFIG, TopicConfig.CLEANUP_POLICY_DELETE)
+                .build();
+    }
+
+    @Bean
+    public NewTopic videoSourceReadyTopic() {
+        return TopicBuilder.name(TopicNames.VIDEO_SOURCE_READY)
+                .partitions(3)
+                .replicas(1)
+                .config(TopicConfig.CLEANUP_POLICY_CONFIG, TopicConfig.CLEANUP_POLICY_DELETE)
+                .build();
+    }
+
+    @Bean
+    public NewTopic videoTranscodeCompletedTopic() {
+        return TopicBuilder.name(TopicNames.VIDEO_TRANSCODE_COMPLETED)
                 .partitions(3)
                 .replicas(1)
                 .config(TopicConfig.CLEANUP_POLICY_CONFIG, TopicConfig.CLEANUP_POLICY_DELETE)

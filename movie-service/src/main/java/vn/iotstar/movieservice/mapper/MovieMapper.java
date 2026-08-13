@@ -30,6 +30,7 @@ public class MovieMapper {
                 movie.getPosterUrl(),
                 movie.isSeries(),
                 movie.getStatus(),
+                movie.getMinPlan(),
                 toGenreDTOs(movie.getGenres())
         );
     }
@@ -43,8 +44,10 @@ public class MovieMapper {
                 movie.getReleaseDate(),
                 movie.getDurationInMinutes(),
                 movie.getPosterUrl(),
+                movie.getMediaId(),
                 movie.isSeries(),
                 movie.getStatus(),
+                movie.getMinPlan(),
                 toGenreDTOs(movie.getGenres()),
                 toCastDTOs(movie.getCast()),
                 toEpisodeDTOs(movie.getEpisodes())
@@ -80,7 +83,7 @@ public class MovieMapper {
     private List<EpisodeDTO> toEpisodeDTOs(List<Episode> episodes) {
         if (episodes == null) return List.of();
         return episodes.stream()
-                .map(e -> new EpisodeDTO(e.getEpisodeNumber(), e.getTitle(), e.getVideoUrl(),
+                .map(e -> new EpisodeDTO(e.getEpisodeNumber(), e.getTitle(), e.getMediaId(),
                         e.getDurationInMinutes()))
                 .toList();
     }

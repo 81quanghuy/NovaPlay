@@ -100,6 +100,8 @@ job:
     pending-older-than-hours: 1
     fail-older-than-hours: 24
     fixed-rate-ms: 30000
+    transcode-stuck-after-minutes: 120
+    transcode-max-attempts: 3
 
 management:
   endpoints:

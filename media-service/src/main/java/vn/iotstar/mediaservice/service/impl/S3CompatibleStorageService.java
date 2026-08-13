@@ -5,18 +5,29 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import software.amazon.awssdk.core.exception.SdkException;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.AbortMultipartUploadRequest;
+import software.amazon.awssdk.services.s3.model.CompleteMultipartUploadRequest;
+import software.amazon.awssdk.services.s3.model.CompletedMultipartUpload;
+import software.amazon.awssdk.services.s3.model.CompletedPart;
+import software.amazon.awssdk.services.s3.model.CreateMultipartUploadRequest;
+import software.amazon.awssdk.services.s3.model.CreateMultipartUploadResponse;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
 import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.PresignedPutObjectRequest;
+import software.amazon.awssdk.services.s3.presigner.model.PresignedUploadPartRequest;
 import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest;
+import software.amazon.awssdk.services.s3.presigner.model.UploadPartPresignRequest;
+import vn.iotstar.mediaservice.common.dto.CompletedPartDto;
 import vn.iotstar.mediaservice.config.StorageClientConfig.ProviderClients;
 import vn.iotstar.mediaservice.service.MediaStorageService;
 import vn.iotstar.mediaservice.storage.StorageProvider;
 import vn.iotstar.mediaservice.storage.StorageProviderProperties;
 
 import java.time.Duration;
+import java.util.Comparator;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -95,6 +106,59 @@ public class S3CompatibleStorageService implements MediaStorageService {
     @Override
     public String generateCdnUrl(StorageProvider provider, String key) {
         return properties.get(provider).getCdnBaseUrl() + "/" + key;
+    }
+
+    @Override
+    public String initiateMultipartUpload(StorageProvider provider, String key, String contentType) {
+        CreateMultipartUploadResponse response = clientsFor(provider).client().createMultipartUpload(
+                CreateMultipartUploadRequest.builder()
+                        .bucket(properties.get(provider).getBucketName())
+                        .key(key)
+                        .contentType(contentType)
+                        .build());
+        return response.uploadId();
+    }
+
+    @Override
+    public String presignUploadPart(StorageProvider provider, String key, String uploadId, int partNumber) {
+        S3Presigner presigner = clientsFor(provider).presigner();
+        StorageProviderProperties.ProviderConfig config = properties.get(provider);
+
+        UploadPartPresignRequest presignRequest = UploadPartPresignRequest.builder()
+                .signatureDuration(Duration.ofMinutes(config.getPresignedUrlDurationMinutes()))
+                .uploadPartRequest(upr -> upr
+                        .bucket(config.getBucketName())
+                        .key(key)
+                        .uploadId(uploadId)
+                        .partNumber(partNumber))
+                .build();
+
+        PresignedUploadPartRequest presignedRequest = presigner.presignUploadPart(presignRequest);
+        return presignedRequest.url().toString();
+    }
+
+    @Override
+    public void completeMultipartUpload(StorageProvider provider, String key, String uploadId, List<CompletedPartDto> parts) {
+        List<CompletedPart> completedParts = parts.stream()
+                .sorted(Comparator.comparingInt(CompletedPartDto::partNumber))
+                .map(p -> CompletedPart.builder().partNumber(p.partNumber()).eTag(p.eTag()).build())
+                .toList();
+
+        clientsFor(provider).client().completeMultipartUpload(CompleteMultipartUploadRequest.builder()
+                .bucket(properties.get(provider).getBucketName())
+                .key(key)
+                .uploadId(uploadId)
+                .multipartUpload(CompletedMultipartUpload.builder().parts(completedParts).build())
+                .build());
+    }
+
+    @Override
+    public void abortMultipartUpload(StorageProvider provider, String key, String uploadId) {
+        clientsFor(provider).client().abortMultipartUpload(AbortMultipartUploadRequest.builder()
+                .bucket(properties.get(provider).getBucketName())
+                .key(key)
+                .uploadId(uploadId)
+                .build());
     }
 
     private ProviderClients clientsFor(StorageProvider provider) {

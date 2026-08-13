@@ -24,6 +24,13 @@ public final class PublicEndpoints {
     public static final List<String> PUBLIC_GET = List.of(
             "/api/v1/movies/**",
             "/api/v1/genres/**",
-            "/api/v1/artists/**"
+            "/api/v1/artists/**",
+            /*
+             * Trình phát HLS (đặc biệt engine gốc của Safari/iOS) không tự gắn được header
+             * Authorization vào từng request tải playlist/segment. Bảo vệ nội dung nằm ở playback
+             * token ngắn hạn (query param "pt") streaming-service tự validate — xem
+             * StreamingHlsController/SecurityConfig bên streaming-service.
+             */
+            "/api/v1/streaming/hls/**"
     );
 }

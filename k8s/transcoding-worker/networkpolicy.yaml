@@ -1,0 +1,23 @@
+# transcoding-worker không có HTTP API nghiệp vụ nào và không đi qua api-gateway — nó chỉ tiêu
+# thụ Kafka và gọi ra media-service/object storage. Ingress duy nhất cần mở là Prometheus scrape
+# actuator/prometheus, cùng mẫu với config-service's networkpolicy.yaml.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: transcoding-worker
+  labels:
+    app: transcoding-worker
+spec:
+  podSelector:
+    matchLabels:
+      app: transcoding-worker
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: monitoring
+      ports:
+        - protocol: TCP
+          port: 8400

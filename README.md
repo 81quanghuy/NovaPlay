@@ -155,6 +155,7 @@ Define the following environment variables (or entries in your centralized confi
 - **Start services (dev mode):**
   - `./mvnw spring-boot:run -pl api-gateway`
   - `./mvnw spring-boot:run -pl auth-service,user-service,movie-service,notification-service,streaming-service,media-service,payment-service,promotion-service,report-service`
+  - `./mvnw spring-boot:run -pl transcoding-worker` (requires `ffmpeg`/`ffprobe` on `PATH` — not needed for the other services)
 - **Access the frontend:** `cd ui && npm run dev`
 - **API documentation:** Swagger UI aggregated at `http://localhost:8072/swagger-ui.html` via the gateway.
 

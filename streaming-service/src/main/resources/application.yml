@@ -1,5 +1,22 @@
+# Chỉ chứa những gì đúng cho MỌI môi trường. Cấu hình riêng theo môi trường nằm ở
+# application-<profile>.yml, chọn bằng SPRING_PROFILES_ACTIVE.
+#
+# Cố tình KHÔNG đặt spring.profiles.active ở đây: nướng cứng một profile vào jar khiến bản
+# build production chạy bằng cấu hình dev nếu ai đó quên override.
 spring:
   application:
     name: streaming-service
-  profiles:
-    active: dev
+
+# Đặt ở đây (không chỉ trong application-dev/prod.yml): @FeignClient(url = "${services.xxx}")
+# resolve giá trị này ngay lúc đăng ký bean định nghĩa (context startup), kể cả trong test không
+# active profile nào — thiếu default ở base file này làm FeignClientsRegistrar nhận nguyên chuỗi
+# "${services.xxx}" chưa resolve và ném URISyntaxException.
+services:
+  movie: ${MOVIE_SERVICE_URI:http://localhost:8600}
+  media: ${MEDIA_SERVICE_URI:http://localhost:8081}
+  user: ${USER_SERVICE_URI:http://localhost:8700}
+
+logging:
+  pattern:
+    # traceId/spanId được OpenTelemetry javaagent đưa vào MDC.
+    level: "%5p [${spring.application.name},%X{traceId},%X{spanId}]"

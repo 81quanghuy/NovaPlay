@@ -1,0 +1,130 @@
+# Cấu hình production. Mọi giá trị nhạy cảm và phụ thuộc môi trường đều đến từ biến môi trường.
+#
+# Biến bắt buộc: MONGODB_URI, REDIS_HOST, MOVIE_SERVICE_URI, MEDIA_SERVICE_URI,
+# GATEWAY_SHARED_SECRET, PLAYBACK_TOKEN_SECRET (base64, 32 byte), TRANSCODE_KEY_WRAP_SECRET
+# (base64, 32 byte — PHẢI khớp giá trị cấp cho transcoding-worker).
+#
+# Biến storage provider: giống media-service/transcoding-worker (AWS_S3_BUCKET_NAME, R2_*, B2_*) —
+# CÙNG bucket, vì đây là nơi worker đã ghi output HLS vào.
+spring:
+  config:
+    activate:
+      on-profile: prod
+  data:
+    mongodb:
+      uri: ${MONGODB_URI}
+      auto-index-creation: true
+    redis:
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 5s
+      lettuce:
+        pool:
+          max-active: 16
+          max-idle: 8
+          min-idle: 2
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
+
+server:
+  port: ${SERVER_PORT:8200}
+  shutdown: graceful
+
+storage:
+  providers:
+    aws-s3:
+      region: ${AWS_REGION}
+      bucket-name: ${AWS_S3_BUCKET_NAME}
+      force-path-style: false
+      presigned-url-duration-minutes: ${SEGMENT_URL_DURATION_MINUTES:360}
+    cloudflare-r2:
+      region: auto
+      endpoint: https://${R2_ACCOUNT_ID:}.r2.cloudflarestorage.com
+      bucket-name: ${R2_BUCKET_NAME:}
+      access-key-id: ${R2_ACCESS_KEY_ID:}
+      secret-access-key: ${R2_SECRET_ACCESS_KEY:}
+      force-path-style: true
+      presigned-url-duration-minutes: ${SEGMENT_URL_DURATION_MINUTES:360}
+    backblaze-b2:
+      region: ${B2_REGION:}
+      endpoint: ${B2_ENDPOINT:}
+      bucket-name: ${B2_BUCKET_NAME:}
+      access-key-id: ${B2_KEY_ID:}
+      secret-access-key: ${B2_APPLICATION_KEY:}
+      force-path-style: true
+      presigned-url-duration-minutes: ${SEGMENT_URL_DURATION_MINUTES:360}
+
+playback:
+  token-secret: ${PLAYBACK_TOKEN_SECRET}
+  token-ttl-hours: ${PLAYBACK_TOKEN_TTL_HOURS:4}
+
+transcode:
+  key-wrap-secret: ${TRANSCODE_KEY_WRAP_SECRET}
+
+streaming:
+  view-dedup-window-minutes: ${VIEW_DEDUP_WINDOW_MINUTES:30}
+
+feign:
+  client:
+    config:
+      default:
+        connect-timeout: 1000
+        read-timeout: 3000
+
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 20
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 30s
+        permitted-number-of-calls-in-half-open-state: 5
+        automatic-transition-from-open-to-half-open-enabled: true
+    instances:
+      movieService:
+        base-config: default
+        register-health-indicator: true
+      mediaService:
+        base-config: default
+        register-health-indicator: true
+      userService:
+        base-config: default
+        register-health-indicator: true
+
+application:
+  security:
+    gateway-secret:
+      enabled: true
+      value: ${GATEWAY_SHARED_SECRET}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  endpoint:
+    health:
+      show-details: when-authorized
+      probes:
+        enabled: true
+      group:
+        readiness:
+          include: readinessState,mongo,redis
+  health:
+    livenessstate:
+      enabled: true
+    readinessstate:
+      enabled: true
+  tracing:
+    sampling:
+      probability: ${TRACING_SAMPLE_RATE:0.1}
+  metrics:
+    tags:
+      application: ${spring.application.name}
+
+logging:
+  level:
+    root: INFO
+    vn.iotstar: INFO

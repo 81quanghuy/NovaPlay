@@ -118,17 +118,26 @@ class UserProfileServiceImplTest {
             when(userProfileRepository.save(any())).thenAnswer(i -> i.getArgument(0));
 
             UpdateUserProfileRequest request = new UpdateUserProfileRequest(
-                    "newhandle", "New Name", "https://cdn/x.png", "vi-VN", Plan.PLUS, true);
+                    "newhandle", "New Name", "https://cdn/x.png", "vi-VN", true);
 
             UserProfileDTO result = service.updateProfile(EMAIL, request);
 
             assertThat(existing.getPreferredUsername()).isEqualTo("newhandle");
             assertThat(existing.getDisplayName()).isEqualTo("New Name");
-            // avatarUrl và plan trước đây bị bỏ qua hoàn toàn.
             assertThat(existing.getAvatarUrl()).isEqualTo("https://cdn/x.png");
-            assertThat(existing.getPlan()).isEqualTo(Plan.PLUS);
             assertThat(existing.getLocale()).isEqualTo("vi-VN");
             assertThat(result).isNotNull();
+        }
+
+        @Test
+        @DisplayName("KHÔNG có field plan để tự đặt qua updateProfile — chỉ updatePlan() (ADMIN-only) đổi được")
+        void requestHasNoPlanField() {
+            // Lỗ hổng đã sửa: UpdateUserProfileRequest từng nhận thẳng field plan từ client,
+            // nghĩa là bất kỳ user nào cũng tự nâng mình lên PRO được. Test này khoá lại bằng
+            // reflection — nếu ai đó vô tình thêm lại field plan, test sẽ đỏ ngay.
+            assertThat(java.util.Arrays.stream(UpdateUserProfileRequest.class.getDeclaredFields())
+                    .map(java.lang.reflect.Field::getName))
+                    .doesNotContain("plan");
         }
 
         @Test
@@ -139,7 +148,7 @@ class UserProfileServiceImplTest {
             when(userProfileRepository.save(any())).thenAnswer(i -> i.getArgument(0));
 
             service.updateProfile(EMAIL,
-                    new UpdateUserProfileRequest(null, null, null, null, null, null));
+                    new UpdateUserProfileRequest(null, null, null, null, null));
 
             assertThat(existing.getDisplayName()).isEqualTo("Original Name");
             assertThat(existing.getPlan()).isEqualTo(Plan.MEMBER);
@@ -153,12 +162,12 @@ class UserProfileServiceImplTest {
             when(userProfileRepository.save(any())).thenAnswer(i -> i.getArgument(0));
 
             service.updateProfile(EMAIL,
-                    new UpdateUserProfileRequest(null, null, null, null, null, true));
+                    new UpdateUserProfileRequest(null, null, null, null, true));
             var firstStamp = existing.getMarketingOptInAt();
             assertThat(firstStamp).isNotNull();
 
             service.updateProfile(EMAIL,
-                    new UpdateUserProfileRequest(null, null, null, null, null, true));
+                    new UpdateUserProfileRequest(null, null, null, null, true));
             assertThat(existing.getMarketingOptInAt()).isEqualTo(firstStamp);
         }
     }

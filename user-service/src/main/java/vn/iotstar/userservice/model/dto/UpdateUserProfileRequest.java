@@ -2,7 +2,6 @@ package vn.iotstar.userservice.model.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Size;
-import vn.iotstar.userservice.util.Plan;
 import vn.iotstar.userservice.validation.BCP47Locale;
 
 /**
@@ -37,11 +36,6 @@ public record UpdateUserProfileRequest(
                 requiredMode = Schema.RequiredMode.NOT_REQUIRED)
         @Size(max = 16) @BCP47Locale
         String locale,
-
-        @Schema(description = "Tên gói cước snapshot để hiển thị (nguồn chân lý ở billing).",
-                example = "PLUS",
-                requiredMode = Schema.RequiredMode.NOT_REQUIRED)
-        Plan plan,
 
         @Schema(description = "Đồng ý nhận marketing (email/SMS/push).",
                 example = "true",

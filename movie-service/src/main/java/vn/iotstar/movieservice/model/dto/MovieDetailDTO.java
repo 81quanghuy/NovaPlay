@@ -1,6 +1,7 @@
 package vn.iotstar.movieservice.model.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import vn.iotstar.movieservice.model.enums.MinPlan;
 import vn.iotstar.movieservice.model.enums.MovieStatus;
 
 import java.io.Serializable;
@@ -24,10 +25,16 @@ public record MovieDetailDTO(
         @Schema(description = "URL ảnh poster.", format = "uri")
         String posterUrl,
 
+        @Schema(description = "Id đục trỏ vào media-service; null với phim bộ.")
+        String mediaId,
+
         @Schema(description = "Là phim bộ hay phim lẻ.", example = "true")
         boolean series,
 
         MovieStatus status,
+
+        @Schema(description = "Gói cước tối thiểu cần để xem.", example = "MEMBER")
+        MinPlan minPlan,
 
         List<GenreDTO> genres,
 
