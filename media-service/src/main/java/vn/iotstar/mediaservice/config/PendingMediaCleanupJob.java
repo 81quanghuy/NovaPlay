@@ -44,7 +44,7 @@ public class PendingMediaCleanupJob {
 
         for (Media media : pendingMedias) {
             try {
-                boolean fileExists = mediaService.doesS3ObjectExist(media.getS3Key());
+                boolean fileExists = mediaService.doesS3ObjectExist(media);
 
                 if (fileExists) {
                     log.warn("Found orphaned file on S3 for pending record {}. Manually triggering processing.", media.getId());

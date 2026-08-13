@@ -1,5 +1,6 @@
 package vn.iotstar.mediaservice.service.impl;
 
+import dev.openfeature.sdk.Client;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -7,7 +8,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIf;
 import org.mockito.ArgumentCaptor;
 import org.springframework.kafka.core.KafkaTemplate;
-import org.springframework.test.util.ReflectionTestUtils;
 import org.testcontainers.DockerClientFactory;
 import org.testcontainers.containers.localstack.LocalStackContainer;
 import org.testcontainers.junit.jupiter.Container;
@@ -20,8 +20,13 @@ import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.S3Configuration;
 import software.amazon.awssdk.services.s3.model.CreateBucketRequest;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
+import vn.iotstar.mediaservice.config.StorageClientConfig.ProviderClients;
 import vn.iotstar.mediaservice.entity.Media;
 import vn.iotstar.mediaservice.repository.MediaRepository;
+import vn.iotstar.mediaservice.service.MediaStorageService;
+import vn.iotstar.mediaservice.storage.StorageProvider;
+import vn.iotstar.mediaservice.storage.StorageProviderProperties;
+import vn.iotstar.mediaservice.storage.StorageProviderResolver;
 import vn.iotstar.mediaservice.common.dto.MediaReadyEvent;
 import vn.iotstar.mediaservice.common.dto.UploadRequestDto;
 import vn.iotstar.mediaservice.common.dto.UploadResponseDto;
@@ -31,18 +36,23 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * Test luồng upload thật đầu-cuối chỉ với S3 (LocalStack {@code Service.S3}): xin presigned URL từ
- * {@link MediaServiceImpl}, PUT file thật lên URL đó bằng {@link HttpClient} trần (không dùng AWS
- * SDK phía test — đúng như một trình duyệt/mobile client sẽ làm), rồi xác nhận
- * {@link MediaServiceImpl#doesS3ObjectExist(String)} thấy object.
+ * Test luồng upload thật đầu-cuối chỉ nhánh {@link StorageProvider#AWS_S3} (LocalStack
+ * {@code Service.S3}): xin presigned URL từ {@link MediaServiceImpl}, PUT file thật lên URL đó
+ * bằng {@link HttpClient} trần (không dùng AWS SDK phía test — đúng như một trình duyệt/mobile
+ * client sẽ làm), rồi xác nhận {@link MediaServiceImpl#doesS3ObjectExist(Media)} thấy object.
+ * Không nhân bản IT này cho CLOUDFLARE_R2/BACKBLAZE_B2: cả ba provider dùng chung
+ * {@link S3CompatibleStorageService}, phần khác nhau giữa chúng chỉ là config binding
+ * ({@link StorageProviderProperties}), không cần Docker để test.
  * <p>
  * Không cần Mongo/Kafka thật: {@link MediaRepository} và {@link KafkaTemplate} được mock bằng
  * Mockito vì hai path được test ({@code requestUploadUrl}, {@code doesS3ObjectExist}) không cần gì
@@ -107,10 +117,20 @@ class S3UploadFlowIT {
         @SuppressWarnings("unchecked")
         KafkaTemplate<String, MediaReadyEvent> kafkaTemplate = mock(KafkaTemplate.class);
 
-        mediaService = new MediaServiceImpl(s3Presigner, mediaRepository, kafkaTemplate, s3Client);
-        ReflectionTestUtils.setField(mediaService, "durationMinutes", 15L);
-        ReflectionTestUtils.setField(mediaService, "bucketName", BUCKET);
-        ReflectionTestUtils.setField(mediaService, "cdnBaseUrl", "http://cdn.local");
+        StorageProviderProperties properties = new StorageProviderProperties();
+        properties.getAwsS3().setBucketName(BUCKET);
+        properties.getAwsS3().setCdnBaseUrl("http://cdn.local");
+        properties.getAwsS3().setPresignedUrlDurationMinutes(15);
+        Map<StorageProvider, ProviderClients> clients = Map.of(
+                StorageProvider.AWS_S3, new ProviderClients(s3Client, s3Presigner));
+        MediaStorageService mediaStorageService = new S3CompatibleStorageService(clients, properties);
+
+        // Nhánh AWS_S3 duy nhất trong test này: cờ sống luôn trả "aws-s3", không cần flagd thật.
+        Client openFeatureClient = mock(Client.class);
+        when(openFeatureClient.getStringValue(anyString(), anyString())).thenReturn("aws-s3");
+        StorageProviderResolver storageProviderResolver = new StorageProviderResolver(openFeatureClient);
+
+        mediaService = new MediaServiceImpl(mediaStorageService, storageProviderResolver, mediaRepository, kafkaTemplate);
     }
 
     @AfterEach
@@ -147,7 +167,11 @@ class S3UploadFlowIT {
         assertThat(savedMedia.getS3Key())
                 .isEqualTo("media/owner-1/" + savedMedia.getId() + "/photo.jpg");
 
-        assertThat(mediaService.doesS3ObjectExist(savedMedia.getS3Key())).isTrue();
-        assertThat(mediaService.doesS3ObjectExist("media/owner-1/does-not-exist/photo.jpg")).isFalse();
+        assertThat(mediaService.doesS3ObjectExist(savedMedia)).isTrue();
+
+        Media notUploaded = new Media();
+        notUploaded.setS3Key("media/owner-1/does-not-exist/photo.jpg");
+        notUploaded.setStorageProvider(StorageProvider.AWS_S3);
+        assertThat(mediaService.doesS3ObjectExist(notUploaded)).isFalse();
     }
 }

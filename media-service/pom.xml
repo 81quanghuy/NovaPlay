@@ -60,6 +60,28 @@
             <groupId>io.awspring.cloud</groupId>
             <artifactId>spring-cloud-aws-starter-sqs</artifactId>
         </dependency>
+        <!-- Feature flag để chọn storage provider (S3 / R2 / B2) đang active, đổi được lúc chạy
+             mà không cần redeploy — xem StorageProviderResolver. Nguồn cờ thật là config-service
+             (đọc từ MongoDB) qua configServiceFeatureProvider trong OpenFeatureConfig, gọi qua
+             Feign (ConfigServiceClient) — không phải flagd. -->
+        <dependency>
+            <groupId>dev.openfeature</groupId>
+            <artifactId>sdk</artifactId>
+            <version>1.22.0</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-openfeign</artifactId>
+        </dependency>
+        <!-- @CircuitBreaker trên ConfigServiceFeatureProvider.getStringEvaluation cần proxy AOP. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-aop</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-circuitbreaker-resilience4j</artifactId>
+        </dependency>
 
         <!-- Quan sát -->
         <dependency>

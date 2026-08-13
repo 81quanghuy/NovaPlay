@@ -17,16 +17,12 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.test.util.ReflectionTestUtils;
-import software.amazon.awssdk.services.s3.S3Client;
-import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
-import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.S3Exception;
-import software.amazon.awssdk.services.s3.presigner.S3Presigner;
-import software.amazon.awssdk.services.s3.presigner.model.PresignedPutObjectRequest;
-import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest;
 import vn.iotstar.mediaservice.entity.Media;
 import vn.iotstar.mediaservice.repository.MediaRepository;
+import vn.iotstar.mediaservice.service.MediaStorageService;
+import vn.iotstar.mediaservice.storage.StorageProvider;
+import vn.iotstar.mediaservice.storage.StorageProviderResolver;
 import vn.iotstar.mediaservice.util.MediaStatus;
 import vn.iotstar.mediaservice.common.dto.MediaReadyEvent;
 import vn.iotstar.mediaservice.common.dto.UploadRequestDto;
@@ -35,42 +31,36 @@ import vn.iotstar.mediaservice.exception.BadRequestException;
 import vn.iotstar.mediaservice.exception.ForbiddenException;
 import vn.iotstar.mediaservice.exception.ResourceNotFoundException;
 
-import java.net.MalformedURLException;
-import java.net.URI;
 import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
 class MediaServiceImplTest {
 
-    private static final String BUCKET = "novaplay-media-test";
-    private static final String CDN_BASE_URL = "https://cdn.novaplay.vn";
+    private static final String PRESIGNED_URL = "https://storage.local/signed";
 
-    @Mock private S3Presigner s3Presigner;
+    @Mock private MediaStorageService mediaStorageService;
+    @Mock private StorageProviderResolver storageProviderResolver;
     @Mock private MediaRepository mediaRepository;
     @Mock private org.springframework.kafka.core.KafkaTemplate<String, MediaReadyEvent> kafkaTemplate;
-    @Mock private S3Client s3Client;
 
     @InjectMocks
     private MediaServiceImpl service;
 
     @BeforeEach
-    void setUp() throws MalformedURLException {
-        ReflectionTestUtils.setField(service, "durationMinutes", 15L);
-        ReflectionTestUtils.setField(service, "bucketName", BUCKET);
-        ReflectionTestUtils.setField(service, "cdnBaseUrl", CDN_BASE_URL);
-
+    void setUp() {
         when(mediaRepository.save(any(Media.class))).thenAnswer(inv -> inv.getArgument(0));
-
-        PresignedPutObjectRequest presigned = mock(PresignedPutObjectRequest.class);
-        when(presigned.url()).thenReturn(URI.create("https://s3.local/" + BUCKET + "/signed").toURL());
-        when(s3Presigner.presignPutObject(any(PutObjectPresignRequest.class))).thenReturn(presigned);
+        when(storageProviderResolver.resolveForNewUpload()).thenReturn(StorageProvider.AWS_S3);
+        when(mediaStorageService.generatePresignedUploadUrl(any(), any(), any(), anyLong()))
+                .thenReturn(PRESIGNED_URL);
     }
 
     @AfterEach
@@ -122,25 +112,58 @@ class MediaServiceImplTest {
         }
     }
 
-    // ---------- Presigned URL content-type/length signing (bug fix #3) ----------
+    // ---------- Storage provider toggle: chỉ upload MỚI mới hỏi cờ sống ----------
 
     @Nested
-    @DisplayName("ký presigned PUT")
-    class PresignedUrlSigning {
+    @DisplayName("chọn storage provider")
+    class StorageProviderSelection {
 
         @Test
-        @DisplayName("Content-Type và Content-Length được ký vào PutObjectRequest")
-        void signsContentTypeAndContentLength() {
+        @DisplayName("requestUploadUrl dùng provider mà cờ sống trả về, và lưu lại trên Media")
+        void requestUploadUrlPersistsFlagResolvedProvider() {
+            when(storageProviderResolver.resolveForNewUpload()).thenReturn(StorageProvider.CLOUDFLARE_R2);
+
             service.requestUploadUrl(validRequest());
 
-            ArgumentCaptor<PutObjectPresignRequest> captor =
-                    ArgumentCaptor.forClass(PutObjectPresignRequest.class);
-            verify(s3Presigner).presignPutObject(captor.capture());
+            verify(mediaStorageService).generatePresignedUploadUrl(
+                    eq(StorageProvider.CLOUDFLARE_R2), any(), eq("image/jpeg"), eq(1024L));
 
-            PutObjectRequest putObjectRequest = captor.getValue().putObjectRequest();
-            assertThat(putObjectRequest.bucket()).isEqualTo(BUCKET);
-            assertThat(putObjectRequest.contentType()).isEqualTo("image/jpeg");
-            assertThat(putObjectRequest.contentLength()).isEqualTo(1024L);
+            ArgumentCaptor<Media> captor = ArgumentCaptor.forClass(Media.class);
+            verify(mediaRepository).save(captor.capture());
+            assertThat(captor.getValue().getStorageProvider()).isEqualTo(StorageProvider.CLOUDFLARE_R2);
+        }
+
+        @Test
+        @DisplayName("deleteMedia dùng provider đã lưu trên record, KHÔNG hỏi lại cờ sống")
+        void deleteMediaUsesPersistedProviderNotLiveFlag() {
+            Media media = new Media();
+            media.setId("m1");
+            media.setOwnerEmail("a@x.com");
+            media.setS3Key("media/owner-1/m1/photo.jpg");
+            media.setStatus(MediaStatus.COMPLETED);
+            media.setStorageProvider(StorageProvider.AWS_S3);
+            when(mediaRepository.findById("m1")).thenReturn(Optional.of(media));
+
+            service.deleteMedia("m1", "a@x.com", false);
+
+            verify(mediaStorageService).deleteObject(StorageProvider.AWS_S3, "media/owner-1/m1/photo.jpg");
+            verifyNoInteractions(storageProviderResolver);
+        }
+
+        @Test
+        @DisplayName("storageProvider null (record cũ trước khi tính năng multi-provider tồn tại) mặc định AWS_S3")
+        void nullStorageProviderDefaultsToAwsS3() {
+            Media media = new Media();
+            media.setId("m1");
+            media.setOwnerEmail("a@x.com");
+            media.setS3Key("media/owner-1/m1/photo.jpg");
+            media.setStatus(MediaStatus.COMPLETED);
+            // storageProvider cố tình để null.
+            when(mediaRepository.findById("m1")).thenReturn(Optional.of(media));
+
+            service.deleteMedia("m1", "a@x.com", false);
+
+            verify(mediaStorageService).deleteObject(StorageProvider.AWS_S3, "media/owner-1/m1/photo.jpg");
         }
     }
 
@@ -158,7 +181,7 @@ class MediaServiceImplTest {
             assertThatThrownBy(() -> service.requestUploadUrl(request))
                     .isInstanceOf(BadRequestException.class);
 
-            verifyNoInteractions(mediaRepository, s3Presigner);
+            verifyNoInteractions(mediaRepository, mediaStorageService);
         }
 
         @Test
@@ -170,7 +193,7 @@ class MediaServiceImplTest {
             assertThatThrownBy(() -> service.requestUploadUrl(request))
                     .isInstanceOf(BadRequestException.class);
 
-            verifyNoInteractions(mediaRepository, s3Presigner);
+            verifyNoInteractions(mediaRepository, mediaStorageService);
         }
 
         @Test
@@ -260,7 +283,7 @@ class MediaServiceImplTest {
         }
     }
 
-    // ---------- Delete: soft-delete record + hard-delete S3 object ----------
+    // ---------- Delete: soft-delete record + hard-delete object trên storage ----------
 
     @Nested
     @DisplayName("deleteMedia")
@@ -272,21 +295,19 @@ class MediaServiceImplTest {
             media.setOwnerEmail("a@x.com");
             media.setS3Key("media/owner-1/m1/photo.jpg");
             media.setStatus(MediaStatus.COMPLETED);
+            media.setStorageProvider(StorageProvider.AWS_S3);
             return media;
         }
 
         @Test
-        @DisplayName("chủ sở hữu xoá được: soft-delete record + hard-delete S3 object")
+        @DisplayName("chủ sở hữu xoá được: soft-delete record + hard-delete object trên storage")
         void ownerCanDelete() {
             Media media = pendingMedia();
             when(mediaRepository.findById("m1")).thenReturn(Optional.of(media));
 
             service.deleteMedia("m1", "a@x.com", false);
 
-            ArgumentCaptor<DeleteObjectRequest> s3Captor = ArgumentCaptor.forClass(DeleteObjectRequest.class);
-            verify(s3Client).deleteObject(s3Captor.capture());
-            assertThat(s3Captor.getValue().bucket()).isEqualTo(BUCKET);
-            assertThat(s3Captor.getValue().key()).isEqualTo("media/owner-1/m1/photo.jpg");
+            verify(mediaStorageService).deleteObject(StorageProvider.AWS_S3, "media/owner-1/m1/photo.jpg");
 
             ArgumentCaptor<Media> savedCaptor = ArgumentCaptor.forClass(Media.class);
             verify(mediaRepository).save(savedCaptor.capture());
@@ -300,7 +321,7 @@ class MediaServiceImplTest {
 
             service.deleteMedia("m1", "someone-else@x.com", true);
 
-            verify(s3Client).deleteObject(any(DeleteObjectRequest.class));
+            verify(mediaStorageService).deleteObject(any(), any());
             verify(mediaRepository).save(any(Media.class));
         }
 
@@ -312,7 +333,7 @@ class MediaServiceImplTest {
             assertThatThrownBy(() -> service.deleteMedia("m1", "b@x.com", false))
                     .isInstanceOf(ForbiddenException.class);
 
-            verify(s3Client, never()).deleteObject(any(DeleteObjectRequest.class));
+            verify(mediaStorageService, never()).deleteObject(any(), any());
             verify(mediaRepository, never()).save(any(Media.class));
         }
 
@@ -326,88 +347,46 @@ class MediaServiceImplTest {
         }
 
         @Test
-        @DisplayName("lỗi xoá S3 KHÔNG bị nuốt: văng ra ngoài và chặn luôn soft-delete record")
-        void doesNotSwallowS3ErrorsUnlikeMarkAsFailed() {
-            // Bất đối xứng có chủ đích so với markAsFailed/deleteS3ObjectQuietly: đây là thao tác
+        @DisplayName("lỗi xoá KHÔNG bị nuốt: văng ra ngoài và chặn luôn soft-delete record")
+        void doesNotSwallowStorageErrorsUnlikeMarkAsFailed() {
+            // Bất đối xứng có chủ đích so với markAsFailed/deleteObjectQuietly: đây là thao tác
             // xoá do người dùng chủ động yêu cầu, không thể im lặng để lại record "đã xoá" trong
-            // khi object thật vẫn còn trên S3 — brief coi thao tác này là "không thể thu hồi", nên
-            // nó phải thực sự xảy ra hoặc báo lỗi rõ ràng, không phải best-effort.
+            // khi object thật vẫn còn trên storage — brief coi thao tác này là "không thể thu hồi",
+            // nên nó phải thực sự xảy ra hoặc báo lỗi rõ ràng, không phải best-effort.
             Media media = pendingMedia();
             when(mediaRepository.findById("m1")).thenReturn(Optional.of(media));
-            when(s3Client.deleteObject(any(DeleteObjectRequest.class)))
-                    .thenThrow(software.amazon.awssdk.services.s3.model.S3Exception.builder()
-                            .message("boom").build());
+            doThrow(S3Exception.builder().message("boom").build())
+                    .when(mediaStorageService).deleteObject(any(), any());
 
             assertThatThrownBy(() -> service.deleteMedia("m1", "a@x.com", false))
-                    .isInstanceOf(software.amazon.awssdk.services.s3.model.S3Exception.class);
+                    .isInstanceOf(S3Exception.class);
 
             verify(mediaRepository, never()).save(any(Media.class));
             assertThat(media.getStatus()).isEqualTo(MediaStatus.COMPLETED);
         }
     }
 
-    // ---------- Cleanup job: orphaned S3 object deleted before marking FAILED (fix #4) ----------
+    // ---------- Cleanup job: orphaned object bị xoá trước khi đánh dấu FAILED (fix #4) ----------
 
     @Nested
     @DisplayName("markAsFailed — dọn object mồ côi")
     class MarkAsFailed {
 
         @Test
-        @DisplayName("xoá object trên S3 trước khi lưu trạng thái FAILED")
-        void deletesS3ObjectBeforeSavingFailedStatus() {
+        @DisplayName("xoá object trên storage (best-effort) trước khi lưu trạng thái FAILED")
+        void deletesObjectBeforeSavingFailedStatus() {
             Media media = new Media();
             media.setId("m1");
             media.setS3Key("media/owner-1/m1/orphan.jpg");
             media.setStatus(MediaStatus.PENDING);
+            media.setStorageProvider(StorageProvider.AWS_S3);
 
             service.markAsFailed(media);
 
-            var inOrder = inOrder(s3Client, mediaRepository);
-            inOrder.verify(s3Client).deleteObject(any(DeleteObjectRequest.class));
+            var inOrder = inOrder(mediaStorageService, mediaRepository);
+            inOrder.verify(mediaStorageService).deleteObjectQuietly(StorageProvider.AWS_S3, "media/owner-1/m1/orphan.jpg");
             inOrder.verify(mediaRepository).save(media);
-
-            ArgumentCaptor<DeleteObjectRequest> captor = ArgumentCaptor.forClass(DeleteObjectRequest.class);
-            verify(s3Client).deleteObject(captor.capture());
-            assertThat(captor.getValue().key()).isEqualTo("media/owner-1/m1/orphan.jpg");
-            assertThat(captor.getValue().bucket()).isEqualTo(BUCKET);
             assertThat(media.getStatus()).isEqualTo(MediaStatus.FAILED);
-        }
-
-        @Test
-        @DisplayName("lỗi xoá S3 (S3Exception) không chặn việc đánh dấu FAILED (best-effort)")
-        void continuesMarkingFailedEvenIfS3DeleteFails() {
-            Media media = new Media();
-            media.setId("m1");
-            media.setS3Key("media/owner-1/m1/orphan.jpg");
-            media.setStatus(MediaStatus.PENDING);
-
-            when(s3Client.deleteObject(any(DeleteObjectRequest.class)))
-                    .thenThrow(S3Exception.builder().message("boom").build());
-
-            service.markAsFailed(media);
-
-            assertThat(media.getStatus()).isEqualTo(MediaStatus.FAILED);
-            verify(mediaRepository).save(media);
-        }
-
-        @Test
-        @DisplayName("lỗi mạng/client-side (SdkClientException) cũng không chặn việc đánh dấu FAILED")
-        void continuesMarkingFailedEvenIfS3DeleteFailsWithClientException() {
-            // SdkClientException (timeout, DNS, connection reset...) là NHÁNH ANH EM của
-            // S3Exception dưới SdkException, không phải subtype của nó — bắt hẹp
-            // "catch (S3Exception e)" sẽ để lỗi này thoát ra ngoài và chặn cả việc đánh dấu FAILED.
-            Media media = new Media();
-            media.setId("m1");
-            media.setS3Key("media/owner-1/m1/orphan.jpg");
-            media.setStatus(MediaStatus.PENDING);
-
-            when(s3Client.deleteObject(any(DeleteObjectRequest.class)))
-                    .thenThrow(software.amazon.awssdk.core.exception.SdkClientException.create("network blip"));
-
-            service.markAsFailed(media);
-
-            assertThat(media.getStatus()).isEqualTo(MediaStatus.FAILED);
-            verify(mediaRepository).save(media);
         }
     }
 

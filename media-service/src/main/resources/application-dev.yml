@@ -19,20 +19,74 @@ server:
 
 aws:
   region: us-east-1
-  endpoint:
-    # Trỏ vào MinIO local (docker-compose/qa) thay vì S3 thật. AwsConfig chỉ kích hoạt bean
-    # endpoint-override khi giá trị này khác rỗng.
-    url: http://localhost:9010
-  s3:
-    bucket-name: novaplay-media-dev
-    presigned-url-duration-minutes: 15
   sqs:
-    # SQS không được MinIO emulate — tắt consumer ở dev để tránh liên tục thử kết nối AWS thật.
+    # SQS không được MinIO/R2/B2 emulate — tắt consumer ở dev để tránh liên tục thử kết nối AWS
+    # thật. Xem PendingMediaCleanupJob cho đường polling thay thế.
     enabled: false
     queue-name: media-upload-events-dev
 
-cdn:
-  base-url: http://localhost:9010/novaplay-media-dev
+storage:
+  providers:
+    aws-s3:
+      # Slot "aws-s3" ở dev vẫn trỏ vào MinIO local (docker-compose/qa) như trước đây — chỉ đổi
+      # chỗ cấu hình, hành vi giữ nguyên 100%.
+      region: us-east-1
+      endpoint: http://localhost:9010
+      bucket-name: novaplay-media-dev
+      cdn-base-url: http://localhost:9010/novaplay-media-dev
+      force-path-style: true
+      presigned-url-duration-minutes: 15
+    cloudflare-r2:
+      region: auto
+      endpoint: ${R2_ENDPOINT:}
+      bucket-name: ${R2_BUCKET_NAME:novaplay-media-dev-r2}
+      cdn-base-url: ${R2_CDN_BASE_URL:}
+      access-key-id: ${R2_ACCESS_KEY_ID:}
+      secret-access-key: ${R2_SECRET_ACCESS_KEY:}
+      force-path-style: true
+      presigned-url-duration-minutes: 15
+    backblaze-b2:
+      region: ${B2_REGION:us-west-002}
+      endpoint: ${B2_ENDPOINT:}
+      bucket-name: ${B2_BUCKET_NAME:novaplay-media-dev-b2}
+      cdn-base-url: ${B2_CDN_BASE_URL:}
+      access-key-id: ${B2_KEY_ID:}
+      secret-access-key: ${B2_APPLICATION_KEY:}
+      force-path-style: true
+      presigned-url-duration-minutes: 15
+
+feature-flags:
+  # Chạy jar/IDE trực tiếp (không cần mongodb + config-service) — cờ cố định theo
+  # default-storage-provider bên dưới. Muốn test đổi cờ live qua DB thật: chạy docker-compose/qa
+  # (có mongodb + config-service) và override sang "config-service" qua env.
+  provider: in-memory
+  default-storage-provider: aws-s3
+
+# services.config đã có default ở application.yml gốc (dùng chung mọi profile) — dev không cần
+# override, "http://localhost:8500" đã đúng cho cả chạy jar/IDE trực tiếp lẫn docker-compose (khi
+# đó CONFIG_SERVICE_URI được ghi đè qua env, xem docker-compose/qa/docker-compose.yml).
+
+feign:
+  client:
+    config:
+      config-service:
+        # Chặn cứng độ trễ của lời gọi Feign đồng bộ trong requestUploadUrl — resilience4j
+        # TimeLimiter chỉ áp dụng cho method trả CompletionStage nên không dùng được ở đây;
+        # readTimeout là cơ chế bảo đảm timeout thật sự cho lời gọi đồng bộ.
+        connect-timeout: 1000
+        read-timeout: 2000
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      configService:
+        register-health-indicator: true
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 10
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 10s
+        permitted-number-of-calls-in-half-open-state: 3
+        automatic-transition-from-open-to-half-open-enabled: true
 
 application:
   security:

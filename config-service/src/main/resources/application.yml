@@ -1,0 +1,9 @@
+# Chỉ chứa những gì đúng cho MỌI môi trường. Cấu hình riêng theo môi trường nằm ở
+# application-<profile>.yml, chọn bằng SPRING_PROFILES_ACTIVE.
+spring:
+  application:
+    name: config-service
+
+logging:
+  pattern:
+    level: "%5p [${spring.application.name},%X{traceId},%X{spanId}]"

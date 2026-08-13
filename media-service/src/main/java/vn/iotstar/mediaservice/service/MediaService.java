@@ -18,7 +18,13 @@ public interface MediaService {
      */
     void markAsFailed(Media media);
 
-    boolean doesS3ObjectExist(String key);
+    /**
+     * Nhận {@link Media} thay vì key trần: buộc caller dùng
+     * {@link Media#getEffectiveStorageProvider()} thay vì cờ sống, để không kiểm tra nhầm provider
+     * cho một record đã upload trước khi cờ đổi. Xem
+     * {@link vn.iotstar.mediaservice.storage.StorageProviderResolver}.
+     */
+    boolean doesS3ObjectExist(Media media);
 
     UploadResponseDto requestUploadUrl(UploadRequestDto request);
 

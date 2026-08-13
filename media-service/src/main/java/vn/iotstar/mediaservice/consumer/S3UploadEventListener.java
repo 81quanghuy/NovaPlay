@@ -17,7 +17,7 @@ import vn.iotstar.mediaservice.common.dto.MediaReadyEvent;
  * <p>
  * Mặc định bật ({@code matchIfMissing = true}) vì prod luôn cần lắng nghe SQS thật. Chỉ tắt ở
  * dev ({@code aws.sqs.enabled=false}) vì SQS không được MinIO emulate — xem
- * {@link vn.iotstar.mediaservice.config.AwsConfig}.
+ * {@link vn.iotstar.mediaservice.config.SqsConfig}.
  * <p>
  * {@link MediaService#processSuccessfulUpload(Media)} là nơi DUY NHẤT publish
  * {@link MediaReadyEvent} (nó tự gọi {@code sendMediaReadyEvent} bên trong) — listener này KHÔNG

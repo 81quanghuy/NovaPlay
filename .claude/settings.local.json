@@ -5,7 +5,10 @@
       "Bash(git add *)",
       "Bash(git commit -m ' *)",
       "Bash(find \"D:\\\\NovaPlay\\\\NovaPlay_BE\\\\NovaPlay\" -name \"*.pem\" -not -path \"*/\\\\.claude/*\" 2>/dev/null | head -20)",
-      "Bash(mvn -pl utils,auth-service,api-gateway clean compile -DskipTests -q)"
+      "Bash(mvn -pl utils,auth-service,api-gateway clean compile -DskipTests -q)",
+      "Bash(ls -la ~/.m2/repository/org/springdoc/springdoc-openapi-starter-webflux-ui/2.6.0/ 2>/dev/null || echo \"not found\")",
+      "Read(//c/Users/Wang Huy/.m2/repository/org/springdoc/springdoc-openapi-starter-webflux-ui/2.6.0/**)",
+      "Bash(./mvnw -U -pl api-gateway dependency:resolve -DincludeArtifactIds=springdoc-openapi-starter-webflux-ui)"
     ]
   }
 }

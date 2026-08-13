@@ -214,6 +214,42 @@ services:
     entrypoint: ["sh", "-c", "mc alias set local http://media-minio:9000 media-dev media-dev-secret && mc mb -p local/novaplay-media-dev && exit 0"]
     networks: [novaPLay]
 
+  # Nguồn cờ OpenFeature cho media-service (media-storage-provider: aws-s3/cloudflare-r2/
+  # backblaze-b2), đọc từ MongoDB (xem config_service.config_flags). Ops đổi backend đang active
+  # bằng cách sửa document trực tiếp qua mongo-express (http://localhost:9999) hoặc mongosh —
+  # media-service không cần restart, xem ConfigServiceFeatureProvider.
+  config-service:
+    image: "novaplay/config-service:${CONFIG_SERVICE_VERSION:-v0.0.1}"
+    container_name: config-service
+    <<: *microservice-base
+    ports: ["8500:8500"]
+    depends_on:
+      mongodb: { condition: service_healthy }
+    environment:
+      SPRING_APPLICATION_NAME: "config-service"
+      OTEL_SERVICE_NAME: "config-service"
+      SPRING_DATA_MONGODB_URI: "mongodb://mongodb:27017/config_service?replicaSet=rs0"
+
+  # Seed giá trị mặc định cho môi trường QA mới dựng — KHÔNG bắt buộc cho tính đúng đắn: nếu key
+  # chưa tồn tại, ConfigServiceFeatureProvider tự fallback về feature-flags.default-storage-provider
+  # (aws-s3) phía media-service, chỉ để trải nghiệm dev mượt hơn (khỏi phải tự tạo document).
+  config-service-init:
+    image: mongo:7
+    container_name: config-service-init
+    depends_on:
+      mongodb: { condition: service_healthy }
+    entrypoint:
+      - mongosh
+      - "mongodb://mongodb:27017/config_service?replicaSet=rs0"
+      - --eval
+      - >-
+        db.config_flags.updateOne(
+          { _id: "media-storage-provider" },
+          { $setOnInsert: { value: "aws-s3" } },
+          { upsert: true }
+        )
+    networks: [novaPLay]
+
   prometheus:
     image: prom/prometheus:${PROMETHEUS_VERSION:-v3.1.0}
     container_name: prometheus-monitoring
@@ -323,16 +359,40 @@ services:
       mongodb: { condition: service_healthy }
       kafka-services: { condition: service_healthy }
       media-minio-init: { condition: service_completed_successfully }
+      # "service_started" (không phải "service_healthy"): chỉ chờ container config-service khởi
+      # động, không chờ healthcheck pass — media-service phải chạy được kể cả khi config-service
+      # chưa sẵn sàng hẳn (ConfigServiceFeatureProvider tự fallback về default-storage-provider),
+      # chặn cứng ở đây sẽ phá vỡ đúng tính chất resilience đó.
+      config-service: { condition: service_started }
     environment:
       SPRING_APPLICATION_NAME: "media-service"
       OTEL_SERVICE_NAME: "media-service"
       SPRING_DATA_MONGODB_URI: "mongodb://mongodb:27017/media_service?replicaSet=rs0"
-      # application-dev.yml trỏ MinIO tới localhost:9010; bên trong network của compose đó là
-      # chính container media-service, không phải media-minio — ghi đè bằng hostname container.
-      AWS_ENDPOINT_URL: "http://media-minio:9000"
+      # application-dev.yml trỏ slot "aws-s3" (MinIO) tới localhost:9010; bên trong network của
+      # compose đó là chính container media-service, không phải media-minio — ghi đè bằng
+      # hostname container. AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY không cần map qua property
+      # Spring nào cả: DefaultCredentialsProvider (dùng cho slot aws-s3) tự đọc hai biến chuẩn
+      # AWS SDK này từ môi trường.
+      STORAGE_PROVIDERS_AWSS3_ENDPOINT: "http://media-minio:9000"
       AWS_ACCESS_KEY_ID: "media-dev"
       AWS_SECRET_ACCESS_KEY: "media-dev-secret"
       AWS_REGION: "us-east-1"
+      FEATURE_FLAGS_PROVIDER: "config-service"
+      CONFIG_SERVICE_URI: "http://config-service:8500"
+      # Rỗng cho tới khi có tài khoản R2/B2 thật — sự hiện diện của các biến này (dù rỗng) là điều
+      # cho phép ops flip document media-storage-provider trong config-service sang
+      # "cloudflare-r2"/"backblaze-b2" mà không cần redeploy media-service, chỉ cần đổ giá trị
+      # thật vào rồi restart container media-service một lần.
+      R2_ACCOUNT_ID: "${R2_ACCOUNT_ID:-}"
+      R2_BUCKET_NAME: "${R2_BUCKET_NAME:-novaplay-media-qa-r2}"
+      R2_ACCESS_KEY_ID: "${R2_ACCESS_KEY_ID:-}"
+      R2_SECRET_ACCESS_KEY: "${R2_SECRET_ACCESS_KEY:-}"
+      R2_CDN_BASE_URL: "${R2_CDN_BASE_URL:-}"
+      B2_KEY_ID: "${B2_KEY_ID:-}"
+      B2_APPLICATION_KEY: "${B2_APPLICATION_KEY:-}"
+      B2_ENDPOINT: "${B2_ENDPOINT:-}"
+      B2_BUCKET_NAME: "${B2_BUCKET_NAME:-novaplay-media-qa-b2}"
+      B2_CDN_BASE_URL: "${B2_CDN_BASE_URL:-}"
 
   notification-service:
     image: "novaplay/notification-service:${NOTIFICATION_SERVICE_VERSION:-v0.0.1}"

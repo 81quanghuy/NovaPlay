@@ -1,0 +1,30 @@
+# config-service không đi qua api-gateway (không có rule ingress cho app: api-gateway) — nó chỉ
+# phục vụ các service khác gọi trực tiếp qua Service DNS nội bộ. Thêm một entry podSelector mới
+# vào đây mỗi khi một service khác bắt đầu gọi config-service (hiện tại: media-service).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: config-service
+  labels:
+    app: config-service
+spec:
+  podSelector:
+    matchLabels:
+      app: config-service
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: media-service
+      ports:
+        - protocol: TCP
+          port: 8500
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: monitoring
+      ports:
+        - protocol: TCP
+          port: 8500

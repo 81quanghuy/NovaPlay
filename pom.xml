@@ -31,6 +31,7 @@
         <module>user-service</module>
         <module>report-service</module>
         <module>media-service</module>
+        <module>config-service</module>
     </modules>
     <dependencies>
         <dependency>

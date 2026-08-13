@@ -3,6 +3,16 @@
 #
 # Biến bắt buộc: MONGODB_URI, KAFKA_BOOTSTRAP_SERVERS, AWS_REGION, AWS_S3_BUCKET_NAME,
 # AWS_SQS_QUEUE_NAME, CDN_BASE_URL, GATEWAY_SHARED_SECRET
+#
+# Biến cho storage provider thay thế (chỉ thực sự bắt buộc khi cờ media-storage-provider được
+# flip sang provider tương ứng — xem StorageProviderResolver; khai báo sẵn để đổi cờ không cần
+# redeploy):
+#   Cloudflare R2: R2_ACCOUNT_ID, R2_BUCKET_NAME, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY,
+#                  R2_CDN_BASE_URL
+#   Backblaze B2:  B2_REGION, B2_ENDPOINT, B2_BUCKET_NAME, B2_CDN_BASE_URL, B2_KEY_ID,
+#                  B2_APPLICATION_KEY
+#   config-service (nguồn cờ, đọc từ MongoDB — sửa giá trị bằng mongo-express/mongosh, không
+#   redeploy): CONFIG_SERVICE_URI (mặc định trỏ Service DNS "http://config-service:8500")
 spring:
   config:
     activate:
@@ -23,19 +33,67 @@ server:
   port: ${SERVER_PORT:8081}
   shutdown: graceful
 
-# KHÔNG có aws.endpoint.url ở đây — phải vắng mặt để bean S3 thật (không override endpoint)
-# trong AwsConfig được kích hoạt thay vì bean trỏ MinIO.
 aws:
   region: ${AWS_REGION}
-  s3:
-    bucket-name: ${AWS_S3_BUCKET_NAME}
-    presigned-url-duration-minutes: ${PRESIGNED_URL_DURATION_MINUTES:15}
   sqs:
     enabled: true
     queue-name: ${AWS_SQS_QUEUE_NAME}
 
-cdn:
-  base-url: ${CDN_BASE_URL}
+storage:
+  providers:
+    aws-s3:
+      # Không có "endpoint" ở đây — vắng mặt nghĩa là S3Client/S3Presigner trỏ thẳng vào AWS thật
+      # (không override endpoint), dùng DefaultCredentialsProvider (IAM role), giữ đúng hành vi
+      # AwsConfig cũ ở prod.
+      region: ${AWS_REGION}
+      bucket-name: ${AWS_S3_BUCKET_NAME}
+      cdn-base-url: ${CDN_BASE_URL}
+      force-path-style: false
+      presigned-url-duration-minutes: ${PRESIGNED_URL_DURATION_MINUTES:15}
+    cloudflare-r2:
+      region: auto
+      endpoint: https://${R2_ACCOUNT_ID:}.r2.cloudflarestorage.com
+      bucket-name: ${R2_BUCKET_NAME:}
+      cdn-base-url: ${R2_CDN_BASE_URL:}
+      access-key-id: ${R2_ACCESS_KEY_ID:}
+      secret-access-key: ${R2_SECRET_ACCESS_KEY:}
+      force-path-style: true
+      presigned-url-duration-minutes: ${PRESIGNED_URL_DURATION_MINUTES:15}
+    backblaze-b2:
+      region: ${B2_REGION:}
+      endpoint: ${B2_ENDPOINT:}
+      bucket-name: ${B2_BUCKET_NAME:}
+      cdn-base-url: ${B2_CDN_BASE_URL:}
+      access-key-id: ${B2_KEY_ID:}
+      secret-access-key: ${B2_APPLICATION_KEY:}
+      force-path-style: true
+      presigned-url-duration-minutes: ${PRESIGNED_URL_DURATION_MINUTES:15}
+
+feature-flags:
+  provider: config-service
+  default-storage-provider: ${DEFAULT_STORAGE_PROVIDER:aws-s3}
+
+services:
+  config: ${CONFIG_SERVICE_URI:http://config-service:8500}
+
+feign:
+  client:
+    config:
+      config-service:
+        connect-timeout: 1000
+        read-timeout: 2000
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      configService:
+        register-health-indicator: true
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 10
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 10s
+        permitted-number-of-calls-in-half-open-state: 3
+        automatic-transition-from-open-to-half-open-enabled: true
 
 application:
   security:

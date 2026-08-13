@@ -7,6 +7,19 @@ spring:
   application:
     name: media-service
 
+feature-flags:
+  # Dùng khi OpenFeature provider (config-service) không đọc được cờ media-storage-provider —
+  # không được phép làm luồng upload lỗi chỉ vì config-service tạm thời không tới được, xem
+  # StorageProviderResolver.
+  default-storage-provider: aws-s3
+
+# Đặt ở đây (không chỉ trong application-dev/prod.yml): @FeignClient(url = "${services.config}")
+# resolve giá trị này ngay lúc đăng ký bean định nghĩa (context startup), kể cả trong test không
+# active profile nào (vd MediaControllerSecurityTest) — thiếu default ở base file này làm
+# FeignClientsRegistrar nhận nguyên chuỗi "${services.config}" chưa resolve và ném URISyntaxException.
+services:
+  config: ${CONFIG_SERVICE_URI:http://localhost:8500}
+
 logging:
   pattern:
     # traceId/spanId được OpenTelemetry javaagent đưa vào MDC.

@@ -13,6 +13,7 @@ public final class Constants {
     public static final String MEDIA_ORIGINAL_FILENAME = "originalFileName";
     public static final String MEDIA_S3_KEY            = "s3Key";
     public static final String MEDIA_CDN_URL           = "cdnUrl";
+    public static final String MEDIA_STORAGE_PROVIDER  = "storageProvider";
     public static final String MEDIA_STATUS            = "status";
     public static final String CONTENT_TYPE            = "contentType";
     public static final String SIZE                    = "size";

@@ -6,6 +6,7 @@ import org.springframework.data.mongodb.core.index.CompoundIndex;
 import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.Field;
+import vn.iotstar.mediaservice.storage.StorageProvider;
 import vn.iotstar.mediaservice.util.Constants;
 import vn.iotstar.mediaservice.util.MediaStatus;
 import vn.iotstar.mediaservice.common.audit.AuditableDocument;
@@ -61,4 +62,23 @@ public class Media extends AuditableDocument implements Serializable {
     @Builder.Default
     @Field(Constants.MEDIA_STATUS)
     private MediaStatus status = MediaStatus.PENDING;
+
+    /**
+     * Provider đã dùng lúc upload — ghi lại tại thời điểm tạo record, KHÔNG BAO GIỜ suy ra lại từ
+     * cờ sống sau đó. Xem {@link #getEffectiveStorageProvider()}.
+     */
+    @Field(Constants.MEDIA_STORAGE_PROVIDER)
+    private StorageProvider storageProvider;
+
+    /**
+     * Field vắng mặt (record tạo trước khi tính năng multi-provider tồn tại) nghĩa là
+     * {@link StorageProvider#AWS_S3} — 100% record hiện có trong prod thực sự đang nằm trên AWS S3,
+     * đây là sự thật lịch sử chứ không phải suy đoán. Dùng getter này ở MỌI nơi thao tác trên một
+     * {@link Media} ĐÃ TỒN TẠI (xoá, kiểm tra tồn tại, sinh CDN URL) — không bao giờ hỏi lại cờ sống
+     * (xem {@link vn.iotstar.mediaservice.storage.StorageProviderResolver}) cho record cũ, vì cờ có
+     * thể đã đổi sang provider khác từ lúc record này được tạo.
+     */
+    public StorageProvider getEffectiveStorageProvider() {
+        return storageProvider != null ? storageProvider : StorageProvider.AWS_S3;
+    }
 }
