@@ -26,9 +26,17 @@ public class CacheConfig {
         // TTL ngắn hơn nhiều: admin đổi gói cước phải có hiệu lực gần như ngay, không phải chờ
         // tới khi manifest cache tự hết hạn.
         RedisCacheConfiguration planConfig = jsonConfig(Duration.ofMinutes(5));
+        // Ngắn nhất trong ba cache: chỉ để hấp thụ traffic lặp lại trong một phiên xem (play +
+        // nhiều lần ping progress + record view đều hỏi cùng một phim), không phải cache dài hạn.
+        RedisCacheConfiguration movieConfig = jsonConfig(Duration.ofSeconds(60));
+        // Van an toàn vận hành: khi CDN có sự cố, đổi cờ trong config-service phải có hiệu lực
+        // trong vòng 30s mà không cần redeploy.
+        RedisCacheConfiguration deliveryModeConfig = jsonConfig(Duration.ofSeconds(30));
         return builder -> builder
                 .withCacheConfiguration(CacheNames.MANIFEST_RESOLUTION, manifestConfig)
-                .withCacheConfiguration(CacheNames.USER_PLAN, planConfig);
+                .withCacheConfiguration(CacheNames.USER_PLAN, planConfig)
+                .withCacheConfiguration(CacheNames.MOVIE_RESOLUTION, movieConfig)
+                .withCacheConfiguration(CacheNames.DELIVERY_MODE, deliveryModeConfig);
     }
 
     private RedisCacheConfiguration jsonConfig(Duration ttl) {

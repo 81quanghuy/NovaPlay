@@ -15,6 +15,13 @@ services:
   movie: ${MOVIE_SERVICE_URI:http://localhost:8600}
   media: ${MEDIA_SERVICE_URI:http://localhost:8081}
   user: ${USER_SERVICE_URI:http://localhost:8700}
+  config: ${CONFIG_SERVICE_URI:http://localhost:8500}
+
+feature-flags:
+  # Dùng khi OpenFeature provider (config-service) không đọc được cờ streaming-delivery-mode —
+  # không được phép làm hỏng playback chỉ vì config-service tạm thời không tới được, xem
+  # ConfigServiceFeatureProvider/CachedDeliveryModeResolver.
+  default-delivery-mode: direct
 
 logging:
   pattern:

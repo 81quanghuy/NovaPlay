@@ -21,6 +21,7 @@ public class HlsManifestServiceImpl implements HlsManifestService {
     private static final Pattern KEY_URI_PATTERN = Pattern.compile("URI=\"[^\"]*\"");
 
     private final HlsStorageService hlsStorageService;
+    private final SegmentUrlResolver segmentUrlResolver;
 
     @Override
     public String buildMasterPlaylist(VideoManifestResponse manifest, String playbackToken) {
@@ -57,7 +58,7 @@ public class HlsManifestServiceImpl implements HlsManifestService {
                 out.append(rewritten).append('\n');
             } else if (!trimmed.isEmpty() && !trimmed.startsWith("#")) {
                 String segmentKey = dir + trimmed;
-                out.append(hlsStorageService.presignGetObject(provider, segmentKey, segmentUrlTtl)).append('\n');
+                out.append(segmentUrlResolver.resolve(provider, segmentKey, segmentUrlTtl)).append('\n');
             } else if (!trimmed.isEmpty() || !line.isEmpty()) {
                 out.append(trimmed).append('\n');
             }

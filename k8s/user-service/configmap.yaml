@@ -6,7 +6,8 @@ metadata:
     app: user-service
 # Chỉ chứa giá trị không nhạy cảm. Credential nằm ở user-service-secrets.
 data:
-  REDIS_HOST: "redis"
+  # Chart Redis (standalone) tạo Service tên "redis-master", không phải "redis".
+  REDIS_HOST: "redis-master"
   REDIS_PORT: "6379"
   KAFKA_BOOTSTRAP_SERVERS: "kafka:9092"
   KAFKA_SECURITY_PROTOCOL: "PLAINTEXT"

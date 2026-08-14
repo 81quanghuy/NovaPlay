@@ -6,6 +6,8 @@ spring:
     mongodb:
       uri: mongodb://localhost:27017/streaming_service?replicaSet=rs0
       auto-index-creation: true
+      # WatchProgressIndexInitializer vẫn kiểm tra lại lúc khởi động vì auto-index-creation chạy
+      # lazy theo từng entity và nuốt lỗi im lặng — cùng pattern với media-service's MongoIndexInitializer.
     redis:
       host: localhost
       port: 6379
@@ -48,6 +50,16 @@ storage:
       secret-access-key: ${B2_APPLICATION_KEY:}
       force-path-style: true
       presigned-url-duration-minutes: 360
+
+feature-flags:
+  # Chạy jar/IDE trực tiếp (không cần mongodb + config-service) — cờ cố định theo
+  # default-delivery-mode ở application.yml gốc (direct). Muốn test đổi cờ live qua DB thật: chạy
+  # docker-compose/qa (có mongodb + config-service) và override sang "config-service" qua env.
+  provider: in-memory
+
+# services.config đã có default ở application.yml gốc (dùng chung mọi profile) — dev không cần
+# override, "http://localhost:8500" đã đúng cho cả chạy jar/IDE trực tiếp lẫn docker-compose (khi
+# đó CONFIG_SERVICE_URI được ghi đè qua env, xem docker-compose/qa/docker-compose.yml).
 
 playback:
   # Dev only — KHÔNG phải secret thật. Base64 của 32 byte cố định để mọi dev machine ra cùng kết quả.
@@ -95,6 +107,14 @@ resilience4j:
         wait-duration-in-open-state: 10s
         permitted-number-of-calls-in-half-open-state: 3
         automatic-transition-from-open-to-half-open-enabled: true
+      configService:
+        register-health-indicator: true
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 10
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 10s
+        permitted-number-of-calls-in-half-open-state: 3
+        automatic-transition-from-open-to-half-open-enabled: true
 
 application:
   security:
@@ -114,7 +134,7 @@ management:
         enabled: true
       group:
         readiness:
-          include: readinessState,mongo,redis
+          include: readinessState,mongo,redis,watchProgressIndex
   health:
     livenessstate:
       enabled: true

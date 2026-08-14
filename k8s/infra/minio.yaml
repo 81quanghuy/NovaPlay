@@ -1,0 +1,79 @@
+# MinIO 1-pod cho dev/QA — mirror service "media-minio" của docker-compose/qa/docker-compose.yml,
+# giả lập S3 cho media-service/streaming-service/transcoding-worker. Không persistence (emptyDir),
+# không TLS. Bucket được tạo bởi k8s/infra/scripts/minio-bucket-init.sh (Tilt local_resource),
+# không tạo ở đây — MinIO không tự tạo bucket lúc khởi động.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: media-minio
+  labels:
+    app: media-minio
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: media-minio
+  template:
+    metadata:
+      labels:
+        app: media-minio
+    spec:
+      containers:
+        - name: minio
+          image: minio/minio:RELEASE.2024-12-18T13-15-44Z
+          args: ["server", "/data", "--console-address", ":9001"]
+          env:
+            - name: MINIO_ROOT_USER
+              value: "media-dev"
+            - name: MINIO_ROOT_PASSWORD
+              value: "media-dev-secret"
+          ports:
+            - name: api
+              containerPort: 9000
+            - name: console
+              containerPort: 9001
+          readinessProbe:
+            httpGet:
+              path: /minio/health/ready
+              port: api
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /minio/health/live
+              port: api
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          volumeMounts:
+            - name: data
+              mountPath: /data
+      volumes:
+        - name: data
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: media-minio
+  labels:
+    app: media-minio
+spec:
+  type: ClusterIP
+  selector:
+    app: media-minio
+  ports:
+    - name: api
+      port: 9000
+      targetPort: api
+    - name: console
+      port: 9001
+      targetPort: console

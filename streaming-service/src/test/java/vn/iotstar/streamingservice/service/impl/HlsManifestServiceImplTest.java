@@ -24,10 +24,13 @@ class HlsManifestServiceImplTest {
     @Mock
     private HlsStorageService hlsStorageService;
 
-    private final HlsManifestServiceImpl service = new HlsManifestServiceImpl(null);
+    @Mock
+    private SegmentUrlResolver segmentUrlResolver;
+
+    private final HlsManifestServiceImpl service = new HlsManifestServiceImpl(null, null);
 
     private HlsManifestServiceImpl serviceWithMock() {
-        return new HlsManifestServiceImpl(hlsStorageService);
+        return new HlsManifestServiceImpl(hlsStorageService, segmentUrlResolver);
     }
 
     private VideoManifestResponse manifest(List<RenditionResponse> renditions) {
@@ -67,7 +70,7 @@ class HlsManifestServiceImplTest {
                 + "#EXT-X-ENDLIST\n";
         when(hlsStorageService.readTextObject(eq(StorageProvider.AWS_S3), eq(rendition.playlistS3Key())))
                 .thenReturn(raw);
-        when(hlsStorageService.presignGetObject(eq(StorageProvider.AWS_S3), any(), any(Duration.class)))
+        when(segmentUrlResolver.resolve(eq(StorageProvider.AWS_S3), any(), any(Duration.class)))
                 .thenAnswer(inv -> "https://signed.local/" + inv.getArgument(1));
 
         String rewritten = svc.buildRenditionPlaylist(manifest, "720p", "tok123", Duration.ofHours(1));

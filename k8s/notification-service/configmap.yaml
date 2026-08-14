@@ -6,9 +6,12 @@ metadata:
     app: notification-service
 # Chỉ chứa giá trị không nhạy cảm. Credential nằm ở notification-service-secrets.
 data:
-  REDIS_HOST: "redis"
+  # Chart Redis (standalone) tạo Service tên "redis-master", không phải "redis".
+  REDIS_HOST: "redis-master"
   REDIS_PORT: "6379"
-  KAFKA_BOOTSTRAP_SERVERS: "kafka-services:29092"
+  # Chart Kafka (fullnameOverride: kafka) tạo Service tên "kafka", cổng client 9092 —
+  # "kafka-services:29092" là tên/cổng nội bộ của docker-compose, không tồn tại trong cluster.
+  KAFKA_BOOTSTRAP_SERVERS: "kafka:9092"
   SERVER_PORT: "8900"
   # Lấy mẫu toàn bộ ở production quá tốn kém; 10% đủ để phát hiện xu hướng.
   TRACING_SAMPLE_RATE: "0.1"
