@@ -16,7 +16,6 @@ import vn.iotstar.streamingservice.repository.WatchProgressRepository;
 import vn.iotstar.streamingservice.service.PlaybackTokenService;
 import vn.iotstar.streamingservice.service.StreamingService;
 import vn.iotstar.streamingservice.service.ViewCountService;
-import vn.iotstar.streamingservice.service.client.MovieServiceClient;
 import vn.iotstar.streamingservice.service.client.dto.EpisodeResponse;
 import vn.iotstar.streamingservice.service.client.dto.MovieDetailResponse;
 import vn.iotstar.streamingservice.service.client.dto.VideoManifestResponse;
@@ -32,7 +31,7 @@ public class StreamingServiceImpl implements StreamingService {
     private static final String READY = "READY";
     private static final int STANDALONE_EPISODE_SLOT = 0;
 
-    private final MovieServiceClient movieServiceClient;
+    private final CachedMovieResolver movieResolver;
     private final CachedManifestResolver manifestResolver;
     private final CachedEntitlementResolver entitlementResolver;
     private final PlaybackTokenService playbackTokenService;
@@ -119,11 +118,7 @@ public class StreamingServiceImpl implements StreamingService {
     }
 
     private MovieDetailResponse fetchMovie(String idOrSlug) {
-        MovieDetailResponse movie = movieServiceClient.getPublishedMovie(idOrSlug).result();
-        if (movie == null) {
-            throw new ResourceNotFoundException("Movie not found: " + idOrSlug);
-        }
-        return movie;
+        return movieResolver.resolveByIdOrSlug(idOrSlug);
     }
 
     private String resolveMediaId(MovieDetailResponse movie, Integer episodeNumber) {

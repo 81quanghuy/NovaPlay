@@ -1,0 +1,12 @@
+{
+  "//": "Copy thành tilt-settings.json (KHÔNG commit — đã có trong .gitignore). Mặc định false = dùng Postgres/Redis cài trong cluster qua Bitnami chart (k8s/infra/*-values.yaml). Đọc k8s/infra/README.md mục 'Cloud config' trước khi bật.",
+  "use_cloud_postgres": false,
+  "use_cloud_redis": false,
+
+  "//cloud_postgres_url": "jdbc:postgresql://<cloud-pg-host>:5432/auth_service?sslmode=require — chỉ dùng khi use_cloud_postgres=true. Username/password vẫn lấy từ k8s/infra/dev-secrets.env (AUTH_SERVICE__DATASOURCE_USERNAME/PASSWORD), đổi sang credential cloud thật ở đó.",
+  "cloud_postgres_url": "",
+
+  "//cloud_redis_host": "Chỉ dùng khi use_cloud_redis=true. Áp dụng cho auth-service/user-service/movie-service/notification-service (REDIS_HOST đang nằm ở ConfigMap). api-gateway và streaming-service đọc REDIS_HOST từ Secret — sửa trực tiếp API_GATEWAY__REDIS_HOST/STREAMING_SERVICE__REDIS_HOST trong dev-secrets.env, không cần sửa ở đây.",
+  "cloud_redis_host": "",
+  "cloud_redis_port": "6379"
+}

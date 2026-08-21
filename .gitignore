@@ -38,3 +38,11 @@ build/
 
 ## private key files
 *.pem
+
+## Tilt local dev overrides (giá trị thật, không commit)
+/k8s/infra/dev-secrets.env
+/tilt-settings.json
+tilt_build_history
+
+## Tilt state
+.tiltbuild/

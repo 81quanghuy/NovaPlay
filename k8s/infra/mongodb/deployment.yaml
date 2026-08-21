@@ -1,0 +1,70 @@
+# Mongo 1-pod cho dev/QA trên docker-desktop, mirror đúng service "mongodb" của
+# docker-compose/qa/docker-compose.yml: replica set 1 node "rs0", không auth, không TLS,
+# không persistence (emptyDir — mất dữ liệu khi pod bị xoá, chấp nhận được ở dev).
+#
+# Không dùng chart Bitnami mongodb: chart chỉ hỗ trợ rs0 qua architecture=replicaset, sinh ra
+# StatefulSet + headless Service với DNS dạng mongodb-0.mongodb-headless...svc.cluster.local —
+# khác hẳn URI phẳng "mongodb://mongodb:27017/<db>?replicaSet=rs0" mà 6 service khác đang tham
+# chiếu trong secret.example.yaml của chúng. Viết tay để giữ đúng URI shape đó.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mongodb
+  labels:
+    app: mongodb
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: mongodb
+  template:
+    metadata:
+      labels:
+        app: mongodb
+    spec:
+      containers:
+        - name: mongodb
+          image: mongo:7
+          command: ["mongod", "--replSet", "rs0", "--bind_ip_all"]
+          ports:
+            - name: mongodb
+              containerPort: 27017
+          # Tự init replica set nếu chưa init — mirror healthcheck của docker-compose. Dùng làm
+          # readiness/liveness luôn: pod chỉ "sẵn sàng" khi rs.status().ok, tức là các service
+          # phụ thuộc Mongo (transaction cần replica set) sẽ đợi đúng thời điểm.
+          readinessProbe:
+            exec:
+              command:
+                - mongosh
+                - --quiet
+                - --eval
+                - >-
+                  try { rs.status().ok } catch(e) {
+                    rs.initiate({_id:'rs0', members:[{_id:0, host:'mongodb:27017'}]}).ok
+                  }
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+          livenessProbe:
+            exec:
+              command: ["mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
+            initialDelaySeconds: 10
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 6
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+          volumeMounts:
+            - name: data
+              mountPath: /data/db
+      volumes:
+        - name: data
+          emptyDir: {}

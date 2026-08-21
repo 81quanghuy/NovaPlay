@@ -17,6 +17,7 @@
         <spring-cloud.version>2025.0.0</spring-cloud.version>
         <springdoc.version>2.8.9</springdoc.version>
         <jjwt.version>0.12.7</jjwt.version>
+        <openfeature.version>1.22.0</openfeature.version>
     </properties>
 
     <dependencies>
@@ -86,6 +87,13 @@
             <groupId>org.springdoc</groupId>
             <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
             <version>${springdoc.version}</version>
+        </dependency>
+        <!-- Cờ runtime chọn đường phát segment (direct presigned / CDN) — cùng version với
+             media-service, nguồn cờ là config-service. Xem OpenFeatureConfig. -->
+        <dependency>
+            <groupId>dev.openfeature</groupId>
+            <artifactId>sdk</artifactId>
+            <version>${openfeature.version}</version>
         </dependency>
         <dependency>
             <groupId>org.projectlombok</groupId>

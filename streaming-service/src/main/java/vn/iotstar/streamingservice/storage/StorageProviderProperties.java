@@ -34,5 +34,12 @@ public class StorageProviderProperties {
         private boolean forcePathStyle;
         /** TTL của presigned GET cấp cho segment — trần tuyệt đối, còn lại theo playback token. */
         private long presignedUrlDurationMinutes = 360;
+        /**
+         * Base URL của CDN đứng trước bucket này (vd CloudFront distribution domain). Rỗng nghĩa
+         * là chưa cấu hình CDN cho provider này — {@code SegmentUrlResolver} tự động rơi về
+         * presigned URL trực tiếp dù cờ delivery mode đang là {@code cloudfront}, tránh sinh URL
+         * rác khi provider hiện tại không có CDN phía sau.
+         */
+        private String cdnBaseUrl;
     }
 }

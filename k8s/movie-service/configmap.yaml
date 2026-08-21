@@ -7,7 +7,8 @@ metadata:
 # Chỉ chứa giá trị không nhạy cảm. Credential nằm ở movie-service-secrets.
 # Không có biến Kafka: movie-service chưa publish hay tiêu thụ event nào.
 data:
-  REDIS_HOST: "redis"
+  # Chart Redis (standalone) tạo Service tên "redis-master", không phải "redis".
+  REDIS_HOST: "redis-master"
   REDIS_PORT: "6379"
   SERVER_PORT: "8600"
   # Lấy mẫu toàn bộ ở production quá tốn kém; 10% đủ để phát hiện xu hướng.

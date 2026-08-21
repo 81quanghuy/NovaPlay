@@ -6,6 +6,10 @@
 #
 # Biến storage provider: giống media-service/transcoding-worker (AWS_S3_BUCKET_NAME, R2_*, B2_*) —
 # CÙNG bucket, vì đây là nơi worker đã ghi output HLS vào.
+#
+# Biến tuỳ chọn: VIDEO_CDN_BASE_URL, CONFIG_SERVICE_URI (mặc định http://config-service:8500).
+# Để trống VIDEO_CDN_BASE_URL nếu chưa gắn CloudFront — cờ streaming-delivery-mode=cloudfront lúc
+# đó tự rơi về presigned URL, xem SegmentUrlResolver.
 spring:
   config:
     activate:
@@ -14,6 +18,12 @@ spring:
     mongodb:
       uri: ${MONGODB_URI}
       auto-index-creation: true
+      # WatchProgressIndexInitializer vẫn kiểm tra lại lúc khởi động vì auto-index-creation chạy
+      # lazy theo từng entity và nuốt lỗi im lặng.
+      pool:
+        # HPA scale tới 10 pod (xem k8s/streaming-service/hpa.yaml) — bound ở đây, không phải
+        # trong MONGODB_URI, để trần connection tới Mongo luôn có hiệu lực. Xem MongoPoolConfig.
+        max-size: ${MONGO_MAX_POOL_SIZE:30}
     redis:
       host: ${REDIS_HOST}
       port: ${REDIS_PORT:6379}
@@ -38,6 +48,9 @@ storage:
       bucket-name: ${AWS_S3_BUCKET_NAME}
       force-path-style: false
       presigned-url-duration-minutes: ${SEGMENT_URL_DURATION_MINUTES:360}
+      # Rỗng = chưa gắn CDN cho provider này, SegmentUrlResolver tự rơi về presigned URL dù cờ
+      # streaming-delivery-mode đang là cloudfront. Xem k8s/streaming-service/configmap.yaml.
+      cdn-base-url: ${VIDEO_CDN_BASE_URL:}
     cloudflare-r2:
       region: auto
       endpoint: https://${R2_ACCOUNT_ID:}.r2.cloudflarestorage.com
@@ -64,6 +77,12 @@ transcode:
 
 streaming:
   view-dedup-window-minutes: ${VIEW_DEDUP_WINDOW_MINUTES:30}
+
+feature-flags:
+  provider: config-service
+
+services:
+  config: ${CONFIG_SERVICE_URI:http://config-service:8500}
 
 feign:
   client:
@@ -92,6 +111,9 @@ resilience4j:
       userService:
         base-config: default
         register-health-indicator: true
+      configService:
+        base-config: default
+        register-health-indicator: true
 
 application:
   security:
@@ -111,7 +133,7 @@ management:
         enabled: true
       group:
         readiness:
-          include: readinessState,mongo,redis
+          include: readinessState,mongo,redis,watchProgressIndex
   health:
     livenessstate:
       enabled: true
