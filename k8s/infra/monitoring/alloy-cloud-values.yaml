@@ -1,0 +1,202 @@
+# Alloy ở chế độ GRAFANA CLOUD (tilt-settings.json: use_grafana_cloud=true).
+#
+# Khác alloy-values.yaml (chế độ in-cluster) ở chỗ đây là thành phần monitoring DUY NHẤT còn
+# chạy trong cụm: không Prometheus, không Grafana, không Loki, không Tempo. Alloy làm cả ba việc
+# và đẩy thẳng lên Grafana Cloud:
+#
+#   pod /actuator/prometheus  --scrape-->  remote_write  -->  Grafana Cloud Prometheus
+#   stdout của pod            --tail---->  loki.write    -->  Grafana Cloud Loki
+#   OTLP :4318 (OTEL agent)   --receive->  otlphttp      -->  Grafana Cloud Tempo
+#
+# Credential đến từ Secret "grafana-cloud-secrets" trong namespace monitoring, do
+# k8s/infra/scripts/apply-dev-secrets.sh tạo từ các key GRAFANA_CLOUD__* trong dev-secrets.env.
+#
+# CHƯA chạy thử bằng cluster thật lúc soạn. Nếu resource `alloy` đỏ, đối chiếu key values bằng
+# `helm show values grafana-charts/alloy` — `alloy.configMap.content`, `alloy.envFrom` và
+# `alloy.extraPorts` là ba key dễ lệch nhất giữa các version chart.
+
+controller:
+  # Deployment 1 replica, KHÔNG phải DaemonSet như chế độ in-cluster. DaemonSet nghĩa là mỗi node
+  # chạy một Alloy và cả ba đều scrape TOÀN BỘ pod trong cụm -> mỗi series bị gửi lên nhiều lần.
+  # Free tier tính theo 10.000 active series nên đây không phải chuyện thẩm mỹ. Log vẫn đầy đủ vì
+  # loki.source.kubernetes đọc qua Kubernetes API chứ không đọc file log trên từng node.
+  type: deployment
+  replicas: 1
+
+alloy:
+  # Toàn bộ URL/user/token đọc từ Secret bằng sys.env() trong config bên dưới.
+  envFrom:
+    - secretRef:
+        name: grafana-cloud-secrets
+
+  # Cổng OTLP phải được khai báo ở đây thì Service "alloy" mới expose ra, nếu không
+  # OTEL_EXPORTER_OTLP_ENDPOINT=http://alloy.monitoring.svc:4318 trong các Deployment sẽ
+  # connection-refused (mà OTEL agent chỉ log lỗi rồi bỏ qua — mất trace trong im lặng).
+  extraPorts:
+    - name: otlp-http
+      port: 4318
+      targetPort: 4318
+      protocol: TCP
+    - name: otlp-grpc
+      port: 4317
+      targetPort: 4317
+      protocol: TCP
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 512Mi
+
+  configMap:
+    create: true
+    content: |-
+      // ===================== NGUỒN: pod trong cụm =====================
+      discovery.kubernetes "pods" {
+        role = "pod"
+      }
+
+      // ===================== LOGS =====================
+      discovery.relabel "app_logs" {
+        targets = discovery.kubernetes.pods.targets
+
+        // Chỉ lấy log của namespace mình quan tâm. Không lọc thì log của kube-system cũng bay
+        // lên Grafana Cloud và ăn vào hạn mức 50GB/tháng mà chẳng để làm gì.
+        rule {
+          source_labels = ["__meta_kubernetes_namespace"]
+          regex         = "default|monitoring"
+          action        = "keep"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_namespace"]
+          target_label  = "namespace"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_pod_name"]
+          target_label  = "pod"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_pod_label_app"]
+          target_label  = "service"
+        }
+      }
+
+      loki.source.kubernetes "pods" {
+        targets    = discovery.relabel.app_logs.output
+        forward_to = [loki.write.grafana_cloud.receiver]
+      }
+
+      loki.write "grafana_cloud" {
+        endpoint {
+          url = sys.env("GRAFANA_CLOUD_LOKI_URL")
+          basic_auth {
+            username = sys.env("GRAFANA_CLOUD_LOKI_USER")
+            password = sys.env("GRAFANA_CLOUD_TOKEN")
+          }
+        }
+      }
+
+      // ===================== METRICS =====================
+      // Thay cho PodMonitor của kube-prometheus-stack: đọc annotation prometheus.io/* mà mọi
+      // Deployment trong k8s/<service>/ đã có sẵn.
+      discovery.relabel "app_metrics" {
+        targets = discovery.kubernetes.pods.targets
+
+        rule {
+          source_labels = ["__meta_kubernetes_pod_annotation_prometheus_io_scrape"]
+          regex         = "true"
+          action        = "keep"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_pod_annotation_prometheus_io_path"]
+          regex         = "(.+)"
+          target_label  = "__metrics_path__"
+          action        = "replace"
+        }
+        rule {
+          source_labels = ["__address__", "__meta_kubernetes_pod_annotation_prometheus_io_port"]
+          regex         = "([^:]+)(?::\\d+)?;(\\d+)"
+          replacement   = "$1:$2"
+          target_label  = "__address__"
+          action        = "replace"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_namespace"]
+          target_label  = "namespace"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_pod_name"]
+          target_label  = "pod"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_pod_label_app"]
+          target_label  = "service"
+        }
+      }
+
+      prometheus.scrape "novaplay" {
+        targets         = discovery.relabel.app_metrics.output
+        forward_to      = [prometheus.relabel.cardinality_guard.receiver]
+        scrape_interval = "30s"
+      }
+
+      // GIỮ BƯỚC NÀY. Free tier Grafana Cloud = 10.000 active series, và riêng histogram
+      // http_server_requests_seconds_bucket của Micrometer đã sinh ~1 series cho MỖI tổ hợp
+      // (uri x method x status x bucket) — 9 service là đủ chạm trần một mình. Bỏ *_bucket giữ
+      // lại _count/_sum (vẫn tính được throughput, tỉ lệ lỗi, latency trung bình) và chỉ mất
+      // percentile/heatmap. Muốn lại percentile thì xoá rule này và theo dõi mục Usage của
+      // Grafana Cloud — vượt 10k series là bắt đầu bị từ chối ghi.
+      prometheus.relabel "cardinality_guard" {
+        forward_to = [prometheus.remote_write.grafana_cloud.receiver]
+
+        rule {
+          source_labels = ["__name__"]
+          regex         = "http_server_requests_seconds_bucket|http_client_requests_seconds_bucket|spring_data_repository_invocations_seconds_bucket"
+          action        = "drop"
+        }
+      }
+
+      prometheus.remote_write "grafana_cloud" {
+        endpoint {
+          url = sys.env("GRAFANA_CLOUD_PROM_URL")
+          basic_auth {
+            username = sys.env("GRAFANA_CLOUD_PROM_USER")
+            password = sys.env("GRAFANA_CLOUD_TOKEN")
+          }
+        }
+      }
+
+      // ===================== TRACES =====================
+      // Nhận OTLP từ OpenTelemetry Java agent của 9 service
+      // (OTEL_EXPORTER_OTLP_ENDPOINT=http://alloy.monitoring.svc:4318).
+      otelcol.receiver.otlp "default" {
+        grpc {
+          endpoint = "0.0.0.0:4317"
+        }
+        http {
+          endpoint = "0.0.0.0:4318"
+        }
+
+        output {
+          traces = [otelcol.processor.batch.default.input]
+        }
+      }
+
+      otelcol.processor.batch "default" {
+        output {
+          traces = [otelcol.exporter.otlphttp.grafana_cloud.input]
+        }
+      }
+
+      otelcol.auth.basic "grafana_cloud" {
+        username = sys.env("GRAFANA_CLOUD_OTLP_USER")
+        password = sys.env("GRAFANA_CLOUD_TOKEN")
+      }
+
+      otelcol.exporter.otlphttp "grafana_cloud" {
+        client {
+          endpoint = sys.env("GRAFANA_CLOUD_OTLP_URL")
+          auth     = otelcol.auth.basic.grafana_cloud.handler
+        }
+      }

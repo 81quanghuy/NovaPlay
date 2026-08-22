@@ -33,7 +33,7 @@ spec:
         runAsUser: 1000
       containers:
         - name: notification-service
-          image: novaplay/notification-service:v0.0.1
+          image: ghcr.io/81nhuquynh/notification-service:latest
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
@@ -65,13 +65,15 @@ spec:
               path: /actuator/health/liveness
               port: http
             failureThreshold: 30
-            periodSeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
           livenessProbe:
             httpGet:
               path: /actuator/health/liveness
               port: http
-            periodSeconds: 15
-            failureThreshold: 3
+            periodSeconds: 20
+            failureThreshold: 5
+            timeoutSeconds: 5
           # Readiness gồm cả kiểm tra index của Mongo: thiếu index thì truy vấn danh sách
           # thông báo full-scan cả collection. Cố tình KHÔNG gồm Kafka — mất kết nối broker
           # không nên khiến pod ngừng phục vụ REST API đọc thông báo.
@@ -79,8 +81,9 @@ spec:
             httpGet:
               path: /actuator/health/readiness
               port: http
-            periodSeconds: 10
-            failureThreshold: 3
+            periodSeconds: 15
+            failureThreshold: 5
+            timeoutSeconds: 5
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
@@ -89,6 +92,18 @@ spec:
           volumeMounts:
             - name: tmp
               mountPath: /tmp
+            - name: kafka-ca
+              mountPath: /etc/novaplay/kafka
+              readOnly: true
       volumes:
         - name: tmp
           emptyDir: {}
+        # CA của project Aiven, nguồn: k8s/infra/aiven-kafka-ca.pem (tải từ Aiven Console,
+        # KHÔNG commit). optional: true để cụm chạy Kafka in-cluster/PLAINTEXT vẫn khởi động
+        # bình thường khi chưa có Secret này — thiếu CA lúc bật SASL_SSL thì lỗi hiện ra ở bước
+        # bắt tay TLS, không phải lúc tạo Pod.
+        - name: kafka-ca
+          secret:
+            secretName: aiven-kafka-ca
+            optional: true
+            defaultMode: 0444

@@ -3,6 +3,69 @@
   "use_cloud_postgres": false,
   "use_cloud_redis": false,
 
+  "//use_cloud_kafka": "Bỏ cài Kafka Bitnami in-cluster, trỏ toàn bộ sang Kafka managed (Aiven). Username/password nằm ở dev-secrets.env (<SERVICE>__KAFKA_SASL_USERNAME/PASSWORD), CA của project lưu ở k8s/infra/aiven-kafka-ca.pem. ĐỌC mục 'Kafka managed (Aiven)' trong k8s/infra/README.md trước khi bật: free tier chỉ cho 5 topic x 2 partition và KHÔNG auto-create, phải tạo topic tay.",
+  "use_cloud_kafka": false,
+  "cloud_kafka_bootstrap": "",
+
+  "//use_cloud_storage": "Bỏ deploy MinIO in-cluster, cả media/streaming/transcoding-worker đọc ghi thẳng Cloudflare R2. Credential R2_* nằm ở dev-secrets.env cho từng service. Tiltfile tự đặt DEFAULT_STORAGE_PROVIDER=cloudflare-r2 và AWS_SQS_ENABLED=false cho media-service.",
+  "use_cloud_storage": false,
+
+  "//use_grafana_cloud": "Chỉ có tác dụng khi use_monitoring=true. Bật = KHÔNG cài Prometheus/Grafana/Loki/Tempo trong cụm, chỉ còn Alloy đẩy metrics/logs/traces lên Grafana Cloud (credential: các key GRAFANA_CLOUD__* trong dev-secrets.env). Đây là cách giảm RAM nhiều nhất trên máy local.",
+  "use_grafana_cloud": false,
+
+  "//dev_scale_down": "Mặc định true. Ép mọi Deployment về 1 replica và hạ resources.requests xuống trần 250m CPU / 512Mi khi apply qua Tilt (KHÔNG sửa file yaml đã commit, KHÔNG đụng tới limits). Manifest gốc mô tả cụm nhiều node: 5.7 vCPU + 11.5 GiB requests, quá chỗ của một VM Docker Desktop -> pod đứng Pending. Đặt false nếu bạn chạy trên cụm thật.",
+  "dev_scale_down": true,
+
+  "//use_cloud_kafka": "Bỏ cài Kafka Bitnami in-cluster, trỏ toàn bộ sang Kafka managed (Aiven). Username/password nằm ở dev-secrets.env (<SERVICE>__KAFKA_SASL_USERNAME/PASSWORD), CA của project lưu ở k8s/infra/aiven-kafka-ca.pem. ĐỌC mục 'Kafka managed (Aiven)' trong k8s/infra/README.md trước khi bật: free tier chỉ cho 5 topic x 2 partition và KHÔNG auto-create, phải tạo topic tay.",
+  "use_cloud_kafka": false,
+  "cloud_kafka_bootstrap": "",
+
+  "//use_cloud_storage": "Bỏ deploy MinIO in-cluster, cả media/streaming/transcoding-worker đọc ghi thẳng Cloudflare R2. Credential R2_* nằm ở dev-secrets.env cho từng service. Tiltfile tự đặt DEFAULT_STORAGE_PROVIDER=cloudflare-r2 và AWS_SQS_ENABLED=false cho media-service.",
+  "use_cloud_storage": false,
+
+  "//use_grafana_cloud": "Chỉ có tác dụng khi use_monitoring=true. Bật = KHÔNG cài Prometheus/Grafana/Loki/Tempo trong cụm, chỉ còn Alloy đẩy metrics/logs/traces lên Grafana Cloud (credential: các key GRAFANA_CLOUD__* trong dev-secrets.env). Đây là cách giảm RAM nhiều nhất trên máy local.",
+  "use_grafana_cloud": false,
+
+  "//use_cloud_kafka": "Bỏ cài Kafka Bitnami in-cluster, trỏ toàn bộ sang Kafka managed (Aiven). Username/password nằm ở dev-secrets.env (<SERVICE>__KAFKA_SASL_USERNAME/PASSWORD), CA của project lưu ở k8s/infra/aiven-kafka-ca.pem. ĐỌC mục 'Kafka managed (Aiven)' trong k8s/infra/README.md trước khi bật: free tier chỉ cho 5 topic x 2 partition và KHÔNG auto-create, phải tạo topic tay.",
+  "use_cloud_kafka": false,
+  "cloud_kafka_bootstrap": "",
+
+  "//use_cloud_storage": "Bỏ deploy MinIO in-cluster, cả media/streaming/transcoding-worker đọc ghi thẳng Cloudflare R2. Credential R2_* nằm ở dev-secrets.env cho từng service. Tiltfile tự đặt DEFAULT_STORAGE_PROVIDER=cloudflare-r2 và AWS_SQS_ENABLED=false cho media-service.",
+  "use_cloud_storage": false,
+
+  "//use_grafana_cloud": "Chỉ có tác dụng khi use_monitoring=true. Bật = KHÔNG cài Prometheus/Grafana/Loki/Tempo trong cụm, chỉ còn Alloy đẩy metrics/logs/traces lên Grafana Cloud (credential: các key GRAFANA_CLOUD__* trong dev-secrets.env). Đây là cách giảm RAM nhiều nhất trên máy local.",
+  "use_grafana_cloud": false,
+
+  "//use_cloud_kafka": "Bỏ cài Kafka Bitnami in-cluster, trỏ toàn bộ sang Kafka managed (Aiven). Username/password nằm ở dev-secrets.env (<SERVICE>__KAFKA_SASL_USERNAME/PASSWORD), CA của project lưu ở k8s/infra/aiven-kafka-ca.pem. ĐỌC mục 'Kafka managed (Aiven)' trong k8s/infra/README.md trước khi bật: free tier chỉ cho 5 topic x 2 partition và KHÔNG auto-create, phải tạo topic tay.",
+  "use_cloud_kafka": false,
+  "cloud_kafka_bootstrap": "",
+
+  "//use_cloud_storage": "Bỏ deploy MinIO in-cluster, cả media/streaming/transcoding-worker đọc ghi thẳng Cloudflare R2. Credential R2_* nằm ở dev-secrets.env cho từng service. Tiltfile tự đặt DEFAULT_STORAGE_PROVIDER=cloudflare-r2 và AWS_SQS_ENABLED=false cho media-service.",
+  "use_cloud_storage": false,
+
+  "//use_grafana_cloud": "Chỉ có tác dụng khi use_monitoring=true. Bật = KHÔNG cài Prometheus/Grafana/Loki/Tempo trong cụm, chỉ còn Alloy đẩy metrics/logs/traces lên Grafana Cloud (credential: các key GRAFANA_CLOUD__* trong dev-secrets.env). Đây là cách giảm RAM nhiều nhất trên máy local.",
+  "use_grafana_cloud": false,
+
+  "//use_cloud_kafka": "Bỏ cài Kafka Bitnami in-cluster, trỏ toàn bộ sang Kafka managed (Aiven). Username/password nằm ở dev-secrets.env (<SERVICE>__KAFKA_SASL_USERNAME/PASSWORD), CA của project lưu ở k8s/infra/aiven-kafka-ca.pem. ĐỌC mục 'Kafka managed (Aiven)' trong k8s/infra/README.md trước khi bật: free tier chỉ cho 5 topic x 2 partition và KHÔNG auto-create, phải tạo topic tay.",
+  "use_cloud_kafka": false,
+  "cloud_kafka_bootstrap": "",
+
+  "//use_cloud_storage": "Bỏ deploy MinIO in-cluster, cả media/streaming/transcoding-worker đọc ghi thẳng Cloudflare R2. Credential R2_* nằm ở dev-secrets.env cho từng service. Tiltfile tự đặt DEFAULT_STORAGE_PROVIDER=cloudflare-r2 và AWS_SQS_ENABLED=false cho media-service.",
+  "use_cloud_storage": false,
+
+  "//use_grafana_cloud": "Chỉ có tác dụng khi use_monitoring=true. Bật = KHÔNG cài Prometheus/Grafana/Loki/Tempo trong cụm, chỉ còn Alloy đẩy metrics/logs/traces lên Grafana Cloud (credential: các key GRAFANA_CLOUD__* trong dev-secrets.env). Đây là cách giảm RAM nhiều nhất trên máy local.",
+  "use_grafana_cloud": false,
+
+  "//use_cloud_kafka": "Bỏ cài Kafka Bitnami in-cluster, trỏ toàn bộ sang Kafka managed (Aiven). Username/password nằm ở dev-secrets.env (<SERVICE>__KAFKA_SASL_USERNAME/PASSWORD), CA của project lưu ở k8s/infra/aiven-kafka-ca.pem. ĐỌC mục 'Kafka managed (Aiven)' trong k8s/infra/README.md trước khi bật: free tier chỉ cho 5 topic x 2 partition và KHÔNG auto-create, phải tạo topic tay.",
+  "use_cloud_kafka": false,
+  "cloud_kafka_bootstrap": "",
+
+  "//use_cloud_storage": "Bỏ deploy MinIO in-cluster, cả media/streaming/transcoding-worker đọc ghi thẳng Cloudflare R2. Credential R2_* nằm ở dev-secrets.env cho từng service. Tiltfile tự đặt DEFAULT_STORAGE_PROVIDER=cloudflare-r2 và AWS_SQS_ENABLED=false cho media-service.",
+  "use_cloud_storage": false,
+
+  "//use_grafana_cloud": "Chỉ có tác dụng khi use_monitoring=true. Bật = KHÔNG cài Prometheus/Grafana/Loki/Tempo trong cụm, chỉ còn Alloy đẩy metrics/logs/traces lên Grafana Cloud (credential: các key GRAFANA_CLOUD__* trong dev-secrets.env). Đây là cách giảm RAM nhiều nhất trên máy local.",
+  "use_grafana_cloud": false,
+
   "//cloud_postgres_url": "jdbc:postgresql://<cloud-pg-host>:5432/auth_service?sslmode=require — chỉ dùng khi use_cloud_postgres=true. Username/password vẫn lấy từ k8s/infra/dev-secrets.env (AUTH_SERVICE__DATASOURCE_USERNAME/PASSWORD), đổi sang credential cloud thật ở đó.",
   "cloud_postgres_url": "",
 

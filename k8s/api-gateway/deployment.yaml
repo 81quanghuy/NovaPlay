@@ -29,9 +29,12 @@ spec:
       securityContext:
         runAsNonRoot: true
         runAsUser: 1000
+        # Xem chú thích cùng chỗ ở auth-service: file trong volume Secret thuộc root:root, tiến
+        # trình chạy uid 1000 sẽ bị "Permission denied" nếu không có fsGroup.
+        fsGroup: 1000
       containers:
         - name: api-gateway
-          image: novaplay/apigateway:v1.0.1
+          image: ghcr.io/81nhuquynh/api-gateway:latest
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
@@ -44,11 +47,18 @@ spec:
               value: "-javaagent:/app/libs/opentelemetry-javaagent.jar"
             - name: OTEL_SERVICE_NAME
               value: api-gateway
-            # Gửi trace về Tempo (namespace monitoring). Tempo CHỈ nhận traces nên tắt
-            # OTLP metrics/logs — metrics do Prometheus scrape /actuator/prometheus, logs do
-            # Alloy→Loki. Nếu CHƯA deploy monitoring, đổi endpoint hoặc đặt OTEL_SDK_DISABLED=true.
+            # Public key verify JWT đến từ Secret mount ở dưới, KHÔNG từ classpath trong image.
+            # Thiếu biến này, JwtConfig rơi về classpath:certs/public.pem — thứ .dockerignore đã
+            # chặn khỏi image, nên bean publicKey() ném FileNotFoundException lúc khởi động.
+            - name: JWT_PUBLIC_KEY_LOCATION
+              value: file:/etc/novaplay/keys/public.pem
+            # Gửi trace về Alloy (namespace monitoring), KHÔNG gửi thẳng Tempo nữa: Alloy là
+            # điểm nhận OTLP duy nhất ở cả hai chế độ monitoring và tự forward tiếp về Tempo
+            # trong cụm hoặc lên Grafana Cloud. Vẫn tắt OTLP metrics/logs — metrics do Alloy
+            # scrape /actuator/prometheus, logs do Alloy đọc stdout của pod. Nếu CHƯA deploy
+            # monitoring, đổi endpoint hoặc đặt OTEL_SDK_DISABLED=true.
             - name: OTEL_EXPORTER_OTLP_ENDPOINT
-              value: http://tempo.monitoring.svc:4318
+              value: http://alloy.monitoring.svc:4318
             - name: OTEL_METRICS_EXPORTER
               value: none
             - name: OTEL_LOGS_EXPORTER
@@ -71,19 +81,22 @@ spec:
               path: /actuator/health/liveness
               port: http
             failureThreshold: 30
-            periodSeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
           livenessProbe:
             httpGet:
               path: /actuator/health/liveness
               port: http
-            periodSeconds: 15
-            failureThreshold: 3
+            periodSeconds: 20
+            failureThreshold: 5
+            timeoutSeconds: 5
           readinessProbe:
             httpGet:
               path: /actuator/health/readiness
               port: http
-            periodSeconds: 10
-            failureThreshold: 3
+            periodSeconds: 15
+            failureThreshold: 5
+            timeoutSeconds: 5
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
@@ -92,6 +105,15 @@ spec:
           volumeMounts:
             - name: tmp
               mountPath: /tmp
+            - name: jwt-public-key
+              mountPath: /etc/novaplay/keys
+              readOnly: true
       volumes:
         - name: tmp
           emptyDir: {}
+        # PHẢI khớp auth-service/.../keys/public.pem — lệch key thì mọi request đã đăng nhập trả
+        # 401, triệu chứng giống hệt token hết hạn nên rất dễ chẩn đoán nhầm.
+        - name: jwt-public-key
+          secret:
+            secretName: api-gateway-jwt-public-key
+            defaultMode: 0440

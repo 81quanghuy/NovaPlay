@@ -15,9 +15,26 @@ import vn.iotstar.mediaservice.util.TopicNames;
 
 import java.util.HashMap;
 import java.util.Map;
+import org.springframework.boot.autoconfigure.kafka.KafkaProperties;
 
 @Configuration
 public class KafkaProducerConfig {
+    /**
+     * Các {@code @Bean} bên dưới tự dựng map cấu hình bằng tay, nên nếu không seed từ đây thì
+     * MỌI thứ khai trong {@code spring.kafka.*} của application-prod.yml đều bị bỏ qua —
+     * security.protocol, sasl.mechanism, sasl.jaas.config, ssl.truststore.*.
+     *
+     * Triệu chứng khi thiếu (đã gặp thật với Aiven): client in ra
+     * {@code security.protocol = PLAINTEXT}, {@code sasl.mechanism = GSSAPI},
+     * {@code ssl.truststore.location = null} rồi treo ở bước kết nối, trong khi yml khai đầy đủ
+     * và nhìn qua tưởng cấu hình đã có hiệu lực.
+     */
+    private final KafkaProperties kafkaProperties;
+
+    public KafkaProducerConfig(KafkaProperties kafkaProperties) {
+        this.kafkaProperties = kafkaProperties;
+    }
+
 
     @Value("${spring.kafka.bootstrap-servers}")
     private String bootstrapServers;
@@ -30,7 +47,10 @@ public class KafkaProducerConfig {
      */
     @Bean
     public ProducerFactory<String, Object> producerFactory() {
-        Map<String, Object> configProps = new HashMap<>();
+                // Seed từ spring.kafka.* trước, override giá trị riêng của service sau. Tham số của
+        // build*Properties là SslBundles và chỉ bị dereference khi có spring.kafka.ssl.bundle —
+        // repo dùng ssl.trust-store-location (PEM) chứ không dùng bundle, nên null là an toàn.
+        Map<String, Object> configProps = new HashMap<>(kafkaProperties.buildProducerProperties(null));
 
         // Cấu hình cơ bản, chỉ định địa chỉ broker và cách serialize key/value
         configProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);

@@ -27,9 +27,17 @@ spec:
       securityContext:
         runAsNonRoot: true
         runAsUser: 1000
+        # BẮT BUỘC khi mount Secret mà container chạy non-root. File trong volume Secret thuộc
+        # về root:root; defaultMode 0400 nghĩa là CHỈ root đọc được, còn tiến trình chạy uid 1000
+        # thì không -> java.io.FileNotFoundException "Permission denied" khi nạp private.pem, và
+        # auth-service CrashLoopBackOff ngay lúc khởi động.
+        # fsGroup đặt group ownership của volume thành 1000 và thêm nó làm supplementary group
+        # cho tiến trình, nhờ đó mode 0440 (group đọc được) là đủ — private key vẫn KHÔNG
+        # world-readable, giữ đúng ý đồ ban đầu của 0400.
+        fsGroup: 1000
       containers:
         - name: auth-service
-          image: novaplay/authservice:v0.0.2
+          image: ghcr.io/81nhuquynh/auth-service:latest
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
@@ -41,15 +49,24 @@ spec:
               value: "-javaagent:/app/libs/opentelemetry-javaagent.jar"
             - name: OTEL_SERVICE_NAME
               value: auth-service
-            # Gửi trace về Tempo (namespace monitoring). Tempo CHỈ nhận traces nên tắt
-            # OTLP metrics/logs — metrics do Prometheus scrape /actuator/prometheus, logs do
-            # Alloy→Loki. Nếu CHƯA deploy monitoring, đổi endpoint hoặc đặt OTEL_SDK_DISABLED=true.
+            # Gửi trace về Alloy (namespace monitoring), KHÔNG gửi thẳng Tempo nữa: Alloy là
+            # điểm nhận OTLP duy nhất ở cả hai chế độ monitoring và tự forward tiếp về Tempo
+            # trong cụm hoặc lên Grafana Cloud. Vẫn tắt OTLP metrics/logs — metrics do Alloy
+            # scrape /actuator/prometheus, logs do Alloy đọc stdout của pod. Nếu CHƯA deploy
+            # monitoring, đổi endpoint hoặc đặt OTEL_SDK_DISABLED=true.
             - name: OTEL_EXPORTER_OTLP_ENDPOINT
-              value: http://tempo.monitoring.svc:4318
+              value: http://alloy.monitoring.svc:4318
             - name: OTEL_METRICS_EXPORTER
               value: none
             - name: OTEL_LOGS_EXPORTER
               value: none
+            # Keypair RSA đến từ Secret mount ở dưới, KHÔNG từ classpath trong image.
+            # Không có hai biến này, application-prod.yml rơi về classpath:keys/*.pem nghĩa là
+            # private key nằm trong layer image — xem chú thích ở application-prod.yml.
+            - name: PRIVATE_KEY_PATH
+              value: file:/etc/novaplay/keys/private.pem
+            - name: PUBLIC_KEY_PATH
+              value: file:/etc/novaplay/keys/public.pem
           envFrom:
             - configMapRef:
                 name: auth-service-config
@@ -67,19 +84,22 @@ spec:
               path: /actuator/health/liveness
               port: http
             failureThreshold: 30
-            periodSeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
           livenessProbe:
             httpGet:
               path: /actuator/health/liveness
               port: http
-            periodSeconds: 15
-            failureThreshold: 3
+            periodSeconds: 20
+            failureThreshold: 5
+            timeoutSeconds: 5
           readinessProbe:
             httpGet:
               path: /actuator/health/readiness
               port: http
-            periodSeconds: 10
-            failureThreshold: 3
+            periodSeconds: 15
+            failureThreshold: 5
+            timeoutSeconds: 5
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
@@ -88,6 +108,30 @@ spec:
           volumeMounts:
             - name: tmp
               mountPath: /tmp
+            - name: kafka-ca
+              mountPath: /etc/novaplay/kafka
+              readOnly: true
+            - name: jwt-keys
+              mountPath: /etc/novaplay/keys
+              readOnly: true
       volumes:
         - name: tmp
           emptyDir: {}
+        # CA của project Aiven, nguồn: k8s/infra/aiven-kafka-ca.pem (tải từ Aiven Console,
+        # KHÔNG commit). optional: true để cụm chạy Kafka in-cluster/PLAINTEXT vẫn khởi động
+        # bình thường khi chưa có Secret này — thiếu CA lúc bật SASL_SSL thì lỗi hiện ra ở bước
+        # bắt tay TLS, không phải lúc tạo Pod.
+        - name: kafka-ca
+          secret:
+            secretName: aiven-kafka-ca
+            optional: true
+            defaultMode: 0444
+        # Private key ký JWT. defaultMode 0400: chỉ user chạy tiến trình đọc được, không ai ghi.
+        # Secret này do kubeseal sinh (k8s/auth-service/sealedsecret.yaml) và TÁCH RIÊNG khỏi
+        # auth-service-secrets: credential DB có thể xoay vòng thoải mái, còn đổi keypair thì
+        # phải đồng bộ cùng lúc với api-gateway nếu không mọi token đang lưu hành đều hỏng.
+        - name: jwt-keys
+          secret:
+            secretName: auth-service-jwt-keys
+            # 0440 chứ không 0400: xem fsGroup ở securityContext phía trên.
+            defaultMode: 0440

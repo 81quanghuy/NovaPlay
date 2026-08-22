@@ -16,6 +16,13 @@ spring:
       host: ${REDIS_HOST}
       port: ${REDIS_PORT:6379}
       password: ${REDIS_PASSWORD:}
+      # Default false: Redis in-cluster (Bitnami) chạy plaintext. Redis cloud (Upstash) BẮT
+      # BUỘC TLS → đặt REDIS_SSL_ENABLED=true (Tiltfile tự inject khi use_cloud_redis).
+      # Thiếu khối này thì biến môi trường bị Spring bỏ qua trong im lặng, client nối plaintext
+      # vào cổng TLS và lỗi hiện ra là "Connection closed prematurely" — trông hệt như mạng lỗi
+      # hoặc sai host, chứ không hề nhắc tới TLS.
+      ssl:
+        enabled: ${REDIS_SSL_ENABLED:false}
       timeout: 5s
       lettuce:
         pool:

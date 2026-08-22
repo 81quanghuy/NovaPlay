@@ -1,0 +1,10 @@
+# Tempo single-binary, nhận OTLP trên cổng 4318 (khớp OTEL_EXPORTER_OTLP_ENDPOINT app trỏ tới).
+# Persistence tắt như mọi hạ tầng dev khác trong k8s/infra/ — mất trace cũ khi pod restart,
+# chấp nhận được ở dev.
+tempo:
+  storage:
+    trace:
+      backend: local
+
+persistence:
+  enabled: false

@@ -1,0 +1,9 @@
+# NetworkPolicy của auth-service/api-gateway (và các service khác) cho phép scrape từ namespace
+# có nhãn name=monitoring — namespace này PHẢI có label đó, thiếu thì Prometheus bị NetworkPolicy
+# chặn (chỉ ảnh hưởng cluster có CNI thật thi hành NetworkPolicy, không phải docker-desktop).
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: monitoring
+  labels:
+    name: monitoring

@@ -138,7 +138,7 @@ streaming-service ──Feign──> media-service (manifest) / movie-service / 
 - **transcoding-worker** consumes `video-source-ready.v1`, shells out to `ffmpeg`/`ffprobe`, and reads/writes storage **directly with real credentials** — presigned URLs are for browsers only. It reports back over Feign, not Kafka. Failures land on `video-source-ready.v1.DLT`.
 - **streaming-service** never transcodes; it resolves entitlement + manifest (both Redis-cached: `CachedEntitlementResolver`, `CachedManifestResolver`) and streams the worker's output.
 
-Storage is provider-abstracted (`StorageProvider` / `StorageProviderProperties`) across `aws-s3` (MinIO in dev, `localhost:9010`, bucket `novaplay-media-dev`), `cloudflare-r2`, and `backblaze-b2`. All three services must point at the **same** bucket or playback breaks.
+Storage is provider-abstracted (`StorageProvider` / `StorageProviderProperties`) across `aws-s3` (MinIO fallback at `localhost:9010`), `cloudflare-r2`, and `backblaze-b2` (declared, never used). **`cloudflare-r2` is what actually runs.** All three services must point at the **same** bucket or playback breaks — media signs the upload URL, the worker writes HLS output, streaming reads segments back, and a bucket mismatch surfaces only as a 404 at playback with no error in between.
 
 ### Playback Security (streaming-service)
 
@@ -215,9 +215,55 @@ Topic strings are duplicated per service, so a rename means editing every copy. 
 
 Failed messages go to `<topic>.DLT` (`TopicNames.dltOf(...)`); notification-service has a dedicated `DeadLetterConsumer` on a no-retry container factory.
 
+On Aiven, the `NewTopic` beans create these at startup — but only for services that actually run in the cluster, so the three promotion-service topics do not exist. The beans hardcode `.replicas(1)`; if Aiven's plan rejects that, topic creation fails silently in the log (see `k8s/infra/README.md` §3.3).
+
 ## Deployment
 
-- `docker-compose/qa/` — full local/QA stack (infra + observability), with `docker-compose/secrets/` and `docker-compose/init-db/` alongside.
+### There is no server — the cluster is local Docker only
+
+**Kubernetes here runs inside Docker Desktop on the developer's laptop (k3s provisioner), and nowhere else.** There is no VPS, no public IP, no domain pointing anywhere, no environment a user outside this machine can reach. This is a budget constraint (student, no paid hosting), not a stage the project is passing through — do not plan, suggest, or write code that assumes a deployed environment exists.
+
+Consequences that change how to read this repo:
+
+- `k8s/overlays/prod/` (`ingress.yaml`, `clusterissuer.yaml`, `ghcr.io/81nhuquynh/<svc>:<sha>` image pins) and `k8s/infra/README-prod.md` describe **a cluster that does not exist**. They are a design exercise: `kubectl apply -k k8s/overlays/prod` has never run for real, DNS for `81quanghuy.io.vn` resolves to nothing, and cert-manager / Let's Encrypt / SealedSecrets are unexercised paths. Keep them internally coherent; never cite them as "how it's deployed" or debug against them.
+- The **only** deploy path that actually executes is `tilt up` against the local cluster — see `k8s/infra/README.md`. Entry point `http://localhost` (api-gateway), Tilt UI `http://localhost:10350`.
+- CI builds and tests only. **There is no CD.** Nothing pushes to any cluster.
+- `hpa.yaml` / `pdb.yaml` / resource requests under `k8s/<svc>/` were sized for "1–2 VPS, ~8 vCPU" (see the comment headers). On one laptop they over-commit: `Pending` pods with 9 services + Kafka + monitoring up at once is the manifests being too generous, not a bug. Set `use_monitoring: false` in `tilt-settings.json` first.
+- NetworkPolicy behaviour differs per provisioner: Docker Desktop's **kubeadm** cluster uses kindnet and silently ignores NetworkPolicy, while the **k3s** provisioner ships kube-router and does enforce it. Confirm which one the cluster was created with before concluding a policy "works" — a missing rule is invisible under kindnet.
+- If public access is ever needed (demo, webhook callback), the answer is a tunnel from this laptop (Cloudflare Tunnel / ngrok), not a deployment. Nothing about the cluster changes.
+
+### Managed cloud services in use (free tiers)
+
+The local cluster deliberately talks to real managed datastores instead of in-cluster pods, toggled in `tilt-settings.json` and credentialed in `k8s/infra/dev-secrets.env` (both gitignored):
+
+| Concern | Provider | Toggle in `tilt-settings.json` |
+|---|---|---|
+| PostgreSQL (auth-service) | Supabase | `use_cloud_postgres` + `cloud_postgres_url` |
+| Redis (all cache/rate-limit/dedup) | Upstash | `use_cloud_redis`, `cloud_redis_host`, `cloud_redis_ssl_enabled` |
+| MongoDB (6 databases) | Atlas M0 | `use_cloud_mongo` + each `*__MONGODB_URI` |
+| Kafka | Aiven (paid plan — topics unrestricted) | `use_cloud_kafka` + `cloud_kafka_bootstrap` |
+| Object storage | Cloudflare R2 | `use_cloud_storage` + `*__R2_*` |
+| Metrics / logs / traces | Grafana Cloud | `use_grafana_cloud` (Alloy stays in-cluster as the only exporter) |
+| CI | GitHub Actions (Student Pack) | `.github/workflows/` |
+
+Every toggle above is currently **on**. Only `mailhog` still runs in-cluster as a real dependency; the in-cluster Postgres/Redis/Kafka/Mongo/MinIO paths and the in-cluster Prometheus/Loki/Tempo stack are all still wired and testable by flipping the toggle back off.
+
+**The free tiers impose constraints that change how code gets written here:**
+
+- **Upstash Redis free = 500k commands/month (~16.6k/day).** Rate limiting, JWT blacklist checks, and three caches all share it. Don't add a per-request Redis call without thinking about that budget.
+- **Grafana Cloud free = 10k active series.** `alloy-cloud-values.yaml` drops Micrometer's `*_seconds_bucket` histograms to stay under it; adding high-cardinality metrics (anything labelled per-user or per-URI) eats the budget fast.
+
+The Aiven plan is a paid one, so topics are **not** rationed: `KAFKA_ADMIN_AUTO_CREATE=true` lets each service's `NewTopic` beans create their topics (all 11, DLTs included) via `AdminClient.createTopics` at startup. That is explicit creation — Aiven's broker-level `auto_create_topics_enable` stays false — so a topic with no `NewTopic` bean still won't exist.
+
+Kafka connection settings live in each service's `application-prod.yml` and default to PLAINTEXT, so docker-compose and Testcontainers are unaffected; `SASL_SSL` + SCRAM-SHA-256 is switched on by env. The Aiven CA is mounted from the shared `aiven-kafka-ca` Secret at `/etc/novaplay/kafka/ca.pem` — without it the failure is an `SSLHandshakeException`, not an auth error.
+
+R2 is selected through the OpenFeature flag `media-storage-provider` (default from `DEFAULT_STORAGE_PROVIDER`); a value stored in config-service's Mongo **overrides** the env default. Only new uploads follow the flag — existing `Media` records keep the provider they were written with.
+
+Because the datastores are off-machine: the laptop's IP must be allowlisted at each provider, and no internet = the cluster is broken in ways that look like application bugs (connection timeouts at startup, Liquibase hanging, `LISTEN/NOTIFY` silently dead).
+
+### Layout
+
+- `docker-compose/qa/` — full local/QA stack (infra + observability), with `docker-compose/secrets/` and `docker-compose/init-db/` alongside. Independent of the k8s path; never run both (port conflicts).
 - `k8s/<service>/` — per-service `deployment.yaml`, `service.yaml`, `configmap.yaml`, `secret.example.yaml`, plus `hpa.yaml` + `networkpolicy.yaml` where relevant. `k8s/infra/` holds Helm values for PostgreSQL, Redis, and Kafka plus seed SQL.
 - Images are built with the **jib-maven-plugin** as `novaplay/<artifactId>:v<version>`, configured in the root `pom.xml` `pluginManagement`.
 
@@ -229,7 +275,12 @@ Each workflow runs `./mvnw -B -q install -N` before building the module, because
 
 ## Observability
 
-Full stack in `docker-compose/qa/`: Prometheus → Grafana (port 3000), Loki (write/read/backend) via Alloy collector, Tempo for distributed tracing. Services use OpenTelemetry Java agent (`opentelemetry-javaagent-2.11.0.jar`). Trace context propagated automatically via OTEL.
+Two separate stacks, depending on how the app is running:
+
+- **docker-compose (`docker-compose/qa/`)** — Prometheus → Grafana (port 3000), Loki via Alloy, Tempo. Unchanged.
+- **k8s (Tilt)** — `use_grafana_cloud: true` means nothing but **Alloy** runs in-cluster; it scrapes `/actuator/prometheus`, tails pod logs, receives OTLP, and ships all three to Grafana Cloud. Dashboards live on grafana.net, not `localhost:3000`. Flipping the toggle off restores the full in-cluster stack. Either way services send OTLP to `alloy.monitoring.svc:4318` — never straight to Tempo.
+
+Services use the OpenTelemetry Java agent (`opentelemetry-javaagent-2.11.0.jar`); trace context propagates automatically.
 
 ## Repositories
 

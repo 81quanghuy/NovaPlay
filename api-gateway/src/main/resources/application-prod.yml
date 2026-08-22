@@ -303,7 +303,11 @@ services:
 
 rsa:
   public:
-    key-location: classpath:certs/public.pem
+    # Prod/k8s PHẢI override sang file: — public key được mount từ Secret vào
+    # /etc/novaplay/keys/public.pem (xem k8s/api-gateway/deployment.yaml), KHÔNG bake vào image
+    # (api-gateway/.dockerignore chặn *.pem khỏi build context). Default classpath chỉ để chạy
+    # dev/test ngoài cụm.
+    key-location: ${JWT_PUBLIC_KEY_LOCATION:classpath:certs/public.pem}
 
 auth:
   jwt:
