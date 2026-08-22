@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.testcontainers.DockerClientFactory;
 import org.springframework.boot.test.autoconfigure.data.mongo.DataMongoTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
+import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -16,6 +17,7 @@ import org.springframework.data.mongodb.core.index.TextIndexDefinition;
 import org.testcontainers.containers.MongoDBContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
+import vn.iotstar.movieservice.config.security.MongoAuditingConfig;
 import vn.iotstar.movieservice.model.entity.Movie;
 import vn.iotstar.movieservice.model.entity.embedded.CastMember;
 import vn.iotstar.movieservice.model.entity.embedded.GenreRef;
@@ -38,6 +40,10 @@ import static vn.iotstar.movieservice.utils.Constants.*;
  */
 @Testcontainers
 @DataMongoTest
+// @DataMongoTest chỉ scan repository/document, không kéo theo @Configuration của ứng dụng —
+// thiếu import này thì auditorAware không được đăng ký, @EnableMongoAuditing không kích hoạt,
+// và @CreatedDate/@CreatedBy im lặng bị bỏ qua dù @Version đã đúng.
+@Import(MongoAuditingConfig.class)
 @EnabledIf("dockerAvailable")
 class MovieRepositoryIT {
 

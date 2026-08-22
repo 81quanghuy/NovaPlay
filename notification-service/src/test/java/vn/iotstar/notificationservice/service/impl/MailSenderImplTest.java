@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.context.support.ResourceBundleMessageSource;
 import org.springframework.mail.MailSendException;
 import org.springframework.mail.javamail.JavaMailSenderImpl;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.thymeleaf.spring6.SpringTemplateEngine;
 import org.thymeleaf.templatemode.TemplateMode;
 import org.thymeleaf.templateresolver.ClassLoaderTemplateResolver;
@@ -28,6 +29,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class MailSenderImplTest {
 
     private static final String FRONTEND = "https://novaplay.test";
+    private static final String MAIL_FROM = "no-reply@novaplay.test";
 
     private AtomicReference<MimeMessage> sent;
     private MailSenderImpl mailSender;
@@ -85,6 +87,9 @@ class MailSenderImplTest {
         templateEngine.setTemplateEngineMessageSource(messageSource);
 
         var metrics = new NotificationMetrics(new SimpleMeterRegistry());
+        mailSender = new MailSenderImpl(javaMailSender, templateEngine, messageSource, metrics);
+        ReflectionTestUtils.setField(mailSender, "mailFrom", MAIL_FROM);
+        ReflectionTestUtils.setField(mailSender, "frontendBaseUrl", FRONTEND);
     }
 
     private static NotificationRequest otpRequest(Locale locale) {
@@ -164,6 +169,14 @@ class MailSenderImplTest {
         var registry = new SimpleMeterRegistry();
         var failing = new RecordingMailSender(new AtomicReference<>());
         failing.failWith(new MailSendException("boom"));
+
+        var failingSender = new MailSenderImpl(failing, templateEngine, messageSource,
+                new NotificationMetrics(registry));
+        ReflectionTestUtils.setField(failingSender, "mailFrom", MAIL_FROM);
+        ReflectionTestUtils.setField(failingSender, "frontendBaseUrl", FRONTEND);
+
+        assertThatThrownBy(() -> failingSender.send(otpRequest(Locale.forLanguageTag("vi-VN"))))
+                .isInstanceOf(MailDeliveryException.class);
 
         Timer timer = registry.find("notification.email.send").timer();
         assertThat(timer).isNotNull();
