@@ -1,0 +1,58 @@
+name: payment-service CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'payment-service/**'
+      - 'pom.xml'
+      - '.github/workflows/payment-service-ci.yml'
+  pull_request:
+    paths:
+      - 'payment-service/**'
+      - 'pom.xml'
+      - '.github/workflows/payment-service-ci.yml'
+
+# payment-service hiện là scaffold rỗng (chỉ @SpringBootApplication, không controller, không port).
+# Workflow này gần như chỉ kiểm chứng module còn compile và context Spring còn lên được —
+# giữ đúng quy ước "mỗi service một workflow" để service không bị bỏ quên khi bắt đầu có code.
+# KHÔNG có job docker-build: payment-service chưa có Dockerfile. Thêm Dockerfile thì thêm job đó
+# theo mẫu của config-service-ci.yml (build context là gốc repo, dùng -f payment-service/Dockerfile).
+
+# Push mới lên cùng một branch sẽ huỷ lượt chạy đang dở.
+concurrency:
+  group: payment-service-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: maven
+
+      # Service vẫn kế thừa pom cha ở gốc repo, nên pom đó phải nằm trong local repo
+      # trước khi build module con. -N chỉ cài đúng pom cha, không build module nào.
+      - name: Install parent POM
+        run: ./mvnw -B -q install -N
+
+      - name: Build and test payment-service
+        run: ./mvnw -B verify -pl payment-service -am
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: payment-service-test-reports
+          path: |
+            payment-service/target/surefire-reports/
+            payment-service/target/failsafe-reports/
+          if-no-files-found: ignore
+          retention-days: 7

@@ -106,7 +106,9 @@ The **API Gateway** (`api-gateway`) is the single entry point:
 
 `auth-service` owns identity: RSA private key signs JWTs, RSA public key is loaded by `api-gateway` for verification. Token blacklist (logout/revoke) is stored in Redis under `jwt:blacklist:<jti>`.
 
-Email notifications (OTP, password reset) use the **Transactional Outbox pattern**: `auth-service` writes to an `OutboxEvent` table, `OutboxRelayJob` publishes to Kafka, `notification-service` consumes.
+Email notifications (OTP, password reset) use the **Transactional Outbox pattern**: `auth-service` INSERTs into `outbox_events` inside the business transaction, and after COMMIT a `TransactionSynchronization` hook hands the row id straight to an in-process relay pool — publisher and relay are the same JVM, so no cross-process wake-up is involved. `OutboxSweepJob` re-claims orphans every 60s (`FOR UPDATE SKIP LOCKED`, so pods share the work); `notification-service` consumes.
+
+The `outbox_notify_trg` trigger still fires `pg_notify`, but **nothing listens by default** (`novaplay.outbox.listen-enabled=false`). LISTEN/NOTIFY cannot work through a connection pooler — Supavisor/PgBouncer inject `ParameterStatus` onto the idle connection and pgjdbc's `processNotifies` only handles `'A'/'E'/'N'`, so it dies with `Unknown Response Type S` in a reconnect loop. Only turn the flag on if `DATASOURCE_URL` points straight at Postgres. Delivery is at-least-once: the row is deleted only after Kafka acks.
 
 ### Notifications
 
@@ -269,9 +271,23 @@ Because the datastores are off-machine: the laptop's IP must be allowlisted at e
 
 ## CI
 
-`.github/workflows/` holds **one path-filtered workflow per service** (media, movie, notification, streaming, transcoding-worker, user) — a change under `streaming-service/**` or to the root `pom.xml` triggers only that service's build. Adding a new Maven service means adding its workflow; there is no catch-all job, and `api-gateway`/`auth-service` currently have none.
+`.github/workflows/` holds **one path-filtered workflow per service** — a change under `streaming-service/**` triggers only that service's build. There is no catch-all job, so a new service means adding its workflow or it is never built. All 12 services are now covered.
 
-Each workflow runs `./mvnw -B -q install -N` before building the module, because per-service builds still resolve the root parent POM.
+The two build systems need **different** workflows, and copying the wrong template is the usual mistake:
+
+| | Maven services (10) | `api-gateway`, `auth-service` |
+|---|---|---|
+| JDK | 21 | **25** (`build.gradle` toolchain) |
+| Setup cache | `cache: maven` | `cache: gradle` |
+| Parent POM step | `./mvnw -B -q install -N` first — per-service builds still resolve the root parent POM | none; standalone build |
+| Build | `./mvnw -B verify -pl <svc> -am` | `./gradlew build --no-daemon` in `working-directory: <svc>` |
+| `paths` filter | includes root `pom.xml` | **excludes** it — not in `<modules>` |
+| Test reports | `<svc>/target/*-reports/` | `<svc>/build/{reports/tests,test-results}/test/` |
+| Docker context | repo root (`-f <svc>/Dockerfile .`) | **the service dir** (`-f <svc>/Dockerfile <svc>`) |
+
+The Docker context difference is load-bearing: the Gradle Dockerfiles `COPY gradlew`/`settings.gradle` by relative path and each ships its own `.dockerignore`, so a root context fails immediately.
+
+`promotion-service`, `payment-service` and `report-service` have **no `docker-build` job** — they have no Dockerfile. No workflow pushes an image anywhere; there is still **no CD**.
 
 ## Observability
 
