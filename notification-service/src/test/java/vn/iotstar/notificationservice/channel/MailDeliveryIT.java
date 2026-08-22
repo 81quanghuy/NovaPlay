@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.springframework.context.support.ResourceBundleMessageSource;
 import org.springframework.mail.javamail.JavaMailSenderImpl;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.thymeleaf.spring6.SpringTemplateEngine;
 import org.thymeleaf.templatemode.TemplateMode;
 import org.thymeleaf.templateresolver.ClassLoaderTemplateResolver;
@@ -38,6 +39,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  */
 class MailDeliveryIT {
 
+    private static final String FRONTEND = "https://novaplay.test";
+    private static final String MAIL_FROM = "no-reply@novaplay.test";
+
     @RegisterExtension
     static GreenMailExtension greenMail = new GreenMailExtension(ServerSetupTest.SMTP);
 
@@ -62,6 +66,12 @@ class MailDeliveryIT {
         var engine = new SpringTemplateEngine();
         engine.setTemplateResolver(resolver);
         engine.setTemplateEngineMessageSource(messageSource);
+
+        var mailSender = new MailSenderImpl(javaMailSender, engine, messageSource,
+                new NotificationMetrics(new SimpleMeterRegistry()));
+        ReflectionTestUtils.setField(mailSender, "mailFrom", MAIL_FROM);
+        ReflectionTestUtils.setField(mailSender, "frontendBaseUrl", FRONTEND);
+        channel = new EmailChannel(mailSender);
     }
 
     private static NotificationRequest otp(Locale locale) {
@@ -126,6 +136,14 @@ class MailDeliveryIT {
         engine.setTemplateResolver(resolver);
         engine.setTemplateEngineMessageSource(messageSource);
 
+        var deadMailSender = new MailSenderImpl(deadSender, engine, messageSource,
+                new NotificationMetrics(new SimpleMeterRegistry()));
+        ReflectionTestUtils.setField(deadMailSender, "mailFrom", MAIL_FROM);
+        ReflectionTestUtils.setField(deadMailSender, "frontendBaseUrl", FRONTEND);
+        var deadChannel = new EmailChannel(deadMailSender);
+
+        assertThatThrownBy(() -> deadChannel.send(otp(Locale.forLanguageTag("vi-VN"))))
+                .isInstanceOf(MailDeliveryException.class);
 
         // Thất bại ở tầng transport nghĩa là thư chưa rời đi — dispatcher được phép thử lại.
         assertThat(greenMail.getReceivedMessages()).isEmpty();
