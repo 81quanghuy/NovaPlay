@@ -84,3 +84,15 @@ logging:
   level:
     root: INFO
     vn.iotstar: INFO
+
+novaplay:
+  outbox:
+    # Đường CHÍNH: sau khi transaction COMMIT thì đẩy thẳng id sang relay trong cùng JVM.
+    relay-after-commit: ${OUTBOX_RELAY_AFTER_COMMIT:true}
+    # LƯỚI AN TOÀN: quét bù row mà pod chết bỏ lại giữa COMMIT và relay. Không phải đường chính
+    # nên chu kỳ để thưa — kéo ngắn lại không làm event tới nhanh hơn, chỉ tốn thêm query.
+    sweep-enabled: ${OUTBOX_SWEEP_ENABLED:true}
+    sweep-interval: ${OUTBOX_SWEEP_INTERVAL:60s}
+    # LISTEN/NOTIFY: chỉ bật khi DATASOURCE_URL trỏ THẲNG tới Postgres. Qua connection pooler
+    # (Supavisor của Supabase, PgBouncer) sẽ lặp vô hạn lỗi "Unknown Response Type S".
+    listen-enabled: ${OUTBOX_LISTEN_ENABLED:false}

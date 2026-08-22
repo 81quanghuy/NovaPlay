@@ -43,4 +43,33 @@ public class OutboxProperties {
      * khả năng cảnh báo đó.
      */
     private boolean pendingGaugeEnabled = true;
+
+    /**
+     * Đánh thức relay NGAY sau khi transaction nghiệp vụ COMMIT, trong cùng JVM. Đây là ĐƯỜNG
+     * CHÍNH: thằng ghi row và thằng relay vốn nằm cùng một process, nên không cần đi vòng qua
+     * Postgres NOTIFY (hay bất kỳ message broker nào) chỉ để tự đánh thức chính mình.
+     * Tắt đi thì event chỉ được gửi khi sweep chạy, tức trễ tới trọn một chu kỳ sweep.
+     */
+    private boolean relayAfterCommit = true;
+
+    /**
+     * Sweep định kỳ nhặt row mồ côi — row đã COMMIT nhưng pod chết trước khi kịp relay, hoặc row
+     * do một pod khác ghi rồi chết. Đây là LƯỚI AN TOÀN, không phải đường chính, nên chu kỳ để
+     * thưa được. Tắt đi nghĩa là một pod chết đúng thời điểm sẽ làm event kẹt lại vĩnh viễn.
+     */
+    private boolean sweepEnabled = true;
+
+    /** Chu kỳ sweep. Lượt đầu chạy ngay lúc khởi động để nhặt backlog mà pod trước bỏ lại. */
+    private Duration sweepInterval = Duration.ofSeconds(60);
+
+    /**
+     * LISTEN/NOTIFY của Postgres. MẶC ĐỊNH TẮT, chỉ bật khi connection đi THẲNG tới Postgres.
+     * <p>
+     * Qua connection pooler (Supavisor của Supabase, PgBouncer) thì không dùng được: pooler chèn
+     * message {@code ParameterStatus} vào connection đang chờ notification, mà pgjdbc chỉ xử lý
+     * {@code 'A'/'E'/'N'} ở nhánh đó nên coi connection là hỏng — biểu hiện là
+     * {@code "Unknown Response Type S"} lặp vô hạn. Kể cả khi chạy được, nó cũng chỉ là đường
+     * vòng qua DB để đánh thức chính process này, nên {@code relayAfterCommit} luôn nhanh hơn.
+     */
+    private boolean listenEnabled = false;
 }

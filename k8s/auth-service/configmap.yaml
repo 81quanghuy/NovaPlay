@@ -14,3 +14,11 @@ data:
   SERVER_PORT: "8000"
   # Lấy mẫu toàn bộ ở production quá tốn kém; 10% đủ để phát hiện xu hướng.
   TRACING_SAMPLE_RATE: "0.1"
+  # --- Outbox: chiến lược đánh thức relay. Đổi ở đây rồi rollout restart là đủ, không cần
+  # build lại image. KHÔNG để ở config-service: ba key dưới được đọc lúc tạo bean/lên lịch,
+  # đổi lúc runtime không có tác dụng cho tới lần restart kế tiếp.
+  OUTBOX_RELAY_AFTER_COMMIT: "true"
+  OUTBOX_SWEEP_ENABLED: "true"
+  OUTBOX_SWEEP_INTERVAL: "60s"
+  # Bật LÊN "true" chỉ khi DATASOURCE_URL trỏ thẳng Postgres, không qua pooler.
+  OUTBOX_LISTEN_ENABLED: "false"

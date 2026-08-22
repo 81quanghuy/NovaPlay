@@ -10,8 +10,8 @@ import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.UUID;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.Executor;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -33,22 +33,25 @@ public class OutboxNotificationListener implements SmartLifecycle {
     private final OutboxProperties properties;
     private final OutboxCatchUp catchUp;
     private final OutboxRelayService relayService;
+    /** Dùng CHUNG với OutboxEventPublisherImpl và do container quản lý vòng đời — xem OutboxConfiguration. */
+    private final Executor relayExecutor;
 
     private final AtomicInteger failedConnectionAttempts = new AtomicInteger();
+    private final AtomicBoolean unsupportedListenReported = new AtomicBoolean();
     private volatile boolean running;
     private volatile Connection currentConnection;
     private Thread listenerThread;
-    private ExecutorService relayExecutor;
 
     public OutboxNotificationListener(String jdbcUrl, String username, String password,
                                       OutboxProperties properties, OutboxCatchUp catchUp,
-                                      OutboxRelayService relayService) {
+                                      OutboxRelayService relayService, Executor relayExecutor) {
         this.jdbcUrl = jdbcUrl;
         this.username = username;
         this.password = password;
         this.properties = properties;
         this.catchUp = catchUp;
         this.relayService = relayService;
+        this.relayExecutor = relayExecutor;
     }
 
     public int getFailedConnectionAttempts() {
@@ -58,11 +61,6 @@ public class OutboxNotificationListener implements SmartLifecycle {
     @Override
     public void start() {
         running = true;
-        relayExecutor = Executors.newFixedThreadPool(4, r -> {
-            Thread t = new Thread(r, "outbox-relay");
-            t.setDaemon(true);
-            return t;
-        });
         listenerThread = new Thread(this::listenLoop, "outbox-listen");
         listenerThread.setDaemon(true);
         listenerThread.start();
@@ -81,9 +79,9 @@ public class OutboxNotificationListener implements SmartLifecycle {
                 Thread.currentThread().interrupt();
             }
         }
-        if (relayExecutor != null) {
-            relayExecutor.shutdown();
-        }
+        // KHÔNG shutdown relayExecutor ở đây: nó là bean dùng chung với OutboxEventPublisherImpl,
+        // vòng đời do container quản lý (destroyMethod). Đóng nó ở đây sẽ giết luôn đường relay
+        // sau-commit của publisher.
         log.info("Đã dừng listener outbox");
     }
 
@@ -96,6 +94,9 @@ public class OutboxNotificationListener implements SmartLifecycle {
         long reconnectDelay = properties.getReconnectInitialDelay().toMillis();
 
         while (running) {
+            // Đặt lại mỗi vòng: câu hỏi là "connection LẦN NÀY có phục vụ được không", không phải
+            // "đã từng có connection nào phục vụ được chưa".
+            AtomicBoolean served = new AtomicBoolean();
             try (Connection connection = DriverManager.getConnection(jdbcUrl, username, password)) {
                 if (!running) {
                     // stop() đã được gọi trong lúc đang mở connection này (running bị đọc là true
@@ -111,14 +112,23 @@ public class OutboxNotificationListener implements SmartLifecycle {
                 // Mọi notification phát trong lúc chưa có connection đều đã mất, nên phải quét bù
                 // ngay sau khi nối được — kể cả ở lần nối đầu tiên lúc khởi động.
                 catchUp.run();
-                reconnectDelay = properties.getReconnectInitialDelay().toMillis();
 
-                consumeNotifications(connection.unwrap(PGConnection.class));
+                consumeNotifications(connection.unwrap(PGConnection.class), served);
             } catch (SQLException e) {
                 if (!running) {
                     return;
                 }
                 failedConnectionAttempts.incrementAndGet();
+                reportUnsupportedListenOnce(e);
+
+                // Reset backoff CHỈ khi connection đã thật sự phục vụ được ít nhất một lượt chờ
+                // notification. Reset ngay sau khi nối được (như bản trước) là sai: nếu mọi
+                // connection đều chết NGAY SAU lúc dựng xong — đúng những gì một pooler như
+                // Supavisor/PgBouncer gây ra — thì backoff không bao giờ tăng, và vòng lặp biến
+                // thành cơn bão mở connection mới mỗi giây vào Postgres, vĩnh viễn.
+                if (served.get()) {
+                    reconnectDelay = properties.getReconnectInitialDelay().toMillis();
+                }
                 log.warn("Mất connection LISTEN outbox, thử lại sau {}ms: {}", reconnectDelay, e.getMessage());
                 sleep(reconnectDelay);
                 reconnectDelay = Math.min(reconnectDelay * 2, properties.getReconnectMaxDelay().toMillis());
@@ -142,16 +152,40 @@ public class OutboxNotificationListener implements SmartLifecycle {
         }
     }
 
-    private void consumeNotifications(PGConnection pgConnection) throws SQLException {
+    private void consumeNotifications(PGConnection pgConnection, AtomicBoolean served) throws SQLException {
         int timeoutMillis = (int) properties.getListenTimeout().toMillis();
         while (running) {
             PGNotification[] notifications = pgConnection.getNotifications(timeoutMillis);
+            // Về được tới đây nghĩa là connection đã đi trọn một lượt chờ mà không vỡ — đủ để coi
+            // là lành mạnh và cho phép reset backoff nếu sau này nó đứt.
+            served.set(true);
             if (notifications == null) {
                 continue;   // hết timeout, không có gì — không phát SQL nào
             }
             for (PGNotification notification : notifications) {
                 submit(notification.getParameter());
             }
+        }
+    }
+
+    /**
+     * Lỗi {@code Unknown Response Type S} không phải sự cố mạng thoáng qua — nó có nghĩa là đầu bên
+     * kia gửi một message {@code ParameterStatus} trong lúc connection đang chờ notification, và
+     * pgjdbc chỉ xử lý {@code 'A'/'E'/'N'} ở nhánh này nên coi connection là hỏng. Nguồn phát ra
+     * message đó luôn là một connection pooler (Supavisor của Supabase, PgBouncer), tức là LISTEN
+     * sẽ KHÔNG BAO GIỜ hoạt động qua đường này dù thử lại bao nhiêu lần. Log một lần ở mức ERROR
+     * kèm cách khắc phục, thay vì để WARN lặp lại che mất nguyên nhân thật.
+     */
+    private void reportUnsupportedListenOnce(SQLException e) {
+        String message = e.getMessage();
+        if (message != null && message.contains("Unknown Response Type")
+                && unsupportedListenReported.compareAndSet(false, true)) {
+            log.error("Đích Postgres đang dùng KHÔNG hỗ trợ LISTEN/NOTIFY (dấu hiệu: '{}'). "
+                            + "Gần như chắc chắn connection đang đi qua connection pooler. "
+                            + "LISTEN sẽ không bao giờ nhận được notification qua đường này; outbox "
+                            + "chỉ còn được nhặt bởi catch-up mỗi lần kết nối lại. Cần trỏ listener "
+                            + "sang connection Postgres trực tiếp, hoặc chuyển sang kênh đánh thức khác.",
+                    message);
         }
     }
 
