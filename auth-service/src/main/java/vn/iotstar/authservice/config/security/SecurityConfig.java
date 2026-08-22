@@ -18,6 +18,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @RequiredArgsConstructor
 public class SecurityConfig {
     private final JwtAuthenticationFilter jwtAuthFilter;
+    private final GatewayAuthFilter gatewayAuthFilter;
     private static final String[] PUBLIC_ENDPOINTS = {
             "/api/v1/auth/register",
             "/api/v1/auth/login",
@@ -51,7 +52,11 @@ public class SecurityConfig {
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
-                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+                // Chứng minh nguồn gốc gateway phải được kiểm tra TRƯỚC khi verify JWT: nó áp
+                // cho cả endpoint công khai (/login, /forgot-password, /verify-otp) vốn không có
+                // JWT nào để verify, mà lại chính là những endpoint cần rate limit của gateway.
+                .addFilterBefore(gatewayAuthFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterAfter(jwtAuthFilter, GatewayAuthFilter.class);
         return http.build();
     }
 }

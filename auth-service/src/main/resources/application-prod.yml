@@ -136,3 +136,25 @@ logging:
     vn.iotstar: INFO
   pattern:
     level: "%5p [${spring.application.name},%X{traceId},%X{spanId}]"
+
+application:
+  security:
+    gateway-secret:
+      # Bắt buộc bật ở production. Khác 6 service kia, auth-service tự verify JWT nên đây không
+      # phải lớp chống mạo danh — nó chặn đường đi vòng qua RequestRateLimiter của gateway, vốn là
+      # thứ duy nhất chống brute-force /login, /verify-otp và email-bombing /resend-registration-otp.
+      # Giá trị PHẢI trùng với api-gateway (API_GATEWAY__GATEWAY_SHARED_SECRET), lệch là 403 toàn bộ.
+      enabled: true
+      value: ${GATEWAY_SHARED_SECRET}
+
+novaplay:
+  outbox:
+    # Đường CHÍNH: sau khi transaction COMMIT thì đẩy thẳng id sang relay trong cùng JVM.
+    relay-after-commit: ${OUTBOX_RELAY_AFTER_COMMIT:true}
+    # LƯỚI AN TOÀN: quét bù row mà pod chết bỏ lại giữa COMMIT và relay. Không phải đường chính
+    # nên chu kỳ để thưa — kéo ngắn lại không làm event tới nhanh hơn, chỉ tốn thêm query.
+    sweep-enabled: ${OUTBOX_SWEEP_ENABLED:true}
+    sweep-interval: ${OUTBOX_SWEEP_INTERVAL:60s}
+    # LISTEN/NOTIFY: chỉ bật khi DATASOURCE_URL trỏ THẲNG tới Postgres. Qua connection pooler
+    # (Supavisor của Supabase, PgBouncer) sẽ lặp vô hạn lỗi "Unknown Response Type S".
+    listen-enabled: ${OUTBOX_LISTEN_ENABLED:false}
