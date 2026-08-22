@@ -25,6 +25,35 @@ spring:
       # theo từng entity và nuốt lỗi im lặng.
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
+    # --- Kết nối Kafka managed (Aiven) -------------------------------------------------------
+    # Mặc định giữ NGUYÊN hành vi cũ (PLAINTEXT, không SASL) để Kafka in-cluster, docker-compose
+    # và Testcontainers trong CI không phải đổi gì. Aiven bật bằng 3 biến môi trường:
+    # KAFKA_SECURITY_PROTOCOL=SASL_SSL, KAFKA_SASL_USERNAME, KAFKA_SASL_PASSWORD.
+    #
+    # CA LÀ BẮT BUỘC, không phải tuỳ chọn: chứng chỉ broker của Aiven do CA riêng của từng
+    # project ký, JVM không tin sẵn — thiếu nó lỗi là SSLHandshakeException lúc bắt tay chứ
+    # không phải "sai mật khẩu", rất dễ chẩn đoán nhầm. File PEM được Kafka client nạp thẳng
+    # (ssl.truststore.type=PEM, hỗ trợ từ client 2.7), KHÔNG cần dựng JKS bằng keytool.
+    security:
+      protocol: ${KAFKA_SECURITY_PROTOCOL:PLAINTEXT}
+    ssl:
+      trust-store-type: ${KAFKA_SSL_TRUSTSTORE_TYPE:PEM}
+      # Default trỏ tới đường dẫn mount trong Pod. File không tồn tại cũng vô hại khi protocol
+      # là PLAINTEXT: Spring chỉ đổi Resource thành absolute path lúc dựng config, không mở file;
+      # chỉ SSL channel builder mới thật sự đọc.
+      trust-store-location: ${KAFKA_SSL_TRUSTSTORE_LOCATION:file:/etc/novaplay/kafka/ca.pem}
+    properties:
+      sasl.mechanism: ${KAFKA_SASL_MECHANISM:SCRAM-SHA-256}
+      # Username/password tách riêng thành 2 biến thay vì dán nguyên chuỗi JAAS vào env: chuỗi
+      # JAAS có dấu cách, mà apply-dev-secrets.sh dựng tham số kubectl theo dòng — giá trị có
+      # dấu cách sẽ bị tách thành nhiều tham số và Secret ra sai.
+      sasl.jaas.config: 'org.apache.kafka.common.security.scram.ScramLoginModule required username="${KAFKA_SASL_USERNAME:}" password="${KAFKA_SASL_PASSWORD:}";'
+    admin:
+      # Đặt false trên Aiven free tier. Quota free là 5 topic x 2 partition, trong khi các
+      # NewTopic bean của repo khai báo 11 topic (kể cả .DLT) phần lớn 3 partition -> KafkaAdmin
+      # sẽ ném lỗi tạo topic ở MỖI lần khởi động service. Topic tạo tay trong Aiven Console,
+      # danh sách chính xác nằm ở k8s/infra/README.md.
+      auto-create: ${KAFKA_ADMIN_AUTO_CREATE:true}
   lifecycle:
     # Cho request đang chạy kịp hoàn tất trước khi tiến trình dừng hẳn.
     timeout-per-shutdown-phase: 30s
@@ -36,8 +65,11 @@ server:
 aws:
   region: ${AWS_REGION}
   sqs:
-    enabled: true
-    queue-name: ${AWS_SQS_QUEUE_NAME}
+    # Tắt khi storage KHÔNG phải AWS S3 thật: R2/B2/MinIO không phát event S3 nào vào SQS, nên
+    # consumer chỉ là một kết nối AWS thừa (và là kết nối duy nhất còn cần credential AWS thật).
+    # Xem S3UploadEventListener — bean chỉ tồn tại khi cờ này true.
+    enabled: ${AWS_SQS_ENABLED:true}
+    queue-name: ${AWS_SQS_QUEUE_NAME:unused}
 
 storage:
   providers:

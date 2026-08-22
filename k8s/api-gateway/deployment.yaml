@@ -44,11 +44,13 @@ spec:
               value: "-javaagent:/app/libs/opentelemetry-javaagent.jar"
             - name: OTEL_SERVICE_NAME
               value: api-gateway
-            # Gửi trace về Tempo (namespace monitoring). Tempo CHỈ nhận traces nên tắt
-            # OTLP metrics/logs — metrics do Prometheus scrape /actuator/prometheus, logs do
-            # Alloy→Loki. Nếu CHƯA deploy monitoring, đổi endpoint hoặc đặt OTEL_SDK_DISABLED=true.
+            # Gửi trace về Alloy (namespace monitoring), KHÔNG gửi thẳng Tempo nữa: Alloy là
+            # điểm nhận OTLP duy nhất ở cả hai chế độ monitoring và tự forward tiếp về Tempo
+            # trong cụm hoặc lên Grafana Cloud. Vẫn tắt OTLP metrics/logs — metrics do Alloy
+            # scrape /actuator/prometheus, logs do Alloy đọc stdout của pod. Nếu CHƯA deploy
+            # monitoring, đổi endpoint hoặc đặt OTEL_SDK_DISABLED=true.
             - name: OTEL_EXPORTER_OTLP_ENDPOINT
-              value: http://tempo.monitoring.svc:4318
+              value: http://alloy.monitoring.svc:4318
             - name: OTEL_METRICS_EXPORTER
               value: none
             - name: OTEL_LOGS_EXPORTER

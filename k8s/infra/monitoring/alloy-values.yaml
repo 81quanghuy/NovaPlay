@@ -1,0 +1,95 @@
+# Alloy ở chế độ IN-CLUSTER (tilt-settings.json: use_grafana_cloud=false) — Prometheus/Grafana/
+# Loki/Tempo đều chạy trong namespace monitoring, xem Tiltfile mục 1b.
+#
+# Alloy đọc log của MỌI pod trong cluster (qua Kubernetes API, không cần mount hostPath) và đẩy
+# về Loki — bản k8s tương đương alloy-local-config.yaml của docker-compose (vốn dùng
+# discovery.docker vì compose không có "pod", chỉ có container). Từ khi OTEL_EXPORTER_OTLP_ENDPOINT
+# của các service trỏ về Alloy thay vì thẳng Tempo, file này còn nhận OTLP và forward tiếp về
+# Tempo — cùng một đường đi với chế độ Grafana Cloud (alloy-cloud-values.yaml), chỉ khác đích.
+#
+# CHƯA kiểm chứng được bằng cách chạy thật (môi trường soạn thảo không có tilt/cluster) — nếu
+# `alloy` resource lỗi lúc tilt up, khả năng cao là sai key values (`alloy.configMap.content`,
+# `alloy.extraPorts`) do lệch phiên bản chart so với lúc viết file này. Xem
+# `helm show values grafana-charts/alloy` để đối chiếu key đúng, hoặc báo lỗi lại để sửa.
+alloy:
+  # Cổng OTLP phải khai báo ở đây thì Service "alloy" mới expose ra — thiếu nó thì
+  # OTEL_EXPORTER_OTLP_ENDPOINT=http://alloy.monitoring.svc:4318 bị connection-refused và OTEL
+  # agent chỉ log lỗi rồi bỏ qua, mất trace mà không có dấu hiệu gì ở phía app.
+  extraPorts:
+    - name: otlp-http
+      port: 4318
+      targetPort: 4318
+      protocol: TCP
+    - name: otlp-grpc
+      port: 4317
+      targetPort: 4317
+      protocol: TCP
+
+  configMap:
+    create: true
+    content: |-
+      discovery.kubernetes "pods" {
+        role = "pod"
+      }
+
+      discovery.relabel "pods" {
+        targets = discovery.kubernetes.pods.targets
+
+        rule {
+          source_labels = ["__meta_kubernetes_namespace"]
+          target_label  = "namespace"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_pod_name"]
+          target_label  = "pod"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_pod_label_app"]
+          target_label  = "service"
+        }
+      }
+
+      loki.source.kubernetes "pods" {
+        targets    = discovery.relabel.pods.output
+        forward_to = [loki.write.default.receiver]
+      }
+
+      loki.write "default" {
+        endpoint {
+          url = "http://loki.monitoring.svc:3100/loki/api/v1/push"
+        }
+      }
+
+      // Traces: nhận OTLP từ OTEL Java agent của 9 service rồi chuyển tiếp về Tempo in-cluster.
+      // Metrics vẫn do Prometheus của kube-prometheus-stack scrape qua PodMonitor
+      // (k8s/infra/monitoring/podmonitor.yaml), KHÔNG đi qua Alloy ở chế độ này.
+      otelcol.receiver.otlp "default" {
+        grpc {
+          endpoint = "0.0.0.0:4317"
+        }
+        http {
+          endpoint = "0.0.0.0:4318"
+        }
+
+        output {
+          traces = [otelcol.processor.batch.default.input]
+        }
+      }
+
+      otelcol.processor.batch "default" {
+        output {
+          traces = [otelcol.exporter.otlphttp.tempo.input]
+        }
+      }
+
+      otelcol.exporter.otlphttp "tempo" {
+        client {
+          endpoint = "http://tempo.monitoring.svc:4318"
+          tls {
+            insecure = true
+          }
+        }
+      }
+
+controller:
+  type: daemonset
