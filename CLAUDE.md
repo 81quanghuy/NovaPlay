@@ -135,7 +135,7 @@ streaming-service ──Feign──> media-service (manifest) / movie-service / 
 ```
 
 - **media-service** owns upload (`/api/v1/media/upload/**`: single presigned PUT plus a full multipart init/part-url/complete/abort flow) and the `VideoManifest` lifecycle (`/api/v1/media/video-manifests/**`, including `/{id}/retry`). It is the only Kafka producer in the chain.
-- **transcoding-worker** consumes `video-source-ready.v1`, shells out to `ffmpeg`/`ffprobe`, and reads/writes storage **directly with real credentials** — presigned URLs are for browsers only. It reports back over Feign, not Kafka. Failures are *meant* to land on `video-source-ready.v1.DLT` — that topic does not exist on the current Aiven free tier, see the Deployment section.
+- **transcoding-worker** consumes `video-source-ready.v1`, shells out to `ffmpeg`/`ffprobe`, and reads/writes storage **directly with real credentials** — presigned URLs are for browsers only. It reports back over Feign, not Kafka. Failures land on `video-source-ready.v1.DLT`.
 - **streaming-service** never transcodes; it resolves entitlement + manifest (both Redis-cached: `CachedEntitlementResolver`, `CachedManifestResolver`) and streams the worker's output.
 
 Storage is provider-abstracted (`StorageProvider` / `StorageProviderProperties`) across `aws-s3` (MinIO fallback at `localhost:9010`), `cloudflare-r2`, and `backblaze-b2` (declared, never used). **`cloudflare-r2` is what actually runs.** All three services must point at the **same** bucket or playback breaks — media signs the upload URL, the worker writes HLS output, streaming reads segments back, and a bucket mismatch surfaces only as a 404 at playback with no error in between.
@@ -215,7 +215,7 @@ Topic strings are duplicated per service, so a rename means editing every copy. 
 
 Failed messages go to `<topic>.DLT` (`TopicNames.dltOf(...)`); notification-service has a dedicated `DeadLetterConsumer` on a no-retry container factory.
 
-**On the current Aiven free tier only five of these topics exist** (`send-email.v1`, `activate-account.v1`, `send-status-media.v1`, `video-source-ready.v1`, `video-transcode-completed.v1`) — `notification.requested.v1`, every `.DLT`, and all three promotion topics do not. The `NewTopic` beans are inert (`spring.kafka.admin.auto-create=false`), so creating a topic is a manual step in the Aiven Console *and* costs one of five slots.
+On Aiven, the `NewTopic` beans create these at startup — but only for services that actually run in the cluster, so the three promotion-service topics do not exist. The beans hardcode `.replicas(1)`; if Aiven's plan rejects that, topic creation fails silently in the log (see `k8s/infra/README.md` §3.3).
 
 ## Deployment
 
@@ -241,17 +241,19 @@ The local cluster deliberately talks to real managed datastores instead of in-cl
 | PostgreSQL (auth-service) | Supabase | `use_cloud_postgres` + `cloud_postgres_url` |
 | Redis (all cache/rate-limit/dedup) | Upstash | `use_cloud_redis`, `cloud_redis_host`, `cloud_redis_ssl_enabled` |
 | MongoDB (6 databases) | Atlas M0 | `use_cloud_mongo` + each `*__MONGODB_URI` |
-| Kafka | Aiven (free tier) | `use_cloud_kafka` + `cloud_kafka_bootstrap` |
+| Kafka | Aiven (paid plan — topics unrestricted) | `use_cloud_kafka` + `cloud_kafka_bootstrap` |
 | Object storage | Cloudflare R2 | `use_cloud_storage` + `*__R2_*` |
 | Metrics / logs / traces | Grafana Cloud | `use_grafana_cloud` (Alloy stays in-cluster as the only exporter) |
 | CI | GitHub Actions (Student Pack) | `.github/workflows/` |
 
 Every toggle above is currently **on**. Only `mailhog` still runs in-cluster as a real dependency; the in-cluster Postgres/Redis/Kafka/Mongo/MinIO paths and the in-cluster Prometheus/Loki/Tempo stack are all still wired and testable by flipping the toggle back off.
 
-**The free tiers impose two constraints that change how code gets written here:**
+**The free tiers impose constraints that change how code gets written here:**
 
-- **Aiven Kafka free = 5 topics × 2 partitions, no auto-create.** `KAFKA_ADMIN_AUTO_CREATE=false` is set for all five Kafka services, so `NewTopic` beans do nothing — topics are created by hand in the Aiven Console. Only these five exist: `send-email.v1`, `activate-account.v1`, `send-status-media.v1`, `video-source-ready.v1`, `video-transcode-completed.v1`. **`notification.requested.v1` and every `*.DLT` topic do not exist.** Adding a new topic means removing an existing one. A poison message therefore has nowhere to go and will be redelivered in a loop — see the warning in `k8s/infra/README.md` §3.3 for the two fixes.
 - **Upstash Redis free = 500k commands/month (~16.6k/day).** Rate limiting, JWT blacklist checks, and three caches all share it. Don't add a per-request Redis call without thinking about that budget.
+- **Grafana Cloud free = 10k active series.** `alloy-cloud-values.yaml` drops Micrometer's `*_seconds_bucket` histograms to stay under it; adding high-cardinality metrics (anything labelled per-user or per-URI) eats the budget fast.
+
+The Aiven plan is a paid one, so topics are **not** rationed: `KAFKA_ADMIN_AUTO_CREATE=true` lets each service's `NewTopic` beans create their topics (all 11, DLTs included) via `AdminClient.createTopics` at startup. That is explicit creation — Aiven's broker-level `auto_create_topics_enable` stays false — so a topic with no `NewTopic` bean still won't exist.
 
 Kafka connection settings live in each service's `application-prod.yml` and default to PLAINTEXT, so docker-compose and Testcontainers are unaffected; `SASL_SSL` + SCRAM-SHA-256 is switched on by env. The Aiven CA is mounted from the shared `aiven-kafka-ca` Secret at `/etc/novaplay/kafka/ca.pem` — without it the failure is an `SSLHandshakeException`, not an auth error.
 

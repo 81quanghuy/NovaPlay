@@ -1,0 +1,18 @@
+# Dockerfile của auth-service build từ context "auth-service/", KHÔNG từ gốc repo — nên
+# .dockerignore ở gốc repo không có hiệu lực ở đây. Thiếu file này thì keys/*.pem lọt vào
+# build context và private key RSA bị bake vĩnh viễn vào layer image: ai pull được image là
+# ký được JWT giả mạo bất kỳ user nào, và không rotate được nếu không rebuild.
+#
+# Key được nạp lúc chạy từ Secret mount vào /etc/novaplay/keys (xem k8s/auth-service/
+# deployment.yaml + PRIVATE_KEY_PATH/PUBLIC_KEY_PATH), không phải từ classpath.
+src/main/resources/keys/
+**/*.pem
+
+build/
+.gradle/
+**/.git/
+**/.idea/
+**/.vscode/
+**/*.iml
+**/*.md
+**/.DS_Store

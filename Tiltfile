@@ -18,6 +18,13 @@ load('ext://helm_resource', 'helm_resource', 'helm_repo')
 # nếu kubeconfig đang trỏ nơi khác (vd một cloud cluster thật).
 allow_k8s_contexts('docker-desktop')
 
+# Tilt mặc định huỷ MỖI lệnh apply sau 30s. helm_resource chạy `helm upgrade --install --wait`,
+# tức là chờ tới khi pod của chart Ready — không chart nào kịp 30s (alloy ~1 phút vì phải pull
+# image; kube-prometheus-stack ở chế độ in-cluster còn lâu hơn nhiều, chính nó đã tự xin
+# --timeout=10m). Đây là trần cho TỪNG resource, không phải tổng thời gian `tilt up`, nên đặt
+# rộng không làm chậm gì cả — resource xong sớm thì đi tiếp sớm.
+update_settings(k8s_upsert_timeout_secs=600)
+
 # ---------------------------------------------------------------------------
 # 0. Settings + preflight
 # ---------------------------------------------------------------------------
@@ -29,6 +36,7 @@ use_monitoring = settings.get('use_monitoring', True)
 use_cloud_kafka = settings.get('use_cloud_kafka', False)
 use_cloud_storage = settings.get('use_cloud_storage', False)
 use_grafana_cloud = settings.get('use_grafana_cloud', False)
+dev_scale_down = settings.get('dev_scale_down', True)
 cloud_postgres_url = settings.get('cloud_postgres_url', '')
 cloud_kafka_bootstrap = settings.get('cloud_kafka_bootstrap', '')
 cloud_redis_host = settings.get('cloud_redis_host', '')
@@ -121,7 +129,14 @@ k8s_resource('mailhog', labels=['infra'], port_forwards=['1025:1025', '8025:8025
 # ---------------------------------------------------------------------------
 if use_monitoring:
     k8s_yaml('k8s/infra/monitoring/namespace.yaml')
-    k8s_resource('monitoring', new_name='monitoring-namespace', labels=['monitoring'])
+    # Namespace KHÔNG phải workload nên Tilt không tự sinh resource cho nó — phải khai bằng
+    # objects=['<tên>:<kind>'] kèm new_name, giống cách podmonitor được khai bên dưới. Viết
+    # k8s_resource('monitoring', ...) sẽ fail lúc load Tiltfile với "unknown resource".
+    k8s_resource(
+        new_name='monitoring-namespace',
+        objects=['monitoring:namespace'],
+        labels=['monitoring'],
+    )
 
     helm_repo('grafana-charts', 'https://grafana.github.io/helm-charts', labels=['monitoring'])
 
@@ -210,17 +225,23 @@ local_resource(
 # auth-service khởi động (auth-service/src/main/resources/db/changelog/) — giống hệt nhau ở dev,
 # ở cloud Postgres, và ở prod. Không còn bước seed thủ công nào cho Postgres.
 
-if not use_cloud_mongo:
-    local_resource(
-        'mongo-config-flags-seed',
-        # Truyền provider để cờ media-storage-provider khớp DEFAULT_STORAGE_PROVIDER mà
-        # media-service nhận — cờ trong Mongo THẮNG biến môi trường, lệch nhau là upload mới đi
-        # vào provider không có credential.
-        cmd='k8s/infra/scripts/mongo-config-flags-seed.sh %s' % (
-            'cloudflare-r2' if use_cloud_storage else 'aws-s3'),
-        resource_deps=['mongodb'],
-        labels=['infra'],
-    )
+# Chạy ở CẢ HAI chế độ Mongo. Trước đây bước này bị bỏ hẳn khi use_cloud_mongo=true, nên trên
+# Atlas collection config_flags rỗng — media-service phải rơi về DEFAULT_STORAGE_PROVIDER, và
+# streaming-service không có cờ delivery-mode nào để đọc.
+#
+# Truyền provider để cờ media-storage-provider khớp DEFAULT_STORAGE_PROVIDER mà media-service
+# nhận: cờ trong Mongo THẮNG biến môi trường, lệch nhau là upload mới đi vào provider không có
+# credential.
+local_resource(
+    'mongo-config-flags-seed',
+    cmd='k8s/infra/scripts/mongo-config-flags-seed.sh %s %s' % (
+        'cloudflare-r2' if use_cloud_storage else 'aws-s3',
+        'cloud' if use_cloud_mongo else 'in-cluster'),
+    # Cloud: cần Secret config-service-secrets (Job đọc MONGODB_URI từ đó) -> chờ dev-secrets.
+    # In-cluster: chờ chính pod mongodb.
+    resource_deps=['dev-secrets'] if use_cloud_mongo else ['mongodb'],
+    labels=['infra'],
+)
 # Cloud Mongo: bỏ qua — seed này chỉ để tiện dev (config-service KHÔNG bắt buộc phải có document
 # này, media-service tự fallback default-storage-provider nếu thiếu). Muốn seed thủ công trên
 # Atlas: mongosh "<MONGODB_URI của config-service>" --eval '...' (xem nội dung script để copy).
@@ -235,16 +256,40 @@ if not use_cloud_storage:
 # R2: bucket tạo sẵn trong Cloudflare dashboard, không có bước init tương đương ở đây.
 
 # ---------------------------------------------------------------------------
-# 3. Helper: apply deployment.yaml kèm env override riêng cho dev (KHÔNG sửa file đã commit).
-#    Dùng cho: MinIO endpoint/creds (media/streaming/transcoding-worker — configmap.yaml hiện
-#    trỏ thẳng AWS S3 thật cho prod), Mailhog host/port (notification-service — configmap.yaml
-#    hiện trỏ smtp.gmail.com cho prod), và override cloud-config khi bật toggle.
+# 3. Helper: apply deployment.yaml với các chỉnh sửa CHỈ dành cho dev (KHÔNG sửa file đã commit).
+#    - env override: MinIO/R2, Mailhog, Kafka Aiven, cloud Postgres/Redis, OTLP endpoint.
+#    - dev_scale_down: 1 replica + hạ request cho vừa một cái laptop.
 # ---------------------------------------------------------------------------
-def deployment_with_env_overrides(path, name, extra_env):
+# Manifest đã commit mô tả một cụm nhiều node: replicas 2 và transcoding-worker xin hẳn
+# 2 CPU / 4Gi. Cộng lại là 5.7 vCPU + 11.5 GiB *requests* — scheduler đặt chỗ trước từng đó, nên
+# trên VM Docker Desktop mặc định (thường 8GB) sẽ có pod đứng Pending mãi với "Insufficient
+# memory", một triệu chứng rất dễ tưởng nhầm là image build hỏng.
+#
+# Chỉ hạ REQUESTS, cố ý không đụng tới limits: JVM và ffmpeg đọc *limit* để biết trần bộ nhớ
+# (cgroup), nên chúng vẫn burst được đúng như cũ — thay đổi ở đây thuần tuý là chuyện xếp chỗ.
+# HPA cũng không mâu thuẫn: Tiltfile không apply hpa.yaml (xem static_files bên dưới).
+DEV_CPU_REQUEST_CAP_M = 250
+DEV_MEM_REQUEST_CAP_MI = 512
+
+def _cpu_millis(v):
+    if v.endswith('m'):
+        return int(v[:-1])
+    return int(v) * 1000
+
+def _mem_mib(v):
+    if v.endswith('Gi'):
+        return int(v[:-2]) * 1024
+    if v.endswith('Mi'):
+        return int(v[:-2])
+    fail('Không đọc được resources.requests.memory = %s (chỉ hỗ trợ Mi/Gi)' % v)
+
+def deployment_for_dev(path, name, extra_env):
     objects = read_yaml_stream(path)
     for obj in objects:
         if obj.get('kind') != 'Deployment' or obj.get('metadata', {}).get('name') != name:
             continue
+        if dev_scale_down:
+            obj['spec']['replicas'] = 1
         for c in obj['spec']['template']['spec']['containers']:
             if c.get('name') != name:
                 continue
@@ -252,6 +297,13 @@ def deployment_with_env_overrides(path, name, extra_env):
             for k, v in extra_env.items():
                 env.append({'name': k, 'value': v})
             c['env'] = env
+
+            if dev_scale_down and 'resources' in c and 'requests' in c['resources']:
+                req = c['resources']['requests']
+                if 'cpu' in req and _cpu_millis(req['cpu']) > DEV_CPU_REQUEST_CAP_M:
+                    req['cpu'] = '%dm' % DEV_CPU_REQUEST_CAP_M
+                if 'memory' in req and _mem_mib(req['memory']) > DEV_MEM_REQUEST_CAP_MI:
+                    req['memory'] = '%dMi' % DEV_MEM_REQUEST_CAP_MI
     return encode_yaml_stream(objects)
 
 # ---------------------------------------------------------------------------
@@ -365,10 +417,15 @@ if use_cloud_kafka:
                 'media-service', 'transcoding-worker']:
         EXTRA_ENV.setdefault(svc, {}).update({
             'KAFKA_SECURITY_PROTOCOL': 'SASL_SSL',
-            # Bắt buộc false với Aiven free tier: quota 5 topic x 2 partition, không cho phép
-            # auto-create. Để true thì mỗi service khi khởi động sẽ cố tạo 11 topic 3 partition
-            # và log lỗi quota ở mọi lần restart.
-            'KAFKA_ADMIN_AUTO_CREATE': 'false',
+            # true kể từ khi plan Aiven được nâng (không còn quota 5 topic x 2 partition của free
+            # tier): KafkaAdmin của mỗi service tự gọi AdminClient.createTopics cho các NewTopic
+            # bean lúc khởi động, gồm CẢ 5 topic .DLT — nhờ đó message hỏng có chỗ để rơi vào
+            # thay vì bị poll lại vô hạn.
+            #
+            # Đây là createTopics tường minh, KHÁC với broker setting auto_create_topics_enable
+            # của Aiven (vẫn false) — cái đó chỉ chi phối việc tự tạo topic khi produce vào topic
+            # lạ. Đặt lại 'false' nếu quay về free tier hoặc muốn quản topic hoàn toàn bằng tay.
+            'KAFKA_ADMIN_AUTO_CREATE': 'true',
         })
     # auth/notification/user: KAFKA_BOOTSTRAP_SERVERS nằm ở ConfigMap -> override ở đây.
     # media/transcoding-worker: nằm ở Secret -> đổi thẳng trong k8s/infra/dev-secrets.env.
@@ -413,9 +470,9 @@ for name, cfg in SERVICES.items():
     docker_build(cfg['image'], context=cfg['context'], dockerfile=cfg['dockerfile'])
 
     base = 'k8s/%s' % name
-    extra_env = EXTRA_ENV.get(name)
-    if extra_env:
-        k8s_yaml(deployment_with_env_overrides(base + '/deployment.yaml', name, extra_env))
+    extra_env = EXTRA_ENV.get(name, {})
+    if extra_env or dev_scale_down:
+        k8s_yaml(deployment_for_dev(base + '/deployment.yaml', name, extra_env))
     else:
         k8s_yaml(base + '/deployment.yaml')
 

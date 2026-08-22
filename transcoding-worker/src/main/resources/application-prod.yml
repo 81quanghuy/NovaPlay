@@ -64,12 +64,21 @@ storage:
       access-key-id: ${R2_ACCESS_KEY_ID:}
       secret-access-key: ${R2_SECRET_ACCESS_KEY:}
       force-path-style: true
+    # backblaze-b2 CHƯA dùng, nhưng StorageClientConfig dựng client cho CẢ BA provider ngay lúc
+    # khởi động (map EnumMap, xem class đó), nên để trống là chết context:
+    #   Region.of("")            -> IllegalArgumentException: region must not be blank or empty
+    #   AwsBasicCredentials("")  -> "Access key ID cannot be blank" (trimToNull rồi validate)
+    # Vì thế phải có giá trị placeholder khác rỗng. Client này không bao giờ được gọi tới chừng
+    # nào cờ media-storage-provider chưa trỏ vào b2.
+    #
+    # Cách sửa gọn hơn (chưa làm vì cần đụng Java ở 3 service): cho StorageClientConfig BỎ QUA
+    # provider chưa cấu hình thay vì dựng client mù.
     backblaze-b2:
-      region: ${B2_REGION:}
+      region: ${B2_REGION:us-west-004}
       endpoint: ${B2_ENDPOINT:}
       bucket-name: ${B2_BUCKET_NAME:}
-      access-key-id: ${B2_KEY_ID:}
-      secret-access-key: ${B2_APPLICATION_KEY:}
+      access-key-id: ${B2_KEY_ID:unused-placeholder}
+      secret-access-key: ${B2_APPLICATION_KEY:unused-placeholder}
       force-path-style: true
 
 transcode:

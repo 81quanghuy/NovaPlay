@@ -34,7 +34,7 @@ spec:
         runAsUser: 1000
       containers:
         - name: transcoding-worker
-          image: novaplay/transcoding-worker:v0.0.1
+          image: ghcr.io/81nhuquynh/transcoding-worker:latest
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
@@ -65,19 +65,22 @@ spec:
               path: /actuator/health/liveness
               port: http
             failureThreshold: 30
-            periodSeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
           livenessProbe:
             httpGet:
               path: /actuator/health/liveness
               port: http
-            periodSeconds: 15
-            failureThreshold: 3
+            periodSeconds: 20
+            failureThreshold: 5
+            timeoutSeconds: 5
           readinessProbe:
             httpGet:
               path: /actuator/health/readiness
               port: http
-            periodSeconds: 10
-            failureThreshold: 3
+            periodSeconds: 15
+            failureThreshold: 5
+            timeoutSeconds: 5
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true

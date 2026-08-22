@@ -119,6 +119,7 @@ Cái gì được ghi đè phụ thuộc công tắc ở mục 3:
 | `use_cloud_kafka: true` | auth, notification, user | `KAFKA_BOOTSTRAP_SERVERS` → URI Aiven (media/transcoding đọc từ Secret) |
 | `use_cloud_postgres/redis: true` | tương ứng | `DATASOURCE_URL`, `REDIS_HOST/PORT/SSL_ENABLED` |
 | `use_monitoring: true` | 7 service (auth/api-gateway đã hardcode sẵn) | `OTEL_EXPORTER_OTLP_ENDPOINT` → `alloy.monitoring.svc:4318` |
+| `dev_scale_down: true` (mặc định) | cả 9 service | `replicas: 1` + trần `requests` 250m/512Mi — chỉ requests, **không** đụng limits |
 
 ---
 
@@ -194,42 +195,46 @@ in-cluster/docker-compose/Testcontainers không đổi gì: `KAFKA_SECURITY_PROT
 (Tiltfile tự đặt), `KAFKA_SASL_MECHANISM=SCRAM-SHA-256`, `KAFKA_SASL_USERNAME`,
 `KAFKA_SASL_PASSWORD`.
 
-#### Topic phải tạo TAY — quota free tier là 5 topic × 2 partition
+#### Topic — tự tạo lúc khởi động (plan đã nâng, không còn quota 5 topic)
 
-Aiven free tier **không cho auto-create topic** và **không cho sửa cấu hình broker**, nên
-Tiltfile đặt `KAFKA_ADMIN_AUTO_CREATE=false` cho cả 5 service. Không đặt thì mỗi lần service khởi
-động, các `NewTopic` bean sẽ cố tạo **11 topic, phần lớn 3 partition** và log lỗi quota liên tục.
+`KAFKA_ADMIN_AUTO_CREATE=true`: mỗi service khi khởi động gọi `AdminClient.createTopics` cho các
+`NewTopic` bean của nó. Idempotent — topic đã tồn tại thì `TopicExistsException` bị nuốt, không
+sao cả. Không phải tạo tay gì trong Aiven Console.
 
-Tạo đúng 5 topic sau trong Aiven Console (**Partitions = 2**, replication để mặc định):
+Lưu ý đây là **createTopics tường minh**, khác hẳn broker setting `auto_create_topics_enable` của
+Aiven (vẫn `false`) vốn chỉ chi phối việc tự sinh topic khi produce vào một topic lạ. Nghĩa là:
+topic nào **không** có `NewTopic` bean thì vẫn không tồn tại.
 
-| Topic | Producer → Consumer |
-|---|---|
-| `send-email.v1` | auth-service (outbox) → notification-service |
-| `activate-account.v1` | auth-service (outbox) → notification-service, user-service |
-| `send-status-media.v1` | media-service → user-service |
-| `video-source-ready.v1` | media-service → transcoding-worker |
-| `video-transcode-completed.v1` | media-service → (chưa có consumer) |
+11 topic được tạo:
 
-Vừa khít 5 slot. Hai nhóm topic **không** được tạo, và đây là cái giá của free tier:
+| Topic | Producer → Consumer | Bean khai báo ở |
+|---|---|---|
+| `send-email.v1` (+`.DLT`) | auth-service (outbox) → notification-service | auth, notification |
+| `activate-account.v1` (+`.DLT`) | auth-service (outbox) → notification-service, user-service | auth, notification, user |
+| `notification.requested.v1` (+`.DLT`) | (chưa có producer) → notification-service | notification |
+| `send-status-media.v1` (+`.DLT`) | media-service → user-service | media, user |
+| `video-source-ready.v1` (+`.DLT`) | media-service → transcoding-worker | media, transcoding-worker |
+| `video-transcode-completed.v1` | media-service → (chưa có consumer) | media |
 
-- **`notification.requested.v1`** — hiện chưa service nào produce vào nó, chỉ notification-service
-  lắng nghe. Hệ quả: log `UNKNOWN_TOPIC_OR_PARTITION` lặp lại ở notification-service. Vô hại
-  (Spring Kafka mặc định `missingTopicsFatal=false`, container vẫn chạy) nhưng gây nhiễu log.
-- **Toàn bộ `*.DLT`** — nguy hiểm hơn nhiều, xem cảnh báo dưới.
+Ba topic của promotion-service (`create-referral.v1`, `qualify-referral.v1`, `redeem-coupon.v1`)
+KHÔNG được tạo: service đó chưa có k8s manifest nên không chạy trong cụm.
 
-> ⚠️ **Poison message sẽ lặp vô hạn khi không có topic DLT.** Khi một message hỏng (lỗi
-> deserialize, hoặc handler ném exception sau khi hết retry), `DeadLetterPublishingRecoverer` cố
-> gửi sang `<topic>.DLT`. Topic đó không tồn tại → send thất bại → recoverer ném exception →
-> `DefaultErrorHandler` coi như **chưa recover xong**, offset không được commit, message được
-> poll lại ở vòng sau. Vòng lặp này chạy mãi, đốt băng thông 250 KiB/s của free tier và làm ngập
-> log.
+> **Kiểm tra lần khởi động đầu tiên.** Các `NewTopic` bean đang hardcode `.replicas(1)`, con số
+> hợp lý cho Kafka in-cluster 1 broker nhưng chưa chắc hợp lệ trên plan Aiven nhiều broker. Hai
+> lỗi cần soi trong log:
 >
-> Chưa gặp thì chưa cần xử lý. Gặp rồi thì hai cách:
-> 1. Sửa code (4 file `KafkaConfig`/`KafkaConsumerConfig` ở auth, notification, user,
->    transcoding-worker): `recoverer.setFailIfSendResultIsError(false)` — message hỏng bị **bỏ
->    qua** thay vì lặp lại.
-> 2. Hy sinh `video-transcode-completed.v1` (chưa có consumer) để lấy 1 slot làm DLT dùng chung,
->    rồi trỏ recoverer về đó bằng destination resolver.
+> ```bash
+> tilt logs auth-service | grep -iE "createTopics|InvalidReplicationFactor|PolicyViolation|NOT_ENOUGH_REPLICAS"
+> ```
+>
+> - `InvalidReplicationFactorException` / `PolicyViolationException` → Aiven từ chối RF=1. Tạo
+>   topic bằng Aiven Console (để RF mặc định của plan), rồi đặt lại
+>   `KAFKA_ADMIN_AUTO_CREATE=false` trong Tiltfile.
+> - `NOT_ENOUGH_REPLICAS` lúc produce → topic đã tạo với RF=1 nhưng broker đặt
+>   `min.insync.replicas=2`, mà auth-service produce với `acks=all`. Sửa RF của topic trong
+>   Console lên bằng `min.insync.replicas`.
+>
+> Không thấy hai lỗi đó nghĩa là mọi thứ ổn, không cần làm gì thêm.
 
 ### 3.4 Object storage — Cloudflare R2 (`use_cloud_storage`)
 
@@ -368,12 +373,13 @@ helm list -A
 | **Dữ liệu ephemeral** | Postgres/Mongo để không persistence. Pod bị tạo lại → mất schema/seed/data. Postgres tự phục hồi vì Liquibase chạy lại mỗi lần auth-service khởi động; Mongo cần `mongo-config-flags-seed` chạy lại ở lần `tilt up` kế tiếp — không cần thao tác gì thêm. |
 | **`tilt up` lần đầu chậm (1-2 phút/service)** | Dockerfile của các service Maven build cả cây repo (`COPY . .` — pom cha liệt kê toàn bộ module) và tải OTEL agent từ GitHub mỗi lần build, chưa có cache layer tối ưu. Chấp nhận được cho lần đầu; các lần sau Tilt chỉ rebuild service có file thay đổi. |
 | **JWT keypair thiếu** | Tilt preflight-check fail ngay khi `tilt up`, xem thông báo lỗi trỏ tới mục 0 ở trên. |
+| **`Build Failed: apply command timed out after 30s`** | Timeout mặc định của Tilt, không phải chart hỏng: `helm --wait` chờ pod Ready nên luôn quá 30s. Tiltfile đã đặt `update_settings(k8s_upsert_timeout_secs=600)` — nếu vẫn gặp thì Tiltfile chưa reload, `tilt down && tilt up`. |
+| **Pod đứng `Pending` / `Insufficient memory`** | `dev_scale_down` đang false, hoặc VM Docker Desktop quá nhỏ. Với `dev_scale_down: true` tổng requests là 2.1 vCPU / 4.2 GiB (từ 5.7 vCPU / 11.5 GiB). |
 | **Port bị chiếm (5432/6379/9092/27017/...)** | Thường do docker-compose vẫn đang chạy — `docker compose -f docker-compose/qa/docker-compose.yml down` trước. |
 | **Secret không nhận giá trị mới sau khi sửa `dev-secrets.env`** | `apply-dev-secrets.sh` chỉ update object Secret, Pod đang chạy KHÔNG tự đọc lại — trigger lại resource `dev-secrets` trong Tilt UI rồi restart resource service tương ứng (nút restart trong UI, tương đương `kubectl rollout restart deployment/<svc>`). |
 | **OTel log lỗi kết nối tới Alloy lúc mới `tilt up`** | Bình thường trong vài giây đầu khi resource `alloy` chưa Ready mà service đã start — tự hết khi Alloy lên. Nếu tắt `use_monitoring`, các service vẫn cố gửi tới `alloy.monitoring.svc:4318` (không tồn tại) — vô hại, chỉ log lỗi; muốn tắt hẳn thì set `OTEL_SDK_DISABLED=true` cho service đó. |
 | **`SSLHandshakeException: unable to find valid certification path` lúc service kết nối Kafka** | Thiếu CA của Aiven. Kiểm tra `k8s/infra/aiven-kafka-ca.pem` có tồn tại không, rồi trigger lại resource `dev-secrets` và restart service. `kubectl get secret aiven-kafka-ca` phải tồn tại. KHÔNG phải lỗi sai username/password. |
-| **Kafka `TimeoutException: Topic ... not present in metadata` khi produce** | Topic chưa được tạo trong Aiven Console (free tier không auto-create). Xem danh sách 5 topic bắt buộc ở mục 3.3. |
-| **Một message hỏng lặp lại vô hạn trong log consumer** | Topic `.DLT` không tồn tại trên free tier nên recoverer không gửi đi được và offset không commit. Xem cảnh báo cuối mục 3.3 để biết hai cách xử lý. |
+| **Kafka `TimeoutException: Topic ... not present in metadata` khi produce** | KafkaAdmin không tạo được topic. Grep log theo mục 3.3 — thường là Aiven từ chối `replicas(1)`, tạo tay trong Console là xong. |
 | **Upload lên R2 báo 403/SignatureDoesNotMatch** | Sai `R2_ACCOUNT_ID` (endpoint sai host) hoặc API token không có quyền Object Read & Write đúng bucket. Ba service phải cùng account + cùng bucket. |
 | **Video cũ không phát được sau khi chuyển sang R2** | Đúng như thiết kế: record Media giữ provider đã ghi lúc upload (`getEffectiveStorageProvider`), video upload thời MinIO vẫn trỏ MinIO — nay không còn. Upload lại. |
 | **Grafana Cloud không thấy metric nào** | Ba khả năng: (1) namespace `monitoring` thiếu label `name=monitoring` → NetworkPolicy chặn scrape; (2) sai token/user (Alloy log 401); (3) vượt 10k active series → Grafana Cloud từ chối ghi, xem mục Usage. |

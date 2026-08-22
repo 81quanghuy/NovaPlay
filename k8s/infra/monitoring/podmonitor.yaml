@@ -1,0 +1,36 @@
+# CRD PodMonitor — chỉ tồn tại SAU KHI kube-prometheus-stack cài xong (chart bundle CRD của
+# prometheus-operator). Tiltfile phải resource_deps đúng thứ tự, không được apply song song.
+#
+# kube-prometheus-stack scrape theo PodMonitor/ServiceMonitor, KHÔNG theo annotation
+# prometheus.io/scrape trên Pod (annotation đó vẫn còn trong deployment.yaml của từng service
+# nhưng vô tác dụng với setup này — giữ lại vì vô hại, phòng khi có Prometheus khác đọc theo
+# annotation).
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: novaplay-apps
+  namespace: monitoring
+  labels:
+    # Phải khớp giá trị release Helm của kube-prometheus-stack (xem Tiltfile) để Prometheus của
+    # release đó nhặt PodMonitor này — mặc định chart chỉ tự nhặt PodMonitor có label này.
+    release: kube-prom
+spec:
+  namespaceSelector:
+    matchNames: [default]
+  selector:
+    matchExpressions:
+      - key: app
+        operator: In
+        values:
+          - auth-service
+          - api-gateway
+          - config-service
+          - user-service
+          - movie-service
+          - media-service
+          - streaming-service
+          - transcoding-worker
+          - notification-service
+  podMetricsEndpoints:
+    - port: http
+      path: /actuator/prometheus

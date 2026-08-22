@@ -30,10 +30,27 @@ import vn.iotstar.notificationservice.common.dto.UserRegister;
 import vn.iotstar.notificationservice.exception.ResourceNotFoundException;
 
 import java.util.HashMap;
+import org.springframework.boot.autoconfigure.kafka.KafkaProperties;
 
 @Configuration
 @EnableKafka
 public class KafkaConsumerConfig {
+    /**
+     * Các {@code @Bean} bên dưới tự dựng map cấu hình bằng tay, nên nếu không seed từ đây thì
+     * MỌI thứ khai trong {@code spring.kafka.*} của application-prod.yml đều bị bỏ qua —
+     * security.protocol, sasl.mechanism, sasl.jaas.config, ssl.truststore.*.
+     *
+     * Triệu chứng khi thiếu (đã gặp thật với Aiven): client in ra
+     * {@code security.protocol = PLAINTEXT}, {@code sasl.mechanism = GSSAPI},
+     * {@code ssl.truststore.location = null} rồi treo ở bước kết nối, trong khi yml khai đầy đủ
+     * và nhìn qua tưởng cấu hình đã có hiệu lực.
+     */
+    private final KafkaProperties kafkaProperties;
+
+    public KafkaConsumerConfig(KafkaProperties kafkaProperties) {
+        this.kafkaProperties = kafkaProperties;
+    }
+
 
     private static final String GROUP_ID = "notification-service";
     private static final int TOPIC_PARTITIONS = 3;
@@ -64,7 +81,10 @@ public class KafkaConsumerConfig {
     }
 
     private <T> ConsumerFactory<String, T> consumerFactory(String bootstrap, Class<T> targetType) {
-        var props = new HashMap<String, Object>();
+        // Seed từ spring.kafka.* trước, override giá trị riêng của service sau. Tham số của
+        // build*Properties là SslBundles và chỉ bị dereference khi có spring.kafka.ssl.bundle —
+        // repo dùng ssl.trust-store-location (PEM) chứ không dùng bundle, nên null là an toàn.
+        var props = new HashMap<String, Object>(kafkaProperties.buildConsumerProperties(null));
         props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrap);
         props.put(ConsumerConfig.GROUP_ID_CONFIG, GROUP_ID);
         props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
@@ -133,7 +153,10 @@ public class KafkaConsumerConfig {
     @Bean
     public KafkaTemplate<Object, Object> dltKafkaTemplate(
             @Value("${spring.kafka.bootstrap-servers}") String bootstrap) {
-        var props = new HashMap<String, Object>();
+        // Seed từ spring.kafka.* trước, override giá trị riêng của service sau. Tham số của
+        // build*Properties là SslBundles và chỉ bị dereference khi có spring.kafka.ssl.bundle —
+        // repo dùng ssl.trust-store-location (PEM) chứ không dùng bundle, nên null là an toàn.
+        var props = new HashMap<String, Object>(kafkaProperties.buildProducerProperties(null));
         props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrap);
         props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
         props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class);
@@ -189,7 +212,10 @@ public class KafkaConsumerConfig {
     @Bean
     public ConsumerFactory<String, Object> dltConsumerFactory(
             @Value("${spring.kafka.bootstrap-servers}") String bootstrap) {
-        var props = new HashMap<String, Object>();
+        // Seed từ spring.kafka.* trước, override giá trị riêng của service sau. Tham số của
+        // build*Properties là SslBundles và chỉ bị dereference khi có spring.kafka.ssl.bundle —
+        // repo dùng ssl.trust-store-location (PEM) chứ không dùng bundle, nên null là an toàn.
+        var props = new HashMap<String, Object>(kafkaProperties.buildConsumerProperties(null));
         props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrap);
         props.put(ConsumerConfig.GROUP_ID_CONFIG, GROUP_ID + "-dlt");
         props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);

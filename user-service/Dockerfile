@@ -24,6 +24,16 @@ RUN apk add --no-cache curl
 RUN addgroup -S novaplay && adduser -S -G novaplay novaplay
 WORKDIR /app
 
+# Agent phải nằm thành file riêng và được truyền qua -javaagent; khai báo nó như một dependency
+# Maven chỉ nhét jar vào fat jar chứ không kích hoạt được instrumentation.
+# k8s/user-service/deployment.yaml đặt JAVA_TOOL_OPTIONS=-javaagent:/app/libs/... nên THIẾU khối
+# này là JVM không khởi động nổi: "Error opening zip file or JAR manifest missing", crash trước
+# cả khi Spring kịp chạy. 8 service còn lại đều đã có khối y hệt.
+ARG OTEL_AGENT_VERSION=2.11.0
+RUN mkdir -p /app/libs && \
+    curl -fsSL -o /app/libs/opentelemetry-javaagent.jar \
+    "https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases/download/v${OTEL_AGENT_VERSION}/opentelemetry-javaagent.jar"
+
 # finalName ở pom gốc là ${project.artifactId}-v${project.version}, mà artifactId là
 # "userservice" chứ không phải "user-service".
 COPY --from=build --chown=novaplay:novaplay /build/user-service/target/userservice-v0.0.1.jar app.jar

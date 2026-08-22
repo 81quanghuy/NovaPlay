@@ -27,6 +27,14 @@ spec:
       securityContext:
         runAsNonRoot: true
         runAsUser: 1000
+        # BẮT BUỘC khi mount Secret mà container chạy non-root. File trong volume Secret thuộc
+        # về root:root; defaultMode 0400 nghĩa là CHỈ root đọc được, còn tiến trình chạy uid 1000
+        # thì không -> java.io.FileNotFoundException "Permission denied" khi nạp private.pem, và
+        # auth-service CrashLoopBackOff ngay lúc khởi động.
+        # fsGroup đặt group ownership của volume thành 1000 và thêm nó làm supplementary group
+        # cho tiến trình, nhờ đó mode 0440 (group đọc được) là đủ — private key vẫn KHÔNG
+        # world-readable, giữ đúng ý đồ ban đầu của 0400.
+        fsGroup: 1000
       containers:
         - name: auth-service
           image: ghcr.io/81nhuquynh/auth-service:latest
@@ -76,19 +84,22 @@ spec:
               path: /actuator/health/liveness
               port: http
             failureThreshold: 30
-            periodSeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
           livenessProbe:
             httpGet:
               path: /actuator/health/liveness
               port: http
-            periodSeconds: 15
-            failureThreshold: 3
+            periodSeconds: 20
+            failureThreshold: 5
+            timeoutSeconds: 5
           readinessProbe:
             httpGet:
               path: /actuator/health/readiness
               port: http
-            periodSeconds: 10
-            failureThreshold: 3
+            periodSeconds: 15
+            failureThreshold: 5
+            timeoutSeconds: 5
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
@@ -122,4 +133,5 @@ spec:
         - name: jwt-keys
           secret:
             secretName: auth-service-jwt-keys
-            defaultMode: 0400
+            # 0440 chứ không 0400: xem fsGroup ở securityContext phía trên.
+            defaultMode: 0440
