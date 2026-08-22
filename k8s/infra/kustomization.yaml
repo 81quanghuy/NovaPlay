@@ -1,0 +1,13 @@
+# k8s/infra/kustomization.yaml
+#
+# CHỈ gom những manifest Kubernetes thật sự apply được trong thư mục này. Phần lớn nội dung
+# k8s/infra/ KHÔNG phải manifest và cố ý vắng mặt ở đây:
+#   - *-values.yaml       : values của Helm chart, cài bằng `helm install`, không phải kubectl
+#   - monitoring/         : cũng là Helm values, namespace riêng
+#   - mongodb/, minio.yaml, mailhog.yaml : hạ tầng CHỈ dùng ở dev qua Tilt. Prod dùng Atlas /
+#     object storage thật / SMTP thật — apply chúng lên prod là dựng nhầm cả một tầng hạ tầng giả.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - networkpolicy-datastores.yaml

@@ -57,10 +57,87 @@ jobs:
     runs-on: ubuntu-latest
     needs: build-and-test
 
+    # packages: write là thứ cho phép GITHUB_TOKEN push lên ghcr.io. Thiếu dòng này, login
+    # vẫn qua nhưng push trả 403 — và thông báo lỗi không hề nhắc tới permissions.
+    permissions:
+      # contents: write (không phải read) — bước cuối commit tag đã ghim ngược lại repo.
+      contents: write
+      packages: write
+
     steps:
       - uses: actions/checkout@v4
 
-      # Chỉ kiểm chứng image build được (bao gồm cài ffmpeg qua apk). Chưa push vì chưa cấu hình
-      # registry.
-      - name: Build Docker image
-        run: docker build -f transcoding-worker/Dockerfile -t novaplay/transcoding-worker:${{ github.sha }} .
+      - uses: docker/setup-buildx-action@v3
+
+      # Chỉ đăng nhập khi thật sự sắp push. Trên pull_request từ fork, GITHUB_TOKEN là
+      # read-only nên login sẽ fail — bỏ qua để PR vẫn kiểm chứng được Dockerfile.
+      - name: Log in to GHCR
+        if: github.event_name == 'push'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Tag theo github.sha là thứ manifest k8s tham chiếu: nó bất biến, nên biết chính xác
+      # pod đang chạy commit nào và rollback là trỏ về sha cũ. Tag `latest` chỉ để tiện tay
+      # — ĐừNG deploy bằng nó, vì không có cách nào biết `latest` đang trỏ vào đâu.
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: transcoding-worker/Dockerfile
+          # PR vẫn build để bắt lỗi Dockerfile sớm, nhưng không đẩy image rác lên registry.
+          push: ${{ github.event_name == 'push' }}
+          tags: |
+            ghcr.io/81nhuquynh/transcoding-worker:${{ github.sha }}
+            ghcr.io/81nhuquynh/transcoding-worker:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # Ghim tag SHA vừa push vào overlay prod và commit ngược lại repo. Đây là mắt xích biến
+      # "image đã có trên registry" thành "cluster biết phải chạy bản nào" — và cũng chính là chỗ
+      # ArgoCD sau này cắm vào mà không phải sửa gì.
+      #
+      # 9 workflow có thể chạy song song và cùng commit vào main, nên phải rebase-retry: không có
+      # vòng lặp này thì hai service merge cùng lúc sẽ có một bên fail với non-fast-forward.
+      - name: Pin image tag in prod overlay
+        if: github.event_name == 'push'
+        run: |
+          set -euo pipefail
+          # Cài vào RUNNER_TEMP thay vì /usr/local/bin: không phụ thuộc quyền ghi vào thư mục
+          # hệ thống của runner, và tự biến mất cùng job.
+          KUSTOMIZE_DIR="$RUNNER_TEMP/kustomize"
+          mkdir -p "$KUSTOMIZE_DIR"
+          curl -sSL https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv5.4.3/kustomize_v5.4.3_linux_amd64.tar.gz \
+            | tar -xz -C "$KUSTOMIZE_DIR"
+          export PATH="$KUSTOMIZE_DIR:$PATH"
+
+          git config user.name  'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+
+          for attempt in 1 2 3 4 5; do
+            git fetch origin ${{ github.ref_name }}
+            git reset --hard origin/${{ github.ref_name }}
+
+            (cd k8s/overlays/prod && kustomize edit set image \
+              ghcr.io/81nhuquynh/transcoding-worker=ghcr.io/81nhuquynh/transcoding-worker:${{ github.sha }})
+
+            if git diff --quiet; then
+              echo "Tag đã đúng, không có gì để commit."
+              exit 0
+            fi
+
+            git add k8s/overlays/prod/kustomization.yaml
+            git commit -m "ci(transcoding-worker): pin image to ${{ github.sha }} [skip ci]"
+
+            if git push origin HEAD:${{ github.ref_name }}; then
+              echo "Đã ghim tag ở lần thử $attempt."
+              exit 0
+            fi
+            echo "Push bị từ chối (có commit mới), thử lại lần $((attempt + 1))..."
+            sleep $((attempt * 3))
+          done
+
+          echo "::error::Không ghim được tag sau 5 lần thử."
+          exit 1

@@ -20,7 +20,6 @@
         <java.version>21</java.version>
         <spring-cloud.version>2025.0.0</spring-cloud.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <jib-maven-plugin.version>3.4.2</jib-maven-plugin.version>
     </properties>
     <modules>
         <module>movie-service</module>
@@ -64,31 +63,13 @@
         </dependencies>
     </dependencyManagement>
     <build>
+        <!-- finalName phải giữ nguyên: mọi Dockerfile phía Maven COPY jar theo đúng tên này
+             (vd movie-service/target/movie-service-v0.0.1.jar). Đổi ở đây là hỏng cả 8 image. -->
         <finalName>${project.artifactId}-v${project.version}</finalName>
-        <pluginManagement> <plugins>
-            <plugin>
-                <groupId>com.google.cloud.tools</groupId>
-                <artifactId>jib-maven-plugin</artifactId>
-                <version>${jib-maven-plugin.version}</version>
-                <configuration>
-                    <to>
-                        <image>novaplay/${project.artifactId}:v${project.version}</image>
-                    </to>
-                    <container>
-                        <creationTime>USE_CURRENT_TIMESTAMP</creationTime>
-                    </container>
-                </configuration>
-                <executions>
-                    <execution>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>build</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-        </plugins>
-        </pluginManagement>
+        <!-- jib-maven-plugin đã bị gỡ hẳn. Repo giờ chỉ có MỘT đường build image: Dockerfile của
+             từng service, do GitHub Actions build rồi push lên ghcr.io (xem .github/workflows/).
+             Giữ jib song song chỉ tạo ra câu hỏi "image này build bằng đường nào" mà không ai
+             trả lời được — và thực tế không module nào từng dùng tới nó. -->
     </build>
 
 </project>

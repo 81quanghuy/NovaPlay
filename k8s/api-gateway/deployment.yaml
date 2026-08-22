@@ -31,7 +31,7 @@ spec:
         runAsUser: 1000
       containers:
         - name: api-gateway
-          image: novaplay/apigateway:v1.0.1
+          image: ghcr.io/81nhuquynh/api-gateway:latest
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
@@ -53,6 +53,11 @@ spec:
               value: none
             - name: OTEL_LOGS_EXPORTER
               value: none
+            # Public key verify JWT đến từ Secret mount ở dưới, KHÔNG từ classpath trong image.
+            # Phải là ĐÚNG public key khớp private key mà auth-service đang ký — lệch một ký tự
+            # là toàn bộ request đã đăng nhập trả 401.
+            - name: JWT_PUBLIC_KEY_LOCATION
+              value: file:/etc/novaplay/keys/public.pem
           envFrom:
             - configMapRef:
                 name: api-gateway-config
@@ -92,6 +97,15 @@ spec:
           volumeMounts:
             - name: tmp
               mountPath: /tmp
+            - name: jwt-public-key
+              mountPath: /etc/novaplay/keys
+              readOnly: true
       volumes:
         - name: tmp
           emptyDir: {}
+        # CHỈ public key. Gateway không bao giờ được chạm tới private key — nó chỉ verify chữ ký,
+        # việc ký hoàn toàn thuộc về auth-service.
+        - name: jwt-public-key
+          secret:
+            secretName: api-gateway-jwt-public-key
+            defaultMode: 0400

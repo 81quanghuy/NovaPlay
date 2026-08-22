@@ -31,7 +31,7 @@ spec:
         runAsUser: 1000
       containers:
         - name: user-service
-          image: novaplay/userservice:v0.0.1
+          image: ghcr.io/81nhuquynh/user-service:latest
           imagePullPolicy: IfNotPresent
           ports:
             - name: http

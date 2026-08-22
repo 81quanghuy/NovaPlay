@@ -1,0 +1,55 @@
+# Khoá datastore duy nhất còn chạy in-cluster ở prod: Kafka.
+#
+# Trước file này, infra KHÔNG có NetworkPolicy nào — nghĩa là bất kỳ pod nào trong namespace cũng
+# mở được connection tới Kafka, kể cả những service không hề dùng nó. NetworkPolicy ở tầng service
+# chỉ chặn traffic ĐẾN service; không có gì chặn traffic ĐẾN datastore.
+#
+# Postgres, Mongo và Redis KHÔNG có mặt ở đây: prod đẩy cả ba ra managed (Supabase/Neon, Atlas,
+# Redis Cloud), traffic đi ra ngoài cluster nên NetworkPolicy ingress không áp dụng — thứ bảo vệ
+# chúng là credential + IP allowlist ở phía nhà cung cấp, không phải file này.
+#
+# Label selector theo convention của Bitnami chart + fullnameOverride trong kafka-values.yaml.
+# Đổi fullnameOverride là phải đổi luôn app.kubernetes.io/instance ở đây.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: kafka
+  labels:
+    app: kafka
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: kafka
+      app.kubernetes.io/instance: kafka
+  policyTypes:
+    - Ingress
+  ingress:
+    # Producer: auth-service, media-service, promotion-service (đều qua outbox relay).
+    # Consumer: notification-service, transcoding-worker, user-service.
+    # streaming-service, movie-service, config-service, api-gateway KHÔNG chạm Kafka — cố ý
+    # vắng mặt ở đây (xem bảng "Kafka Topics" trong CLAUDE.md).
+    - from:
+        - podSelector:
+            matchLabels:
+              app: auth-service
+        - podSelector:
+            matchLabels:
+              app: media-service
+        - podSelector:
+            matchLabels:
+              app: promotion-service
+        - podSelector:
+            matchLabels:
+              app: notification-service
+        - podSelector:
+            matchLabels:
+              app: transcoding-worker
+        - podSelector:
+            matchLabels:
+              app: user-service
+      ports:
+        - protocol: TCP
+          port: 9092
+    # Kafka KRaft chạy chế độ combined (controller.replicaCount=1, broker=0): controller và
+    # broker nằm cùng pod nên traffic controller (9093) là loopback, không cần rule. Giữ nguyên
+    # ghi chú này để lần sau tách broker ra thì nhớ mở port 9093 giữa các pod kafka với nhau.

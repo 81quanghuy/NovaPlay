@@ -1,0 +1,23 @@
+# Nguồn sự thật DUY NHẤT của schema Postgres thuộc auth-service.
+#
+# Trước file này, schema chỉ tồn tại dưới dạng bản pg_dump (k8s/infra/postgres-initdb.sql) dùng
+# để seed dev, cộng vài file .sql chạy tay trong src/main/resources/sql/. Prod đặt
+# ddl-auto=validate nên trên một DB trống service sẽ fail startup, và mọi thay đổi schema về sau
+# không có đường áp dụng nào ngoài chạy SQL bằng tay lên DB thật.
+#
+# Quy ước thêm changeset mới:
+#   - Mỗi thay đổi là MỘT file mới trong changes/, đánh số tăng dần. KHÔNG sửa file đã chạy —
+#     Liquibase lưu checksum, sửa file cũ sẽ làm fail lần khởi động kế tiếp.
+#   - Viết changeset sao cho chạy được trong khi phiên bản CŨ của service vẫn đang phục vụ:
+#     deployment dùng RollingUpdate maxUnavailable=0, nên hai phiên bản luôn chạy song song một
+#     lúc. Thêm cột nullable trước, backfill, rồi mới NOT NULL ở lần deploy sau.
+#
+# Với replicas=2, cả hai pod cùng chạy Liquibase lúc khởi động — bảng databasechangeloglock xử
+# lý việc này, pod thứ hai chờ rồi thấy changeset đã áp dụng. Không cần initContainer.
+databaseChangeLog:
+  - include:
+      file: db/changelog/changes/001-baseline-schema.sql
+  - include:
+      file: db/changelog/changes/002-outbox-notify-trigger.sql
+  - include:
+      file: db/changelog/changes/003-seed-roles.sql

@@ -1,0 +1,21 @@
+# k8s/media-service/kustomization.yaml
+#
+# secret.example.yaml CỐ Ý không nằm trong resources: nó là tài liệu về những key cần có, với giá
+# trị rỗng. Apply nó sẽ GHI ĐÈ secret thật trong cluster bằng chuỗi rỗng và làm service chết.
+# Secret thật ở prod đến từ sealedsecret.yaml (sinh bằng kubeseal), ở dev đến từ
+# k8s/infra/scripts/apply-dev-secrets.sh.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - configmap.yaml
+  - deployment.yaml
+  - service.yaml
+  - hpa.yaml
+  - pdb.yaml
+  - networkpolicy.yaml
+
+labels:
+  - pairs:
+      app: media-service
+    includeSelectors: true

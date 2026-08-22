@@ -5,6 +5,7 @@ import io.micrometer.core.instrument.MeterRegistry;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.autoconfigure.kafka.KafkaProperties;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.ssl.SslBundles;
@@ -95,13 +96,25 @@ public class OutboxConfiguration {
         return new OutboxCatchUp(dao, relayService, properties);
     }
 
+    /**
+     * Chỉ tạo khi {@code novaplay.outbox.listen-enabled=true}. Tắt cờ này khi Postgres không hỗ
+     * trợ LISTEN/NOTIFY (endpoint qua PgBouncer transaction pooling, hoặc endpoint serverless tự
+     * ngủ) — khi đó {@link OutboxPoller} là cơ chế duy nhất đẩy outbox đi.
+     */
     @Bean
+    @ConditionalOnProperty(prefix = "novaplay.outbox", name = "listen-enabled",
+            havingValue = "true", matchIfMissing = true)
     public OutboxNotificationListener outboxNotificationListener(
             @Value("${spring.datasource.url}") String url,
             @Value("${spring.datasource.username}") String username,
             @Value("${spring.datasource.password}") String password,
             OutboxProperties properties, OutboxCatchUp catchUp, OutboxRelayService relayService) {
         return new OutboxNotificationListener(url, username, password, properties, catchUp, relayService);
+    }
+
+    @Bean
+    public OutboxPoller outboxPoller(OutboxCatchUp catchUp, OutboxProperties properties) {
+        return new OutboxPoller(catchUp, properties);
     }
 
     // OutboxCatchUpController không khai báo ở đây: nó mang @RestController và nay nằm trong

@@ -1,3 +1,6 @@
+# TRẦN ĐƯỢC TÍNH LẠI CHO CỤM k3s 1–2 VPS (~8 vCPU tổng, trừ đi Kafka + monitoring + k3s).
+# Con số cũ (tới 10 pod) là trần lý thuyết không bao giờ đạt tới trên phần cứng này — HPA sẽ kẹt
+# ở trạng thái muốn scale mà scheduler không có chỗ, pod nằm Pending vô hạn.
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
@@ -10,10 +13,8 @@ spec:
     kind: Deployment
     name: media-service
   minReplicas: 2
-  # Trần bằng user-service, không phải movie-service: media-service chỉ phục vụ traffic của
-  # người dùng đã đăng nhập (upload/quản lý media của chính họ), không phải catalog công khai
-  # nên không có đỉnh tải cao như movie-service.
-  maxReplicas: 6
+  # Traffic upload của người đã đăng nhập, thấp hơn hẳn catalog công khai.
+  maxReplicas: 3
   metrics:
     - type: Resource
       resource:

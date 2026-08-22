@@ -1,0 +1,46 @@
+# Alloy đọc log của MỌI pod trong cluster (qua Kubernetes API, không cần mount hostPath) và đẩy
+# về Loki — bản k8s tương đương alloy-local-config.yaml của docker-compose (vốn dùng
+# discovery.docker vì compose không có "pod", chỉ có container).
+#
+# CHƯA kiểm chứng được bằng cách chạy thật (môi trường soạn thảo không có tilt/cluster) — nếu
+# `alloy` resource lỗi lúc tilt up, khả năng cao là sai key values (`alloy.configMap.content`)
+# do lệch phiên bản chart so với lúc viết file này. Xem `helm show values grafana/alloy` để đối
+# chiếu key đúng, hoặc báo lỗi lại để sửa.
+alloy:
+  configMap:
+    create: true
+    content: |-
+      discovery.kubernetes "pods" {
+        role = "pod"
+      }
+
+      discovery.relabel "pods" {
+        targets = discovery.kubernetes.pods.targets
+
+        rule {
+          source_labels = ["__meta_kubernetes_namespace"]
+          target_label  = "namespace"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_pod_name"]
+          target_label  = "pod"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_pod_label_app"]
+          target_label  = "service"
+        }
+      }
+
+      loki.source.kubernetes "pods" {
+        targets    = discovery.relabel.pods.output
+        forward_to = [loki.write.default.receiver]
+      }
+
+      loki.write "default" {
+        endpoint {
+          url = "http://loki.monitoring.svc:3100/loki/api/v1/push"
+        }
+      }
+
+controller:
+  type: daemonset

@@ -41,6 +41,10 @@ build/
 
 ## Tilt local dev overrides (giá trị thật, không commit)
 /k8s/infra/dev-secrets.env
+# Credential PROD dạng plaintext. Chỉ bản đã mã hoá (k8s/*/sealedsecret.yaml) mới được commit.
+/k8s/infra/prod-secrets.env
+# Backup sealing key của sealed-secrets — giải mã được MỌI sealedsecret trong repo.
+sealed-secrets-key-BACKUP.yaml
 /tilt-settings.json
 tilt_build_history
 

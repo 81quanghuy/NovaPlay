@@ -34,7 +34,7 @@ spec:
         runAsUser: 1000
       containers:
         - name: transcoding-worker
-          image: novaplay/transcoding-worker:v0.0.1
+          image: ghcr.io/81nhuquynh/transcoding-worker:latest
           imagePullPolicy: IfNotPresent
           ports:
             - name: http

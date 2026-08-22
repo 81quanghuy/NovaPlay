@@ -2,6 +2,7 @@ package vn.iotstar.mediaservice.config;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -38,7 +39,11 @@ public class PendingMediaCleanupJob {
     @Value("${job.cleanup.transcode-max-attempts:3}")
     private int transcodeMaxAttempts;
 
+    // lockAtLeastFor giữ khoá thêm 5 phút kể cả khi job xong sớm: fixedRate được tính riêng trên
+    // từng pod nên đồng hồ giữa chúng lệch nhau vài giây là đủ để pod thứ hai nhận khoá ngay sau
+    // pod thứ nhất vừa nhả, và chạy lại đúng lô vừa xử lý.
     @Scheduled(fixedRateString = "${job.cleanup.fixed-rate-ms:3600000}")
+    @SchedulerLock(name = "media-cleanup-orphaned-uploads", lockAtLeastFor = "PT5M")
     public void findAndFixOrphanedUploads() {
         log.info("Running job to find and fix orphaned uploads...");
 
@@ -77,7 +82,10 @@ public class PendingMediaCleanupJob {
      * (Kafka đã ack message nên sẽ không tự động redeliver). Re-queue nếu còn lượt thử, ngược lại
      * đánh {@code FAILED} hẳn để không kẹt vĩnh viễn.
      */
+    // Khoá RIÊNG, không dùng chung tên với job trên: hai job độc lập nhau, gộp một tên khoá sẽ
+    // khiến job này bị bỏ lượt mỗi khi job kia đang chạy.
     @Scheduled(fixedRateString = "${job.cleanup.fixed-rate-ms:3600000}")
+    @SchedulerLock(name = "media-cleanup-stuck-transcodes", lockAtLeastFor = "PT5M")
     public void findAndFixStuckTranscodes() {
         Instant threshold = Instant.now().minus(transcodeStuckAfterMinutes, ChronoUnit.MINUTES);
         List<VideoManifest> stuck = videoManifestService.findStuckProcessing(threshold);

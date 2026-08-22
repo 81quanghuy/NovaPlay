@@ -21,13 +21,23 @@ spring:
       # WatchProgressIndexInitializer vẫn kiểm tra lại lúc khởi động vì auto-index-creation chạy
       # lazy theo từng entity và nuốt lỗi im lặng.
       pool:
-        # HPA scale tới 10 pod (xem k8s/streaming-service/hpa.yaml) — bound ở đây, không phải
-        # trong MONGODB_URI, để trần connection tới Mongo luôn có hiệu lực. Xem MongoPoolConfig.
-        max-size: ${MONGO_MAX_POOL_SIZE:30}
+        # Bound ở đây, không phải trong MONGODB_URI, để trần connection tới Mongo luôn có hiệu
+        # lực. Xem MongoPoolConfig.
+        #
+        # 10 chứ không phải 30: prod dùng MongoDB Atlas M0 (free tier) với trần ~500 connection
+        # dùng CHUNG cho cả 6 service chạm Mongo. streaming-service có maxReplicas=4, nên
+        # 4 x 10 = 40 — còn chỗ cho movie/media/user/notification/config-service.
+        # Nới số này mà quên nhân với maxReplicas của HPA là cách nhanh nhất để cả cụm cùng mất
+        # kết nối Mongo khi có tải, chứ không riêng service này.
+        max-size: ${MONGO_MAX_POOL_SIZE:10}
     redis:
       host: ${REDIS_HOST}
       port: ${REDIS_PORT:6379}
       password: ${REDIS_PASSWORD:}
+      # Default false: Redis in-cluster (Bitnami) chạy plaintext. Redis cloud thường bắt TLS
+      # → đặt REDIS_SSL_ENABLED=true trong env của deployment.
+      ssl:
+        enabled: ${REDIS_SSL_ENABLED:false}
       timeout: 5s
       lettuce:
         pool:

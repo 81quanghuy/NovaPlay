@@ -1,0 +1,22 @@
+# Giữ ít nhất 1 pod sống qua các thao tác NGẮT TỰ NGUYỆN (kubectl drain khi nâng cấp k3s,
+# rebalance node, thay VPS).
+#
+# Vì sao cần dù deployment đã có strategy.rollingUpdate.maxUnavailable=0: hai cơ chế đó bảo vệ
+# hai thứ khác nhau. maxUnavailable chỉ ràng buộc lúc CHÍNH deployment này rollout. Còn
+# `kubectl drain` là eviction đến từ bên ngoài — trên cụm 1–2 node, drain một node có thể hạ
+# đồng thời TOÀN BỘ pod của movie-service mà deployment không có tiếng nói gì. PDB là thứ duy nhất
+# khiến drain phải dừng lại chờ.
+#
+# minAvailable 1 chứ không phải "50%": với minReplicas=2 thì 50% cũng ra 1, nhưng khi HPA scale
+# lên 4 thì 50% thành 2 — chặt hơn mức cần thiết và làm drain chậm hơn nhiều.
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: movie-service
+  labels:
+    app: movie-service
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: movie-service

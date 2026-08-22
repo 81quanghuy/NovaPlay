@@ -1,0 +1,24 @@
+# ClusterIssuer của cert-manager — nguồn cấp chứng chỉ Let's Encrypt cho toàn cluster.
+#
+# Let's Encrypt gửi cảnh báo sắp hết hạn về địa chỉ này. Nó KHÔNG kiểm tra hộp thư có thật hay
+# không (chỉ kiểm tra đúng định dạng), nên gõ sai một ký tự sẽ không làm gì fail — bạn chỉ lặng lẽ
+# không bao giờ nhận được cảnh báo. Kiểm tra lại địa chỉ dưới đây một lần cho chắc.
+#
+# Đang dùng endpoint PRODUCTION, vốn có rate limit chặt (5 lần cấp trùng/tuần cho cùng một bộ
+# domain). Khi thử nghiệm cấu hình lần đầu, đổi tạm server sang staging để khỏi đốt hạn mức:
+#   https://acme-staging-v02.api.letsencrypt.org/directory
+# Chứng chỉ staging không được trình duyệt tin, nhưng đủ để xác minh luồng HTTP-01 chạy đúng.
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-prod
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    email: ngoquanghuy0310@gmail.com
+    privateKeySecretRef:
+      name: letsencrypt-prod-account-key
+    solvers:
+      - http01:
+          ingress:
+            ingressClassName: traefik

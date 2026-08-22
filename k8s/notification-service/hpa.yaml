@@ -1,3 +1,6 @@
+# TRẦN ĐƯỢC TÍNH LẠI CHO CỤM k3s 1–2 VPS (~8 vCPU tổng, trừ đi Kafka + monitoring + k3s).
+# Con số cũ (tới 10 pod) là trần lý thuyết không bao giờ đạt tới trên phần cứng này — HPA sẽ kẹt
+# ở trạng thái muốn scale mà scheduler không có chỗ, pod nằm Pending vô hạn.
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
@@ -10,10 +13,9 @@ spec:
     kind: Deployment
     name: notification-service
   minReplicas: 2
-  # Trần thấp hơn movie-service: tải ở đây bị chặn trên bởi số partition của các topic Kafka
-  # (3 partition/topic), nên thêm pod vượt quá mức đó không tăng được thông lượng tiêu thụ.
-  # Tăng số partition trước rồi mới nới trần này.
-  maxReplicas: 6
+  # Trần CỨNG bằng số partition của các topic Kafka (3). Pod thứ 4 trở đi sẽ idle
+  # vì không được gán partition nào. Muốn nới thì tăng partition TRƯỚC.
+  maxReplicas: 3
   metrics:
     - type: Resource
       resource:

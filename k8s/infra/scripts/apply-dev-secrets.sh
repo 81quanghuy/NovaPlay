@@ -43,4 +43,26 @@ for service_slug in "${!SECRET_ARGS[@]}"; do
     --dry-run=client -o yaml | kubectl apply -f -
 done
 
+# ---------------------------------------------------------------------------
+# JWT keypair: hai Secret riêng, nguồn là file .pem trên máy dev (đã gitignore, preflight
+# check-jwt-keys.sh đảm bảo chúng tồn tại trước khi tới đây).
+#
+# Trước đây key được BAKE vào image lúc build (COPY src). Cách đó có hai vấn đề: image do CI
+# build từ checkout sạch sẽ KHÔNG có key (vì *.pem bị gitignore), và image build ở máy local thì
+# mang theo private key vĩnh viễn trong layer. Nay cả dev lẫn prod đều mount từ Secret — dev đi
+# đúng đường mà prod đi, chỉ khác nguồn sinh Secret (script này ở dev, kubeseal ở prod).
+# ---------------------------------------------------------------------------
+AUTH_KEYS_DIR="$ROOT_DIR/auth-service/src/main/resources/keys"
+GATEWAY_CERTS_DIR="$ROOT_DIR/api-gateway/src/main/resources/certs"
+
+kubectl create secret generic auth-service-jwt-keys \
+  --from-file=private.pem="$AUTH_KEYS_DIR/private.pem" \
+  --from-file=public.pem="$AUTH_KEYS_DIR/public.pem" \
+  --dry-run=client -o yaml | kubectl apply -f -
+
+kubectl create secret generic api-gateway-jwt-public-key \
+  --from-file=public.pem="$GATEWAY_CERTS_DIR/public.pem" \
+  --dry-run=client -o yaml | kubectl apply -f -
+
 echo "Đã apply ${#SECRET_ARGS[@]} Secret: ${!SECRET_ARGS[*]}"
+echo "Đã apply 2 Secret JWT: auth-service-jwt-keys, api-gateway-jwt-public-key"

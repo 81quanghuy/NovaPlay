@@ -1,0 +1,65 @@
+# Overlay production — thứ thật sự được apply lên cluster k3s.
+#
+#   kubectl apply -k k8s/overlays/prod
+#
+# Base (k8s/<service>/) giữ image tag `latest` chỉ để Tilt ở dev khớp được tên image. Overlay này
+# GHIM tag về đúng commit SHA. Đó là điểm khác biệt quan trọng nhất giữa hai bên:
+#
+#   - `latest` không cho biết pod đang chạy code nào, và hai pod khởi động cách nhau 5 phút có
+#     thể chạy hai bản khác nhau mà không có gì báo.
+#   - SHA thì bất biến: `kubectl describe pod` nói thẳng commit nào, và rollback là trỏ về SHA cũ
+#     rồi apply lại — không cần rebuild gì.
+#
+# CI cập nhật khối `images` bên dưới bằng:
+#   cd k8s/overlays/prod && kustomize edit set image ghcr.io/81nhuquynh/<svc>=*:<sha>
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: novaplay
+
+resources:
+  - namespace.yaml
+  - ../../api-gateway
+  - ../../auth-service
+  - ../../config-service
+  - ../../media-service
+  - ../../movie-service
+  - ../../notification-service
+  - ../../streaming-service
+  - ../../transcoding-worker
+  - ../../user-service
+  - ../../infra
+  - ingress.yaml
+
+# ClusterIssuer là object CỤM (không có namespace), nên vẫn nằm ở đây nhưng field `namespace`
+# phía trên không ảnh hưởng tới nó.
+  - clusterissuer.yaml
+
+# Prod bỏ LoadBalancer, dùng Ingress + TLS thay thế. Base giữ LoadBalancer cho dev.
+patches:
+  - path: patch-gateway-service.yaml
+    target:
+      kind: Service
+      name: api-gateway
+
+# Giá trị `newTag` dưới đây là placeholder cho lần bootstrap đầu tiên. Từ lần deploy thứ hai trở
+# đi chúng do CI ghi đè — đừng sửa tay rồi commit đè lên nhau.
+images:
+  - name: ghcr.io/81nhuquynh/api-gateway
+    newTag: latest
+  - name: ghcr.io/81nhuquynh/auth-service
+    newTag: latest
+  - name: ghcr.io/81nhuquynh/config-service
+    newTag: latest
+  - name: ghcr.io/81nhuquynh/media-service
+    newTag: latest
+  - name: ghcr.io/81nhuquynh/movie-service
+    newTag: latest
+  - name: ghcr.io/81nhuquynh/notification-service
+    newTag: latest
+  - name: ghcr.io/81nhuquynh/streaming-service
+    newTag: latest
+  - name: ghcr.io/81nhuquynh/transcoding-worker
+    newTag: latest
+  - name: ghcr.io/81nhuquynh/user-service
+    newTag: latest

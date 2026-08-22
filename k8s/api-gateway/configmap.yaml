@@ -13,5 +13,16 @@ data:
   MOVIE_SERVICE_URI: "http://movie-service:8600"
   NOTIFICATION_SERVICE_URI: "http://notification-service:8900"
   SERVER_PORT: "8072"
+  # Domain FRONTEND được phép gọi API — KHÔNG phải domain của chính API (81quanghuy.io.vn).
+  # Nhiều domain thì phân tách bằng dấu phẩy, không có khoảng trắng:
+  #   CORS_ALLOWED_ORIGINS: "https://a.com,https://b.com"
+  #
+  # Phải ghi đủ scheme và khớp CHÍNH XÁC những gì trình duyệt gửi trong header Origin —
+  # "https://x.com" và "https://www.x.com" là hai origin khác nhau, và có dấu / ở cuối là không
+  # khớp. Sai ở đây thì API vẫn chạy bình thường khi gọi bằng curl/Postman, chỉ trình duyệt bị
+  # chặn — nên rất dễ bị chẩn đoán nhầm thành lỗi frontend.
+  #
+  # TODO: thay bằng domain frontend thật khi đã mua.
+  CORS_ALLOWED_ORIGINS: "https://novaplay.vn"
   # Lấy mẫu toàn bộ ở production quá tốn kém; 10% đủ để phát hiện xu hướng.
   TRACING_SAMPLE_RATE: "0.1"

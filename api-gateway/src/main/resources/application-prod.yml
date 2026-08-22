@@ -303,7 +303,10 @@ services:
 
 rsa:
   public:
-    key-location: classpath:certs/public.pem
+    # Prod PHẢI override sang file: — public key được mount từ Secret vào
+    # /etc/novaplay/keys/public.pem (xem k8s/api-gateway/deployment.yaml), không bake vào image.
+    # Default classpath chỉ để dev/test chạy được mà không cần mount gì.
+    key-location: ${JWT_PUBLIC_KEY_LOCATION:classpath:certs/public.pem}
 
 auth:
   jwt:
@@ -313,12 +316,19 @@ auth:
 
 application:
   cors:
-    # Domain thật của frontend production. Nếu frontend triển khai thêm domain khác (ví dụ
-    # staging), thêm dòng ở đây rồi build lại image — danh sách này không đọc từ biến môi trường
-    # vì CorsProperties.allowedOrigins là List<String> qua @ConfigurationProperties, không nhận
-    # binding tin cậy từ một biến môi trường CSV đơn.
-    allowed-origins:
-      - https://novaplay.vn
+    # Danh sách domain frontend được phép gọi API, phân tách bằng dấu phẩy.
+    #
+    # ĐỌC TỪ BIẾN MÔI TRƯỜNG (CORS_ALLOWED_ORIGINS trong k8s/api-gateway/configmap.yaml) chứ
+    # không hardcode: API đứng ở 81quanghuy.io.vn còn frontend ở một domain KHÁC, và domain đó
+    # còn có thể đổi. Bắt phải build lại image chỉ để thêm một origin là cái giá không đáng.
+    #
+    # Ghi chú cũ ở đây nói List<String> "không nhận binding tin cậy từ một biến môi trường CSV
+    # đơn" — điều đó không đúng: Spring Boot chuyển chuỗi phân tách bằng dấu phẩy thành
+    # List<String> qua relaxed binding, đúng cơ chế mà spring.profiles.active dùng.
+    #
+    # KHÔNG được để rỗng và cũng không được đặt "*": gateway bật allowCredentials, mà trình duyệt
+    # từ chối cặp allowCredentials=true + origin "*".
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:https://novaplay.vn}
   security:
     gateway-secret: ${GATEWAY_SHARED_SECRET}
 

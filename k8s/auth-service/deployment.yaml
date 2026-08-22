@@ -29,7 +29,7 @@ spec:
         runAsUser: 1000
       containers:
         - name: auth-service
-          image: novaplay/authservice:v0.0.2
+          image: ghcr.io/81nhuquynh/auth-service:latest
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
@@ -50,6 +50,13 @@ spec:
               value: none
             - name: OTEL_LOGS_EXPORTER
               value: none
+            # Keypair RSA đến từ Secret mount ở dưới, KHÔNG từ classpath trong image.
+            # Không có hai biến này, application-prod.yml rơi về classpath:keys/*.pem nghĩa là
+            # private key nằm trong layer image — xem chú thích ở application-prod.yml.
+            - name: PRIVATE_KEY_PATH
+              value: file:/etc/novaplay/keys/private.pem
+            - name: PUBLIC_KEY_PATH
+              value: file:/etc/novaplay/keys/public.pem
           envFrom:
             - configMapRef:
                 name: auth-service-config
@@ -88,6 +95,17 @@ spec:
           volumeMounts:
             - name: tmp
               mountPath: /tmp
+            - name: jwt-keys
+              mountPath: /etc/novaplay/keys
+              readOnly: true
       volumes:
         - name: tmp
           emptyDir: {}
+        # Private key ký JWT. defaultMode 0400: chỉ user chạy tiến trình đọc được, không ai ghi.
+        # Secret này do kubeseal sinh (k8s/auth-service/sealedsecret.yaml) và TÁCH RIÊNG khỏi
+        # auth-service-secrets: credential DB có thể xoay vòng thoải mái, còn đổi keypair thì
+        # phải đồng bộ cùng lúc với api-gateway nếu không mọi token đang lưu hành đều hỏng.
+        - name: jwt-keys
+          secret:
+            secretName: auth-service-jwt-keys
+            defaultMode: 0400

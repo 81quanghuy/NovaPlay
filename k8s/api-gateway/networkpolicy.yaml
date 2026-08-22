@@ -15,7 +15,11 @@ spec:
   policyTypes:
     - Ingress
   ingress:
-    # Traffic từ internet, qua Service type LoadBalancer — không giới hạn nguồn.
+    # Traffic từ internet — KHÔNG giới hạn nguồn, và đây là chủ ý.
+    # Ở dev nguồn là Service type LoadBalancer; ở prod là pod Traefik nằm trong namespace
+    # kube-system (xem k8s/overlays/prod/ingress.yaml). Siết rule này theo namespaceSelector sẽ
+    # chặn mất một trong hai đường tuỳ môi trường — mà lợi ích bảo mật bằng không, vì đằng nào
+    # gateway cũng phải nhận được traffic từ người dùng ẩn danh.
     - ports:
         - protocol: TCP
           port: 8072

@@ -17,11 +17,18 @@ spec:
   policyTypes:
     - Ingress
   ingress:
-    # Traffic ứng dụng: chỉ đến từ gateway.
+    # Traffic ứng dụng. Hai nguồn hợp lệ, KHÔNG chỉ mình gateway:
+    #   - api-gateway: traffic của người dùng cuối (/api/v1/movies|genres|artists/**).
+    #   - streaming-service: gọi thẳng qua Service DNS bằng Feign (MovieServiceClient) để
+    #     resolve metadata phim lúc dựng phiên phát. Cạnh này không đi qua gateway, nên thiếu
+    #     rule ở đây là luồng playback chết hẳn trên cluster có enforce NetworkPolicy.
     - from:
         - podSelector:
             matchLabels:
               app: api-gateway
+        - podSelector:
+            matchLabels:
+              app: streaming-service
       ports:
         - protocol: TCP
           port: 8600

@@ -29,7 +29,7 @@ spec:
         runAsUser: 1000
       containers:
         - name: config-service
-          image: novaplay/config-service:v0.0.1
+          image: ghcr.io/81nhuquynh/config-service:latest
           imagePullPolicy: IfNotPresent
           ports:
             - name: http

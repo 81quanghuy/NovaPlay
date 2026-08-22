@@ -2,6 +2,12 @@ spring:
   config:
     activate:
       on-profile: dev
+  liquibase:
+    # Bật ở cả dev lẫn prod: schema chỉ có MỘT nguồn sự thật là db/changelog/. Đây cũng là cách
+    # duy nhất để dev có function outbox_notify() và trigger outbox_notify_trg — chúng không phải
+    # entity JPA nên ddl-auto=update không bao giờ tạo ra chúng, và thiếu chúng thì outbox chỉ
+    # chảy mỗi khi có lượt poll/catch-up.
+    enabled: true
   datasource:
     url: jdbc:postgresql://localhost:5432/promotion_service
     username: admin
@@ -9,7 +15,9 @@ spring:
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
-      ddl-auto: update
+      # validate chứ không phải update: Liquibase đã dựng schema, để Hibernate sửa thêm sẽ tạo
+      # lệch âm thầm giữa DB dev và changelog — đúng thứ khiến prod fail lúc validate.
+      ddl-auto: validate
     show-sql: true
     properties:
       hibernate:

@@ -33,7 +33,7 @@ spec:
         runAsUser: 1000
       containers:
         - name: notification-service
-          image: novaplay/notification-service:v0.0.1
+          image: ghcr.io/81nhuquynh/notification-service:latest
           imagePullPolicy: IfNotPresent
           ports:
             - name: http

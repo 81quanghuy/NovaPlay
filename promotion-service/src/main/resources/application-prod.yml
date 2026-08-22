@@ -12,6 +12,10 @@ spring:
     username: ${DATASOURCE_USERNAME}
     password: ${DATASOURCE_PASSWORD}
     driver-class-name: org.postgresql.Driver
+  liquibase:
+    # Liquibase là nguồn sự thật của schema; Hibernate chỉ đối chiếu lại (chạy SAU, Spring Boot
+    # tự sắp thứ tự). Changelog mặc định: classpath:/db/changelog/db.changelog-master.yaml
+    enabled: true
   jpa:
     hibernate:
       # validate, không phải update: production không được tự ý sửa schema lúc khởi động.

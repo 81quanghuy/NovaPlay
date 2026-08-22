@@ -1,0 +1,15 @@
+# Ở prod, api-gateway KHÔNG còn là LoadBalancer.
+#
+# Base giữ type LoadBalancer vì dev (Docker Desktop) dựa vào đó để expose thẳng localhost:80 —
+# Tiltfile cố ý không port-forward gateway để tránh tranh chấp cổng 80.
+#
+# Trên k3s tự host, LoadBalancer chạy nhờ ServiceLB (Klipper) gán thẳng IP node: hoạt động,
+# nhưng KHÔNG có TLS. Mà HLS thì bắt buộc phải có TLS thật — trình duyệt chặn mixed content, nên
+# frontend chạy HTTPS sẽ không tải nổi segment qua HTTP. Vì thế prod chuyển sang ClusterIP và để
+# Traefik (có sẵn trong k3s) nhận traffic qua ingress.yaml.
+apiVersion: v1
+kind: Service
+metadata:
+  name: api-gateway
+spec:
+  type: ClusterIP

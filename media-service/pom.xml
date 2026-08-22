@@ -15,6 +15,7 @@
     <description>media-service</description>
     <properties>
         <spring-cloud.version>2025.0.0</spring-cloud.version>
+        <shedlock.version>5.16.0</shedlock.version>
     </properties>
     <dependencies>
         <dependency>
@@ -74,6 +75,20 @@
             <artifactId>spring-cloud-starter-openfeign</artifactId>
         </dependency>
         <!-- @CircuitBreaker trên ConfigServiceFeatureProvider.getStringEvaluation cần proxy AOP. -->
+        <!-- ShedLock: khoá phân tán cho PendingMediaCleanupJob. Bắt buộc vì media-service chạy
+             replicas=2 (HPA tới 6) và job này phát event video-source-ready.v1 — chạy trùng nghĩa
+             là mỗi video bị transcode nhiều lần, mà mỗi lượt transcode là một pod ffmpeg
+             2 vCPU/4Gi. Provider Mongo vì service này đã dùng Mongo, không kéo thêm datastore. -->
+        <dependency>
+            <groupId>net.javacrumbs.shedlock</groupId>
+            <artifactId>shedlock-spring</artifactId>
+            <version>${shedlock.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>net.javacrumbs.shedlock</groupId>
+            <artifactId>shedlock-provider-mongo</artifactId>
+            <version>${shedlock.version}</version>
+        </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-aop</artifactId>

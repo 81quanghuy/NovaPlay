@@ -28,14 +28,29 @@ nằm ngoài phạm vi — vẫn phải chạy/khởi tạo thủ công nếu c�
   ```bash
   docker compose -f docker-compose/qa/docker-compose.yml down
   ```
-- **JWT keypair phải có sẵn** trước khi build image (Tilt sẽ preflight-check và fail sớm nếu
+- **JWT keypair phải có sẵn** trước khi `tilt up` (Tilt sẽ preflight-check và fail sớm nếu
   thiếu, không tự sinh key vì auth-service/api-gateway phải dùng CÙNG một public key):
   - `auth-service/src/main/resources/keys/private.pem` + `public.pem`
   - `api-gateway/src/main/resources/certs/public.pem` (phải khớp `auth-service/.../public.pem`)
 
-  Nếu chưa có, tự sinh một cặp key dev mới (xem hướng dẫn hiện có của auth-service để sinh RSA
-  keypair, rồi copy public key sang api-gateway) — không commit các file `.pem` này (đã
-  gitignore).
+  Nếu chưa có, sinh một cặp key dev mới — private key phải ở dạng PKCS#8, đúng cái
+  `AuthServiceKeyConfig` đang parse:
+
+  ```bash
+  openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 \
+    -out auth-service/src/main/resources/keys/private.pem
+  openssl rsa -pubout -in auth-service/src/main/resources/keys/private.pem \
+    -out auth-service/src/main/resources/keys/public.pem
+  cp auth-service/src/main/resources/keys/public.pem api-gateway/src/main/resources/certs/public.pem
+  ```
+
+  Không commit các file `.pem` này (đã gitignore).
+
+  Ba file này KHÔNG còn được bake vào image. `apply-dev-secrets.sh` đọc chúng để tạo Secret
+  `auth-service-jwt-keys` và `api-gateway-jwt-public-key`, Pod mount vào `/etc/novaplay/keys`.
+  Đây đúng là đường mà prod đi, chỉ khác nguồn sinh Secret (script này ở dev, kubeseal ở prod).
+  `auth-service/.dockerignore` và `api-gateway/.dockerignore` chặn `*.pem` khỏi build context để
+  private key không bao giờ lọt vào layer image.
 
 - Docker Desktop dùng chung image store với Docker CLI → image `docker_build` xong dùng được
   ngay trong cluster, **không cần push registry**.
@@ -68,7 +83,7 @@ thoát CLI, không tắt các resource đã tạo trong cluster (xem mục "Tắ
 
 ```
 postgres / redis / kafka (Bitnami Helm) ─┐
-mongodb / media-minio / mailhog (tự viết)─┼─► seed/init (postgres-seed, mongo-config-flags-seed,
+mongodb / media-minio / mailhog (tự viết)─┼─► seed/init (mongo-config-flags-seed,
 dev-secrets (9 k8s Secret)                ┘   minio-bucket-init)
                                                         │
         ┌───────────────┬───────────────┬──────────────┼───────────────┬────────────────┐
@@ -117,15 +132,18 @@ Postgres. Username/password thật vẫn khai báo trong `k8s/infra/dev-secrets.
 (`AUTH_SERVICE__DATASOURCE_USERNAME/PASSWORD`, `*_REDIS_PASSWORD`, `API_GATEWAY__REDIS_HOST` v.v.)
 — đổi các giá trị đó sang credential cloud thật, **không sửa `configmap.yaml` đã commit**.
 
-Việc nạp schema/seed vào Postgres cloud vẫn là thao tác **một lần, thủ công** (chạy trên DB dùng
-chung, không an toàn để tự động rerun mỗi `tilt up`):
+**Postgres không cần thao tác thủ công nào nữa.** Liquibase tự dựng schema và nạp hai role
+USER/ADMIN lúc auth-service khởi động, kể cả trên một DB cloud hoàn toàn trống. Chỉ cần tạo sẵn
+database rỗng (`auth_service`) và cấp quyền tạo bảng cho user trong `DATASOURCE_USERNAME`.
 
-```bash
-export PGPASSWORD='<cloud-pg-password>'
-PGCONN="host=<cloud-pg-host> port=5432 dbname=auth_service user=<cloud-pg-user> sslmode=require"
-psql "$PGCONN" -f k8s/infra/postgres-initdb.sql
-psql "$PGCONN" -f k8s/infra/postgres-seed.sql
-```
+> **Chọn đúng endpoint.** Outbox dùng `LISTEN/NOTIFY`, thứ **không chạy** qua endpoint pooled kiểu
+> PgBouncer transaction mode. Supabase: dùng cổng `5432` (direct), không phải `6543` (pooler).
+> Neon: dùng host không có hậu tố `-pooler`. Nếu buộc phải đi qua pooler, đặt
+> `AUTH_SERVICE__OUTBOX_LISTEN_ENABLED=false` và `AUTH_SERVICE__OUTBOX_POLL_INTERVAL=5s` trong
+> `dev-secrets.env` — outbox chuyển sang cơ chế poll, vẫn đúng, chỉ trễ hơn vài giây.
+>
+> Triệu chứng chọn nhầm endpoint rất khó chẩn đoán: `LISTEN` "thành công" nhưng không notification
+> nào tới, nên email OTP chỉ được gửi mỗi khi có một lượt poll/catch-up — không có lỗi nào trong log.
 
 Kafka **luôn** cài in-cluster (không có toggle "cloud Kafka" trong phạm vi hiện tại) — nếu bạn có
 Kafka cloud, tự sửa `KAFKA_BOOTSTRAP_SERVERS` tương ứng trong `dev-secrets.env` và bỏ resource
@@ -135,27 +153,39 @@ Kafka cloud, tự sửa `KAFKA_BOOTSTRAP_SERVERS` tương ứng trong `dev-secre
 
 ---
 
-## 4. Monitoring (Prometheus / Grafana / Loki / Tempo) — vẫn thủ công
+## 4. Monitoring (Prometheus / Grafana / Loki / Tempo / Alloy) — tự động qua Tilt
 
-Cố tình **không** đưa vào Tiltfile (ngoài phạm vi "9 app service"). Cài bằng Helm như trước:
+Đã gộp vào Tiltfile (`use_monitoring`, mặc định `true` trong `tilt-settings.json`). Khi bật,
+`tilt up` tự cài trong namespace `monitoring`:
 
-```bash
-kubectl create namespace monitoring
-kubectl label namespace monitoring name=monitoring --overwrite
+- **kube-prometheus-stack** (Prometheus + Grafana; Alertmanager tắt để đỡ tốn tài nguyên node nhỏ)
+- **Loki** (single-binary, filesystem storage) — nhận log
+- **Alloy** — DaemonSet đọc log mọi pod qua Kubernetes API, đẩy về Loki
+- **Tempo** (single-binary) — nhận trace qua OTLP `:4318`
+- **PodMonitor** `novaplay-apps` — cho Prometheus scrape `/actuator/prometheus` của cả 9 service
 
-helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
-helm repo add grafana https://grafana.github.io/helm-charts
-helm repo update
+Values riêng cho từng chart nằm ở `k8s/infra/monitoring/*.yaml`. Grafana đã tự có sẵn 2
+datasource Loki + Tempo (cấu hình qua `grafana.additionalDataSources` trong
+`kube-prometheus-stack-values.yaml`), cộng datasource Prometheus mặc định của chart.
 
-helm install kube-prom prometheus-community/kube-prometheus-stack -n monitoring --wait
-kubectl port-forward -n monitoring svc/kube-prom-grafana 3000:80   # http://localhost:3000
-kubectl get secret kube-prom-grafana -n monitoring -o jsonpath='{.data.admin-password}' | base64 -d; echo
-```
+**Truy cập** (Tilt tự port-forward):
+- Grafana: http://localhost:3000 — user `admin`, lấy password:
+  ```bash
+  kubectl get secret kube-prom-grafana -n monitoring -o jsonpath='{.data.admin-password}' | base64 -d; echo
+  ```
+- Prometheus: http://localhost:9090
+- Loki API: http://localhost:3100 (thường không cần vào trực tiếp, xem qua Grafana → Explore)
+- Tempo API: http://localhost:3200 (tương tự, xem qua Grafana → Explore)
 
-Loki/Tempo/Alloy + PodMonitor cho app: xem lịch sử của mục này ở git log của file, hoặc lặp lại
-theo pattern trên (`helm install loki grafana/loki -n monitoring ...`,
-`helm install tempo grafana/tempo -n monitoring ...`, `helm install alloy grafana/alloy -n
-monitoring ...`).
+**Tắt nếu máy yếu / `tilt up` quá lâu**: đặt `"use_monitoring": false` trong `tilt-settings.json`
+rồi chạy lại `tilt up` — Tilt tự gỡ toàn bộ 4 Helm release + namespace `monitoring` vì không còn
+khai báo trong Tiltfile nữa.
+
+**Chưa kiểm chứng bằng cluster thật** lúc soạn phần này (môi trường soạn thảo không có
+`tilt`/cluster) — rủi ro cao nhất nằm ở `k8s/infra/monitoring/alloy-values.yaml` (key
+`alloy.configMap.content` có thể lệch theo version chart `grafana/alloy` cài trên máy bạn). Nếu
+resource `alloy` đỏ, chạy `helm show values grafana-charts/alloy | grep -A5 configMap` để đối
+chiếu đúng key, hoặc gửi log lỗi lại.
 
 ---
 
@@ -181,14 +211,15 @@ helm list -A
 
 | Vấn đề | Chi tiết |
 |--------|----------|
-| **NetworkPolicy không chặn ở local** | CNI kindnet của docker-desktop **bỏ qua** NetworkPolicy. Manifest đúng và sẽ chặn thật trên cluster prod (Calico/Cilium), nhưng ở local pod khác vẫn gọi thẳng được service khác. |
-| **Dữ liệu ephemeral** | Postgres/Mongo để không persistence. Pod bị tạo lại → mất schema/seed/data, `postgres-seed`/`mongo-config-flags-seed` tự chạy lại ở lần `tilt up` kế tiếp — không cần thao tác gì thêm. |
+| **NetworkPolicy không chặn ở local** | CNI kindnet của docker-desktop **bỏ qua** NetworkPolicy. Manifest sẽ chặn thật trên cluster prod (Calico/Cilium/kube-router của k3s), nhưng ở local pod khác vẫn gọi thẳng được service khác. Hệ quả: sai sót trong NetworkPolicy **không thể phát hiện ở local** — mọi thay đổi phải kiểm chứng trên cluster thật. Các rule hiện tại đã bao phủ đủ 8 cạnh Feign nội bộ (streaming→movie/media/user/config, transcoding-worker→media, user→media, media→config); thêm một lời gọi Feign mới là phải thêm rule tương ứng. |
+| **Dữ liệu ephemeral** | Postgres/Mongo để không persistence. Pod bị tạo lại → mất schema/seed/data. Postgres tự phục hồi vì Liquibase chạy lại mỗi lần auth-service khởi động; Mongo cần `mongo-config-flags-seed` chạy lại ở lần `tilt up` kế tiếp — không cần thao tác gì thêm. |
 | **`tilt up` lần đầu chậm (1-2 phút/service)** | Dockerfile của các service Maven build cả cây repo (`COPY . .` — pom cha liệt kê toàn bộ module) và tải OTEL agent từ GitHub mỗi lần build, chưa có cache layer tối ưu. Chấp nhận được cho lần đầu; các lần sau Tilt chỉ rebuild service có file thay đổi. |
 | **JWT keypair thiếu** | Tilt preflight-check fail ngay khi `tilt up`, xem thông báo lỗi trỏ tới mục 0 ở trên. |
 | **Port bị chiếm (5432/6379/9092/27017/...)** | Thường do docker-compose vẫn đang chạy — `docker compose -f docker-compose/qa/docker-compose.yml down` trước. |
 | **Secret không nhận giá trị mới sau khi sửa `dev-secrets.env`** | `apply-dev-secrets.sh` chỉ update object Secret, Pod đang chạy KHÔNG tự đọc lại — trigger lại resource `dev-secrets` trong Tilt UI rồi restart resource service tương ứng (nút restart trong UI, tương đương `kubectl rollout restart deployment/<svc>`). |
-| **OTel log lỗi kết nối `localhost:4318`/`tempo.monitoring.svc:4318`** | Vô hại nếu chưa deploy monitoring (mục 4) — muốn tắt hẳn, set `OTEL_SDK_DISABLED=true` cho service đó (không phải phạm vi Tiltfile hiện tại, sửa tay nếu cần). |
-| **Public key gateway** | Gateway verify JWT bằng `api-gateway/src/main/resources/certs/public.pem` — phải KHỚP `auth-service/.../keys/public.pem`. Đổi key thì đồng bộ cả hai rồi để Tilt tự rebuild image. |
+| **OTel log lỗi kết nối tới Tempo lúc mới `tilt up`** | Bình thường trong vài giây đầu khi resource `tempo` chưa Ready mà service đã start — tự hết khi Tempo lên. Nếu tắt `use_monitoring`, các service vẫn cố gửi tới `tempo.monitoring.svc:4318` (không tồn tại) — vô hại, chỉ log lỗi; muốn tắt hẳn thì set `OTEL_SDK_DISABLED=true` cho service đó (sửa tay, ngoài phạm vi Tiltfile hiện tại). |
+| **Resource `alloy`/`kube-prom`/`loki`/`tempo` đỏ hoặc treo** | Khả năng cao do lệch key `values.yaml` so với version chart thật cài trên máy bạn (chưa kiểm chứng bằng cluster thật lúc soạn) — chạy `helm show values <repo>/<chart>` đối chiếu, hoặc gửi log lỗi. Máy yếu: đặt `use_monitoring=false` trong `tilt-settings.json`. |
+| **Public key gateway** | Gateway verify JWT bằng public key mount từ Secret `api-gateway-jwt-public-key` (nguồn: `api-gateway/src/main/resources/certs/public.pem`) — phải KHỚP `auth-service/.../keys/public.pem`. Đổi key thì sửa cả hai file, trigger lại resource `dev-secrets`, rồi restart cả `auth-service` lẫn `api-gateway`. KHÔNG cần rebuild image nữa. Triệu chứng lệch key là 401 trên mọi request đã đăng nhập — rất giống token hết hạn nên dễ chẩn đoán nhầm. |
 
 ---
 
@@ -209,3 +240,6 @@ curl -X POST http://localhost/api/v1/auth/login \
 - **Mailhog**: http://localhost:8025 — kiểm tra email test (OTP, v.v.) có tới không.
 - **MinIO console**: http://localhost:9011 (user `media-dev` / pass `media-dev-secret`) — xem
   bucket `novaplay-media` và object media/HLS đã upload.
+- **Grafana**: http://localhost:3000 — Explore → chọn datasource Loki xem log tổng hợp mọi
+  service, chọn Tempo xem trace theo traceId, dashboard mặc định của kube-prometheus-stack xem
+  metrics.

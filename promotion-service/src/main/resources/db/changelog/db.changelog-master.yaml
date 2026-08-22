@@ -1,0 +1,15 @@
+# Nguồn sự thật DUY NHẤT của schema Postgres thuộc promotion-service (database `promotion_service`,
+# TÁCH RIÊNG khỏi `auth_service` của auth-service).
+#
+# Trước file này service không có schema ở bất kỳ đâu — không dump, không .sql — nên
+# ddl-auto=validate ở prod sẽ fail startup ngay trên DB trống. Ở dev nó "chạy được" chỉ nhờ
+# ddl-auto=update tự dựng bảng, và bảng dựng theo cách đó không bao giờ có function/trigger
+# outbox_notify (chúng không phải entity JPA).
+#
+# Quy ước thêm changeset: mỗi thay đổi là MỘT file mới trong changes/, đánh số tăng dần. KHÔNG
+# sửa file đã chạy — Liquibase lưu checksum.
+databaseChangeLog:
+  - include:
+      file: db/changelog/changes/001-baseline-schema.sql
+  - include:
+      file: db/changelog/changes/002-outbox-notify-trigger.sql

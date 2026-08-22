@@ -1,0 +1,23 @@
+# CỐ Ý dùng maxUnavailable thay vì minAvailable, khác 8 service còn lại.
+#
+# transcoding-worker chạy replicas=1 (cố ý — xem comment trong deployment.yaml). Với một replica
+# duy nhất, `minAvailable: 1` nghĩa là KHÔNG BAO GIỜ được evict pod này, và `kubectl drain` sẽ
+# treo vô hạn — biến PDB từ lớp bảo vệ thành thứ chặn cứng việc bảo trì node.
+#
+# `maxUnavailable: 1` cho phép drain diễn ra. Chấp nhận được vì worker không phục vụ request
+# người dùng: nó tiêu thụ video-source-ready.v1, và một lượt transcode bị mất giữa chừng sẽ được
+# PendingMediaCleanupJob#findAndFixStuckTranscodes đối soát rồi re-queue.
+#
+# Nếu có ngày nâng transcoding-worker lên nhiều replica, đổi file này về minAvailable: 1 cho
+# giống các service khác.
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: transcoding-worker
+  labels:
+    app: transcoding-worker
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: transcoding-worker

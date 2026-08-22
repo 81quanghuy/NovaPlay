@@ -9,9 +9,13 @@ import java.util.List;
  * Nhặt những row mà không pod nào còn nhớ tới — hậu quả của việc một pod chết sau khi COMMIT
  * nhưng trước khi Kafka ack, hoặc của notification bị mất trong lúc connection LISTEN đứt.
  * <p>
- * Cố ý KHÔNG có {@code @Scheduled}. Chỉ chạy ở ba thời điểm: lúc khởi động, sau mỗi lần kết nối
- * lại thành công (xem {@link OutboxNotificationListener}), và khi được gọi tay qua
- * {@link OutboxCatchUpController}.
+ * Cố ý KHÔNG mang {@code @Scheduled} trên chính nó — việc lên lịch thuộc về {@link OutboxPoller},
+ * để bật/tắt và chỉnh chu kỳ được qua cấu hình mà không phải sửa lớp này. Các thời điểm gọi:
+ * lúc khởi động, sau mỗi lần kết nối lại thành công (xem {@link OutboxNotificationListener}),
+ * theo chu kỳ của {@link OutboxPoller}, và khi được gọi tay qua {@link OutboxCatchUpController}.
+ * <p>
+ * An toàn khi nhiều pod chạy đồng thời: {@code claimBatch} nhận việc bằng
+ * {@code FOR UPDATE SKIP LOCKED} nên hai pod chia nhau row thay vì gửi trùng.
  */
 @Slf4j
 @RequiredArgsConstructor

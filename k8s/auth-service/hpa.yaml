@@ -1,3 +1,6 @@
+# TRẦN ĐƯỢC TÍNH LẠI CHO CỤM k3s 1–2 VPS (~8 vCPU tổng, trừ đi Kafka + monitoring + k3s).
+# Con số cũ (tới 10 pod) là trần lý thuyết không bao giờ đạt tới trên phần cứng này — HPA sẽ kẹt
+# ở trạng thái muốn scale mà scheduler không có chỗ, pod nằm Pending vô hạn.
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
@@ -10,7 +13,10 @@ spec:
     kind: Deployment
     name: auth-service
   minReplicas: 2
-  maxReplicas: 6
+  # Trần thật sự là hạn mức connection của Postgres managed, không phải CPU:
+  # 3 pod x (5 pool + 1 LISTEN) = 18 connection. Nới số này phải nới cả
+  # DATASOURCE_MAX_POOL_SIZE cho khớp — xem application-prod.yml.
+  maxReplicas: 3
   metrics:
     - type: Resource
       resource:

@@ -1,0 +1,37 @@
+# Điểm vào duy nhất từ Internet. Dùng Traefik có sẵn của k3s + cert-manager cho chứng chỉ.
+#
+# Domain: 81quanghuy.io.vn — dành RIÊNG cho API. Frontend sẽ nằm ở một domain khác, và domain đó
+# phải được thêm vào CORS_ALLOWED_ORIGINS trong k8s/api-gateway/configmap.yaml, KHÔNG phải ở đây.
+#
+# ĐIỀU KIỆN TIÊN QUYẾT: bản ghi A của 81quanghuy.io.vn phải trỏ sẵn vào IP public của node k3s
+# TRƯỚC khi apply. cert-manager xin chứng chỉ bằng thử thách HTTP-01: Let's Encrypt gọi ngược lại
+# http://81quanghuy.io.vn/.well-known/acme-challenge/... — DNS chưa trỏ đúng thì cấp chứng chỉ
+# fail, Ingress phục vụ chứng chỉ tự ký và trình duyệt sẽ cảnh báo.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: api-gateway
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    # Ép mọi truy cập HTTP sang HTTPS.
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - 81quanghuy.io.vn
+      secretName: api-gateway-tls
+  rules:
+    - host: 81quanghuy.io.vn
+      http:
+        paths:
+          # Toàn bộ định tuyến theo path đã nằm trong api-gateway (application-prod.yml).
+          # Ingress CỐ Ý không lặp lại chúng: hai nơi cùng định tuyến là hai nơi phải sửa mỗi khi
+          # thêm service, và chúng sẽ lệch nhau.
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: api-gateway
+                port:
+                  number: 80

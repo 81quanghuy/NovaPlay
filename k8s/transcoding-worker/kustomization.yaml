@@ -1,0 +1,22 @@
+# k8s/transcoding-worker/kustomization.yaml
+#
+# secret.example.yaml CỐ Ý không nằm trong resources: nó là tài liệu về những key cần có, với giá
+# trị rỗng. Apply nó sẽ GHI ĐÈ secret thật trong cluster bằng chuỗi rỗng và làm service chết.
+# Secret thật ở prod đến từ sealedsecret.yaml (sinh bằng kubeseal), ở dev đến từ
+# k8s/infra/scripts/apply-dev-secrets.sh.
+# Không có service.yaml (worker chỉ tiêu thụ Kafka, không ai gọi vào) và không có
+# hpa.yaml (tải là job transcode chứ không phải request, CPU utilization vô nghĩa làm
+# tín hiệu scale — xem comment trong deployment.yaml).
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - configmap.yaml
+  - deployment.yaml
+  - pdb.yaml
+  - networkpolicy.yaml
+
+labels:
+  - pairs:
+      app: transcoding-worker
+    includeSelectors: true

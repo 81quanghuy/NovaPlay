@@ -1,0 +1,18 @@
+# Dockerfile của api-gateway build từ context "api-gateway/", KHÔNG từ gốc repo — nên
+# .dockerignore ở gốc repo không có hiệu lực ở đây. Public key không bí mật như private key
+# của auth-service, nhưng vẫn không bake vào image: key nằm trong image thì mỗi lần xoay vòng
+# keypair lại phải rebuild + redeploy gateway, thay vì chỉ cập nhật Secret.
+#
+# Key được nạp lúc chạy từ Secret mount vào /etc/novaplay/keys (xem k8s/api-gateway/
+# deployment.yaml + JWT_PUBLIC_KEY_LOCATION).
+src/main/resources/certs/
+**/*.pem
+
+build/
+.gradle/
+**/.git/
+**/.idea/
+**/.vscode/
+**/*.iml
+**/*.md
+**/.DS_Store

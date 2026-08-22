@@ -52,6 +52,14 @@ dependencies {
     testAnnotationProcessor 'org.projectlombok:lombok'
 
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    // Schema Postgres do Liquibase quản lý, KHÔNG do Hibernate (ddl-auto=validate ở cả dev lẫn prod).
+    //
+    // Phải là starter, KHÔNG phải 'org.liquibase:liquibase-core' trần: Spring Boot 4 đã tách
+    // autoconfiguration ra khỏi spring-boot-autoconfigure thành từng module riêng
+    // (spring-boot-liquibase, giống spring-boot-kafka ở dưới). Chỉ khai liquibase-core thì thư
+    // viện có mặt nhưng LiquibaseAutoConfiguration thì không — spring.liquibase.* bị bỏ qua và
+    // migration lặng lẽ không bao giờ chạy, cho tới khi Hibernate validate fail ở prod.
+    implementation 'org.springframework.boot:spring-boot-starter-liquibase'
     implementation 'jakarta.validation:jakarta.validation-api'
     implementation 'org.springframework.kafka:spring-kafka'
     implementation 'org.springframework.boot:spring-boot-kafka'

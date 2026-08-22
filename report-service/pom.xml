@@ -45,16 +45,10 @@
                     </annotationProcessorPaths>
                 </configuration>
             </plugin>
-            <plugin>
-                <groupId>com.google.cloud.tools</groupId>
-                <artifactId>jib-maven-plugin</artifactId>
-                <version>3.4.2</version>
-                <configuration>
-                    <to>
-                        <image>novaPlay/${project.artifactId}:v1.0.0</image>
-                    </to>
-                </configuration>
-            </plugin>
+            <!-- jib-maven-plugin đã bị gỡ: image build bằng Dockerfile rồi push GHCR trong CI,
+                 giống mọi service khác. Khai báo cũ ở đây còn đặt tên image "novaPlay/..." (viết
+                 hoa) — không khớp với bất kỳ manifest nào. Service này vẫn là scaffold rỗng, chưa
+                 có Dockerfile lẫn workflow CI. -->
         </plugins>
     </build>
 

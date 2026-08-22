@@ -17,11 +17,17 @@ spec:
   policyTypes:
     - Ingress
   ingress:
-    # Traffic ứng dụng: chỉ đến từ gateway.
+    # Traffic ứng dụng. Hai nguồn hợp lệ, KHÔNG chỉ mình gateway:
+    #   - api-gateway: traffic của người dùng cuối (/api/v1/users/**).
+    #   - streaming-service: Feign UserServiceClient (GET /me) để đọc gói cước, phục vụ kiểm tra
+    #     entitlement trước khi cấp playback token. Đi thẳng qua Service DNS, không qua gateway.
     - from:
         - podSelector:
             matchLabels:
               app: api-gateway
+        - podSelector:
+            matchLabels:
+              app: streaming-service
       ports:
         - protocol: TCP
           port: 8700

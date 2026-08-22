@@ -1,0 +1,12 @@
+# Namespace riêng cho toàn bộ ứng dụng. Dev (Tilt) chạy ở `default` nên hai bên không đụng nhau
+# nếu có lúc bạn trỏ kubectl nhầm context.
+#
+# Nhãn `name: monitoring` KHÔNG ở đây mà ở namespace monitoring — các networkpolicy.yaml dùng
+# namespaceSelector matchLabels {name: monitoring} để cho Prometheus scrape. Nhớ gắn nhãn đó khi
+# tạo namespace monitoring, nếu không mọi metric sẽ im lặng biến mất.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: novaplay
+  labels:
+    name: novaplay

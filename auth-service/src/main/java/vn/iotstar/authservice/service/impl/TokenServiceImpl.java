@@ -73,17 +73,24 @@ public class TokenServiceImpl implements TokenService {
         tokenRepository.saveAll(validUserTokens);
     }
 
+    /**
+     * Dọn token đã hết hạn, mỗi giờ một lần.
+     * <p>
+     * Cố ý KHÔNG có distributed lock dù chạy trên mọi pod (replicas=2, HPA tới 6): đây là một câu
+     * DELETE đơn, idempotent, dựa trên index {@code idx_token_expired_at}. Pod thứ hai chạy ngay
+     * sau pod thứ nhất chỉ đơn giản là không thấy row nào. Thêm ShedLock ở đây sẽ phải trả giá
+     * bằng một bảng lock và một connection tới Postgres managed (vốn bị giới hạn chặt) để đổi lấy
+     * thứ gần như không đáng gì.
+     * <p>
+     * Bản trước đọc {@code findAll()} rồi lọc bằng Java — kéo toàn bộ bảng token vào heap mỗi giờ
+     * trên mọi pod, rồi sinh N câu DELETE riêng lẻ.
+     */
     @Scheduled(fixedDelay = 3600000)
     @Transactional
     public void cleanupExpiredTokens() {
-        log.info("Cleaning up expired tokens from database...");
-        Instant now = Instant.now();
-        var expiredTokens = tokenRepository.findAll().stream()
-                .filter(token -> token.getExpiredAt().isBefore(now))
-                .toList();
-        if (!expiredTokens.isEmpty()) {
-            tokenRepository.deleteAll(expiredTokens);
-            log.info("Deleted {} expired tokens", expiredTokens.size());
+        int deleted = tokenRepository.deleteAllExpiredBefore(Instant.now());
+        if (deleted > 0) {
+            log.info("Đã xoá {} token hết hạn", deleted);
         }
     }
 }

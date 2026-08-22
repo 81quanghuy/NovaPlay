@@ -29,7 +29,7 @@ spec:
         runAsUser: 1000
       containers:
         - name: streaming-service
-          image: novaplay/streaming-service:v0.0.1
+          image: ghcr.io/81nhuquynh/streaming-service:latest
           imagePullPolicy: IfNotPresent
           ports:
             - name: http

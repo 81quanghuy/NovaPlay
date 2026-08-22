@@ -31,7 +31,7 @@ spec:
         runAsUser: 1000
       containers:
         - name: media-service
-          image: novaplay/media-service:v0.0.1
+          image: ghcr.io/81nhuquynh/media-service:latest
           imagePullPolicy: IfNotPresent
           ports:
             - name: http

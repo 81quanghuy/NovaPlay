@@ -1,6 +1,8 @@
 # config-service không đi qua api-gateway (không có rule ingress cho app: api-gateway) — nó chỉ
 # phục vụ các service khác gọi trực tiếp qua Service DNS nội bộ. Thêm một entry podSelector mới
-# vào đây mỗi khi một service khác bắt đầu gọi config-service (hiện tại: media-service).
+# vào đây mỗi khi một service khác bắt đầu gọi config-service.
+# Hiện tại: media-service, streaming-service (cả hai đều có ConfigServiceClient để đọc feature
+# flag — streaming-service dùng nó cho cờ streaming-delivery-mode).
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -18,6 +20,9 @@ spec:
         - podSelector:
             matchLabels:
               app: media-service
+        - podSelector:
+            matchLabels:
+              app: streaming-service
       ports:
         - protocol: TCP
           port: 8500

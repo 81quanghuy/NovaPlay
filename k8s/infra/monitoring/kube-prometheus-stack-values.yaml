@@ -1,0 +1,25 @@
+# kube-prometheus-stack cho dev/QA trên docker-desktop — node nhỏ nên giảm bớt/tắt vài phần
+# không cần cho local dev. Persistence tắt (emptyDir mặc định khi không khai báo storageSpec),
+# giống convention còn lại của k8s/infra/.
+prometheus:
+  prometheusSpec:
+    retention: 6h
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+
+# Dev không cần cảnh báo qua Alertmanager — tắt để đỡ tốn 1 pod trên node nhỏ.
+alertmanager:
+  enabled: false
+
+grafana:
+  additionalDataSources:
+    - name: Loki
+      type: loki
+      url: http://loki.monitoring.svc:3100
+      access: proxy
+    - name: Tempo
+      type: tempo
+      url: http://tempo.monitoring.svc:3100
+      access: proxy

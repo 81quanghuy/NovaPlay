@@ -3,6 +3,15 @@
 #
 # Biến bắt buộc: DATASOURCE_URL, DATASOURCE_USERNAME, DATASOURCE_PASSWORD, REDIS_HOST,
 #                KAFKA_BOOTSTRAP_SERVERS
+#
+# POSTGRES MANAGED — đọc kỹ trước khi chọn connection string:
+# Outbox dựa vào LISTEN/NOTIFY của Postgres (OutboxNotificationListener + trigger outbox_notify_trg).
+# Cơ chế này KHÔNG chạy qua endpoint pooled kiểu PgBouncer transaction mode.
+#   - Supabase: dùng cổng 5432 (direct), KHÔNG dùng 6543 (pooler).
+#   - Neon:     dùng host direct (không có "-pooler"), và biết rằng free tier tự ngủ sau ~5 phút
+#               idle nên connection LISTEN sẽ đứt liên tục.
+#   - Nếu buộc phải đi qua pooler: đặt OUTBOX_LISTEN_ENABLED=false và hạ OUTBOX_POLL_INTERVAL
+#     xuống (vd 5s). Outbox vẫn chạy đúng, chỉ đổi cơ chế đánh thức từ push sang poll.
 spring:
   config:
     activate:
@@ -12,9 +21,29 @@ spring:
     username: ${DATASOURCE_USERNAME}
     password: ${DATASOURCE_PASSWORD}
     driver-class-name: org.postgresql.Driver
+    hikari:
+      # Bound thấp có chủ đích. Postgres managed free tier giới hạn connection rất chặt
+      # (Supabase direct ~60 tổng cho CẢ dự án), trong khi HPA cho auth-service tới 6 pod và mỗi
+      # pod còn mở THÊM một connection LISTEN riêng ngoài pool này.
+      #   6 pod x (5 pool + 1 listen) = 36 connection — vừa hạn mức, còn chỗ cho promotion-service
+      #   và cho việc bạn mở psql lúc debug.
+      # Nới số này mà quên nhân với maxReplicas là cách nhanh nhất để gặp
+      # "FATAL: too many connections for role" giữa lúc đang có traffic.
+      maximum-pool-size: ${DATASOURCE_MAX_POOL_SIZE:5}
+      minimum-idle: ${DATASOURCE_MIN_IDLE:1}
+      # Postgres managed thường tự cắt connection idle lâu; trả về pool trước khi bị cắt để
+      # tránh lỗi "connection has been closed" ngẫu nhiên ở request đầu tiên sau lúc vắng tải.
+      max-lifetime: 600000
+      idle-timeout: 300000
+  liquibase:
+    # Liquibase là nguồn sự thật của schema ở prod; Hibernate chỉ validate lại kết quả.
+    # Changelog mặc định: classpath:/db/changelog/db.changelog-master.yaml
+    enabled: true
   jpa:
     hibernate:
       # validate, không phải update: production không được tự ý sửa schema lúc khởi động.
+      # Chạy SAU Liquibase (Spring Boot tự sắp thứ tự), nên đây là bước đối chiếu entity với
+      # schema mà Liquibase vừa dựng — lệch nhau là fail startup thay vì hỏng âm thầm lúc chạy.
       ddl-auto: validate
     show-sql: false
     properties:
@@ -60,6 +89,10 @@ server:
   shutdown: graceful
 
 jwt:
+  # Prod PHẢI override cả hai sang file: — keypair được mount từ Secret vào /etc/novaplay/keys
+  # (xem k8s/auth-service/deployment.yaml). KHÔNG được để rơi về default classpath ở prod: như
+  # thế nghĩa là private key đã bị bake vào layer image, ai pull được image là ký được JWT giả
+  # mạo bất kỳ user nào, và không rotate được nếu không rebuild.
   private-key-path: ${PRIVATE_KEY_PATH:classpath:keys/private.pem}
   public-key-path: ${PUBLIC_KEY_PATH:classpath:keys/public.pem}
   access-token:
@@ -71,6 +104,16 @@ auth:
     issuer: novaplay-auth
     audience: novaplay
     kid: v1
+
+novaplay:
+  outbox:
+    # true = dùng LISTEN/NOTIFY (đẩy, độ trễ gần như bằng 0). Đặt false khi connection string trỏ
+    # vào endpoint pooled không hỗ trợ LISTEN — xem ghi chú đầu file.
+    listen-enabled: ${OUTBOX_LISTEN_ENABLED:true}
+    # Lưới an toàn kể cả khi LISTEN bật: notification của Postgres không bền vững, row INSERT
+    # đúng lúc connection đứt sẽ không có ai đánh thức. Khi LISTEN tắt, đây là cơ chế DUY NHẤT
+    # nên hạ xuống 5s để email OTP không trễ quá lâu.
+    poll-interval: ${OUTBOX_POLL_INTERVAL:30s}
 
 springdoc:
   api-docs:
