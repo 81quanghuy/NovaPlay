@@ -7,13 +7,13 @@ import org.springframework.boot.ApplicationRunner;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.index.Index;
+import org.springframework.data.mongodb.core.index.IndexField;
 import org.springframework.data.mongodb.core.index.IndexInfo;
 import org.springframework.data.mongodb.core.index.IndexOperations;
 import org.springframework.stereotype.Component;
 import vn.iotstar.streamingservice.entity.WatchProgress;
 
 import java.util.List;
-import java.util.Map;
 
 import static vn.iotstar.streamingservice.utils.Constants.IDX_WATCH_PROGRESS_UNIQUE;
 import static vn.iotstar.streamingservice.utils.Constants.WATCH_PROGRESS_COLLECTION;
@@ -35,10 +35,19 @@ import static vn.iotstar.streamingservice.utils.Constants.WATCH_PROGRESS_COLLECT
 @RequiredArgsConstructor
 public class WatchProgressIndexInitializer implements ApplicationRunner {
 
-    private static final Map<String, Sort.Direction> UNIQUE_KEYS = Map.of(
-            "userEmail", Sort.Direction.ASC,
-            "movieId", Sort.Direction.ASC,
-            "episodeNumber", Sort.Direction.ASC);
+    /**
+     * THỨ TỰ FIELD LÀ MỘT PHẦN CỦA ĐỊNH DANH INDEX trong MongoDB, phải khớp đúng thứ tự khai ở
+     * {@code @CompoundIndex} của {@link WatchProgress} và ở
+     * {@link vn.iotstar.streamingservice.config.health.WatchProgressIndexHealthIndicator}.
+     * <p>
+     * Cố tình dùng {@code List} chứ KHÔNG phải {@code Map.of}: thứ tự duyệt của {@code Map.of}
+     * được xáo bằng một salt sinh ngẫu nhiên cho mỗi lần chạy JVM, nên nó vừa tạo index sai thứ
+     * tự khoá (compound index chỉ phục vụ query theo tiền tố — sai thứ tự là mất index cho query
+     * theo {@code userEmail} mà "continue watching" dùng), vừa làm phép so khớp bên dưới trượt
+     * ngẫu nhiên. Hệ quả từng gặp: khởi động lần sau MongoDB trả lỗi 86 IndexKeySpecsConflict
+     * (cùng tên index, khác bộ khoá) và service chết ngay lúc boot.
+     */
+    private static final List<String> UNIQUE_KEYS = List.of("userEmail", "movieId", "episodeNumber");
 
     private final MongoTemplate mongoTemplate;
 
@@ -70,21 +79,40 @@ public class WatchProgressIndexInitializer implements ApplicationRunner {
                         match.getName(), WATCH_PROGRESS_COLLECTION);
                 return;
             }
+        } else {
+            dropConflictingIndexWithOurName(ops, existing);
         }
 
         Index index = new Index().named(IDX_WATCH_PROGRESS_UNIQUE).unique();
-        UNIQUE_KEYS.forEach(index::on);
+        UNIQUE_KEYS.forEach(key -> index.on(key, Sort.Direction.ASC));
         ops.createIndex(index);
         log.info("Created index {} on {}", IDX_WATCH_PROGRESS_UNIQUE, WATCH_PROGRESS_COLLECTION);
     }
 
     /**
-     * So khớp theo bộ key chứ không theo tên: {@code auto-index-creation} có thể đã tự tạo index
-     * từ {@code @CompoundIndex} với tên do nó tự đặt trước khi initializer này chạy. MongoDB từ
-     * chối tạo cùng một bộ key dưới tên khác (lỗi 85 IndexOptionsConflict).
+     * Dọn index mang ĐÚNG tên của chúng ta nhưng bộ khoá lại khác (vd do một bản build cũ tạo sai
+     * thứ tự field). MongoDB từ chối tạo đè bằng lỗi 86 IndexKeySpecsConflict, và vì initializer này
+     * chạy lúc boot nên hệ quả là pod không bao giờ start được, phải vào sửa tay trên DB. Tên
+     * index là do service này đặt và dành riêng, nên xoá đi là an toàn; tạo lại vẫn fail to nếu
+     * dữ liệu đang trùng khoá — đúng như mong muốn.
+     */
+    private void dropConflictingIndexWithOurName(IndexOperations ops, List<IndexInfo> existing) {
+        boolean nameTaken = existing.stream()
+                .anyMatch(i -> IDX_WATCH_PROGRESS_UNIQUE.equals(i.getName()));
+        if (nameTaken) {
+            log.warn("Index {} on {} exists with a different key set, dropping it before recreating",
+                    IDX_WATCH_PROGRESS_UNIQUE, WATCH_PROGRESS_COLLECTION);
+            ops.dropIndex(IDX_WATCH_PROGRESS_UNIQUE);
+        }
+    }
+
+    /**
+     * So khớp theo bộ key (đúng thứ tự) chứ không theo tên: {@code auto-index-creation} có thể đã
+     * tự tạo index từ {@code @CompoundIndex} với tên do nó tự đặt trước khi initializer này chạy.
+     * MongoDB từ chối tạo cùng một bộ key dưới tên khác (lỗi 85 IndexOptionsConflict).
      */
     private boolean coversUniqueKeys(IndexInfo info) {
-        List<String> actual = info.getIndexFields().stream().map(f -> f.getKey()).toList();
-        return actual.equals(List.copyOf(UNIQUE_KEYS.keySet()));
+        List<String> actual = info.getIndexFields().stream().map(IndexField::getKey).toList();
+        return actual.equals(UNIQUE_KEYS);
     }
 }

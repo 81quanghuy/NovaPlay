@@ -77,6 +77,21 @@ class GatewayAuthFilterTest {
     }
 
     @Test
+    @DisplayName("scrape metric của Alloy được miễn kiểm tra")
+    void exemptsPrometheusScrape() throws Exception {
+        MockHttpServletRequest request =
+                new MockHttpServletRequest("GET", "/actuator/prometheus");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        FilterChain chain = mock(FilterChain.class);
+
+        // Alloy scrape thẳng vào pod, không qua gateway nên không thể mang secret. Chặn ở đây
+        // đồng nghĩa service biến mất khỏi dashboard mà không có lỗi nào ngoài log WARN.
+        enabledFilter().doFilter(request, response, chain);
+
+        verify(chain).doFilter(request, response);
+    }
+
+    @Test
     @DisplayName("khi tắt thì mọi request đều đi qua")
     void passesEverythingWhenDisabled() throws Exception {
         MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/v1/users/me");

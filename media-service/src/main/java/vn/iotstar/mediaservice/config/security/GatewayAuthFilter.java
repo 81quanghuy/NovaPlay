@@ -37,7 +37,11 @@ public class GatewayAuthFilter extends OncePerRequestFilter {
     /** Endpoint hạ tầng do orchestrator gọi trực tiếp, không đi qua gateway. */
     private static final String[] EXEMPT_PATH_PREFIXES = {
             "/actuator/health",
-            "/actuator/info"
+            "/actuator/info",
+            // Alloy scrape thẳng vào pod (không qua gateway) nên không thể mang secret; thiếu
+            // dòng này thì mọi lần scrape đều 403 và service biến mất khỏi dashboard trong im
+            // lặng — chỉ còn dấu vết là log WARN "Rejected request to /actuator/prometheus".
+            "/actuator/prometheus"
     };
 
     private final boolean enabled;

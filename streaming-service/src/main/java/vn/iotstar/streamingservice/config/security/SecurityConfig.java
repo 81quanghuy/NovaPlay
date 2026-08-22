@@ -29,6 +29,9 @@ public class SecurityConfig {
             "/actuator/health",
             "/actuator/health/**",
             "/actuator/info",
+            // Alloy scrape thẳng vào pod, không qua gateway nên không có danh tính.
+            // api-gateway không route /actuator/** ra ngoài, path này chỉ tới được từ trong cụm.
+            "/actuator/prometheus",
             /*
              * KHÔNG có identity thật ở đây theo thiết kế — trình phát HLS (đặc biệt engine HLS gốc
              * của Safari/iOS) không tự gắn được header Authorization tuỳ ý vào từng request tải

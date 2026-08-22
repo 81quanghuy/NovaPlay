@@ -26,12 +26,16 @@ public class SecurityConfig {
             "/swagger-ui/**",
             "/swagger-ui.html",
             "/webjars/**",
-            // Chỉ probe sức khoẻ mới để mở — orchestrator gọi chúng trước khi có danh tính.
-            // /actuator/prometheus và /actuator/metrics lộ tên endpoint nội bộ cùng số liệu
-            // vận hành nên phải yêu cầu xác thực.
+            // Mặt phẳng hạ tầng: orchestrator (probe) và Alloy (scrape metric) gọi thẳng vào
+            // pod, không qua gateway nên không bao giờ có danh tính. api-gateway KHÔNG route
+            // /actuator/** ra ngoài (chỉ /api/v1/** và /swagger/**), nên các path này chỉ tới
+            // được từ trong cụm — NetworkPolicy là thứ giới hạn ai gọi được.
+            // /actuator/metrics vẫn ĐÓNG: nó cho phép dò từng metric tuỳ ý, khác /prometheus
+            // vốn chỉ dump đúng bộ số liệu mà scraper cần.
             "/actuator/health",
             "/actuator/health/**",
-            "/actuator/info"
+            "/actuator/info",
+            "/actuator/prometheus"
     };
 
     @Bean
