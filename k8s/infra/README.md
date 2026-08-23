@@ -70,8 +70,8 @@ tilt up
 Giá trị mặc định trong `dev-secrets.env.example` đã khớp với `docker-compose/qa/docker-compose.yml`
 và các file `k8s/infra/*-values.yaml` — không cần sửa gì để chạy ở dev.
 
-Mở `http://localhost:10350` để xem Tilt UI: mỗi hạ tầng (postgres/redis/kafka/mongodb/minio/
-mailhog), mỗi bước seed, và mỗi service là một resource riêng với trạng thái, log, nút
+Mở `http://localhost:10350` để xem Tilt UI: mỗi hạ tầng (postgres/redis/kafka/mongodb/minio),
+mỗi bước seed, và mỗi service là một resource riêng với trạng thái, log, nút
 restart/trigger lại. `tilt up` giữ tiến trình chạy nền và theo dõi file thay đổi; `Ctrl+C` chỉ
 thoát CLI, không tắt các resource đã tạo trong cluster (xem mục "Tắt / gỡ" bên dưới).
 
@@ -83,11 +83,12 @@ thoát CLI, không tắt các resource đã tạo trong cluster (xem mục "Tắ
 
 Sơ đồ dưới đây là cấu hình MẶC ĐỊNH (mọi thứ in-cluster). Mỗi công tắc ở mục 3 bật lên sẽ xoá
 bớt một ô ở hàng trên — với `tilt-settings.json` hiện tại (Supabase + Upstash + Atlas + Aiven +
-R2 + Grafana Cloud) hàng đó chỉ còn `mailhog` và `dev-secrets`.
+R2 + Grafana Cloud) hàng đó chỉ còn `dev-secrets` (email giờ luôn đi qua Brevo, một dependency
+ngoài cụm, không còn công tắc để tắt về in-cluster như MailHog trước đây).
 
 ```
 postgres / redis / kafka (Bitnami Helm) ─┐
-mongodb / media-minio / mailhog (tự viết)─┼─► seed/init (mongo-config-flags-seed,
+mongodb / media-minio (tự viết)          ─┼─► seed/init (mongo-config-flags-seed,
 dev-secrets (10 k8s Secret)               ┘   minio-bucket-init)
                                                         │
         ┌───────────────┬───────────────┬──────────────┼───────────────┬────────────────┐
@@ -112,7 +113,6 @@ Cái gì được ghi đè phụ thuộc công tắc ở mục 3:
 
 | Điều kiện | Service | Biến được ghi đè |
 |---|---|---|
-| luôn luôn | notification-service | `MAIL_HOST`/`MAIL_PORT` → Mailhog in-cluster (xem mail ở `localhost:8025`) |
 | `use_cloud_storage: false` | media, streaming, transcoding-worker | `STORAGE_PROVIDERS_AWSS3_ENDPOINT` + `AWS_ACCESS_KEY_ID/SECRET` → MinIO in-cluster |
 | `use_cloud_storage: true` | media-service | `DEFAULT_STORAGE_PROVIDER=cloudflare-r2`, `AWS_SQS_ENABLED=false` |
 | `use_cloud_kafka: true` | auth, notification, user, media, transcoding-worker | `KAFKA_SECURITY_PROTOCOL=SASL_SSL`, `KAFKA_ADMIN_AUTO_CREATE=false` |
@@ -402,7 +402,8 @@ curl -X POST http://localhost/api/v1/auth/login \
 - **Swagger** (qua gateway): http://localhost/swagger-ui.html
 - Health từng service qua port-forward của Tilt: `curl localhost:<port>/actuator/health` — xem
   bảng port ở CLAUDE.md.
-- **Mailhog**: http://localhost:8025 — kiểm tra email test (OTP, v.v.) có tới không.
+- **Email test (OTP, v.v.)**: giờ gửi thật qua Brevo, không còn hộp thư giả in-cluster — kiểm
+  tra bằng Brevo "Transactional" → "Email Activity" (app.brevo.com) hoặc hộp thư của địa chỉ nhận thật.
 - **MinIO console**: http://localhost:9011 (user `media-dev` / pass `media-dev-secret`) — xem
   bucket `novaplay-media` và object media/HLS đã upload.
 - **Grafana**: http://localhost:3000 — Explore → chọn datasource Loki xem log tổng hợp mọi

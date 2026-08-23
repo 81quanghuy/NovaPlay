@@ -77,7 +77,6 @@ Building a Maven module **alone** (not via the aggregator) requires the parent P
 | payment-service | — | Maven | scaffold rỗng (chỉ `@SpringBootApplication`) |
 | report-service | — | Maven | scaffold rỗng (chỉ `@SpringBootApplication`) |
 | Kafka UI | 8080 | — | — |
-| MailHog (SMTP giả, QA) | 1025 / 8025 | — | — |
 | Grafana | 3000 | — | — |
 | Prometheus | 9090 | — | — |
 
@@ -114,7 +113,7 @@ The `outbox_notify_trg` trigger still fires `pg_notify`, but **nothing listens b
 
 `notification-service` is the single consumer for all user-facing notifications (it absorbed the former `email-service`). It consumes `send-email.v1`, `activate-account.v1` and `notification.requested.v1`, then fans out to channels:
 
-- **Email** — SMTP + Thymeleaf, i18n via `messages*.properties`
+- **Email** — SMTP + Thymeleaf, i18n via `messages*.properties`, relayed through Brevo (`smtp-relay.brevo.com`, no in-cluster fallback)
 - **In-app** — MongoDB document + REST API at `/api/v1/notifications` (per-user; identity from the `X-User-Email` gateway header)
 
 Adding a channel means adding one `NotificationChannel` bean plus an entry in `ChannelRoutingPolicy`; the dispatcher and consumers stay untouched. Delivery is at-least-once with **per-channel dedup keys** in Redis, so a retry only re-sends the channel that actually failed. Topic names live in `vn.iotstar.notificationservice.util.TopicNames` — each service keeps its own copy of this constants class.
@@ -245,10 +244,11 @@ The local cluster deliberately talks to real managed datastores instead of in-cl
 | MongoDB (6 databases) | Atlas M0 | `use_cloud_mongo` + each `*__MONGODB_URI` |
 | Kafka | Aiven (paid plan — topics unrestricted) | `use_cloud_kafka` + `cloud_kafka_bootstrap` |
 | Object storage | Cloudflare R2 | `use_cloud_storage` + `*__R2_*` |
+| Email delivery | Brevo (SMTP relay) | none — always on, `MAIL_HOST`/`MAIL_FROM` in `k8s/notification-service/configmap.yaml`, login+SMTP key in its Secret |
 | Metrics / logs / traces | Grafana Cloud | `use_grafana_cloud` (Alloy stays in-cluster as the only exporter) |
 | CI | GitHub Actions (Student Pack) | `.github/workflows/` |
 
-Every toggle above is currently **on**. Only `mailhog` still runs in-cluster as a real dependency; the in-cluster Postgres/Redis/Kafka/Mongo/MinIO paths and the in-cluster Prometheus/Loki/Tempo stack are all still wired and testable by flipping the toggle back off.
+Every toggle above is currently **on**, and none of them has an in-cluster fallback left running by default — email now goes through Brevo too (replacing the old always-in-cluster MailHog fake), with no toggle to flip it back local. The in-cluster Postgres/Redis/Kafka/Mongo/MinIO paths and the in-cluster Prometheus/Loki/Tempo stack are still wired and testable by flipping the relevant toggle back off.
 
 **The free tiers impose constraints that change how code gets written here:**
 

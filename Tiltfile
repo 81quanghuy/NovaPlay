@@ -65,8 +65,8 @@ local('k8s/infra/scripts/check-jwt-keys.sh')
 # ---------------------------------------------------------------------------
 # 1. Hạ tầng dùng chung
 #    - Postgres/Redis/Kafka: Bitnami Helm chart có sẵn (k8s/infra/*-values.yaml)
-#    - Mongo/MinIO/Mailhog: viết tay (k8s/infra/mongodb|minio.yaml|mailhog.yaml) — không chart
-#      Bitnami nào khớp yêu cầu 1-pod/không-persistence/URI phẳng mà 6 service đang cần
+#    - Mongo/MinIO: viết tay (k8s/infra/mongodb|minio.yaml) — không chart Bitnami nào khớp yêu
+#      cầu 1-pod/không-persistence/URI phẳng mà 6 service đang cần
 # ---------------------------------------------------------------------------
 helm_repo('bitnami', 'https://charts.bitnami.com/bitnami', labels=['infra'])
 
@@ -116,9 +116,6 @@ if not use_cloud_mongo:
 if not use_cloud_storage:
     k8s_yaml('k8s/infra/minio.yaml')
     k8s_resource('media-minio', labels=['infra'], port_forwards=['9010:9000', '9011:9001'])
-
-k8s_yaml('k8s/infra/mailhog.yaml')
-k8s_resource('mailhog', labels=['infra'], port_forwards=['1025:1025', '8025:8025'])
 
 # ---------------------------------------------------------------------------
 # 1b. Monitoring — hai chế độ, chọn bằng use_grafana_cloud:
@@ -218,6 +215,12 @@ if use_monitoring:
 local_resource(
     'dev-secrets',
     cmd='k8s/infra/scripts/apply-dev-secrets.sh',
+    # KHÔNG khai deps trước đây từng khiến sửa dev-secrets.env (thêm/đổi một key) không có tác
+    # dụng gì cho tới lần `tilt up` kế tiếp — resource chỉ chạy đúng một lần lúc khởi động. Hậu
+    # quả thật: thêm AUTH_SERVICE__GATEWAY_SHARED_SECRET vào file nhưng secret trên cluster
+    # không cập nhật, auth-service crash-loop với PlaceholderResolutionException vì biến môi
+    # trường không tồn tại. Khai deps=[...] để sửa file này tự động re-run script.
+    deps=['k8s/infra/dev-secrets.env'],
     labels=['infra'],
 )
 
@@ -257,7 +260,7 @@ if not use_cloud_storage:
 
 # ---------------------------------------------------------------------------
 # 3. Helper: apply deployment.yaml với các chỉnh sửa CHỈ dành cho dev (KHÔNG sửa file đã commit).
-#    - env override: MinIO/R2, Mailhog, Kafka Aiven, cloud Postgres/Redis, OTLP endpoint.
+#    - env override: MinIO/R2, Kafka Aiven, cloud Postgres/Redis, OTLP endpoint.
 #    - dev_scale_down: 1 replica + hạ request cho vừa một cái laptop.
 # ---------------------------------------------------------------------------
 # Manifest đã commit mô tả một cụm nhiều node: replicas 2 và transcoding-worker xin hẳn
@@ -341,7 +344,7 @@ SERVICES = {
     'notification-service': dict(
         image='ghcr.io/81nhuquynh/notification-service', context='.', dockerfile='notification-service/Dockerfile',
         port=8900,
-        resource_deps=MONGO_DEPS + KAFKA_DEPS + ['mailhog', 'dev-secrets'],
+        resource_deps=MONGO_DEPS + KAFKA_DEPS + ['dev-secrets'],
     ),
     # config-service CHỈ cần "started" trong compose (media-service tự fallback default nếu
     # config-service chưa sẵn sàng) — cố tình KHÔNG thêm 'config-service' vào resource_deps,
@@ -380,11 +383,9 @@ MINIO_ENV = {
     'AWS_ACCESS_KEY_ID': 'media-dev',
     'AWS_SECRET_ACCESS_KEY': 'media-dev-secret',
 }
-MAILHOG_ENV = {'MAIL_HOST': 'mailhog', 'MAIL_PORT': '1025'}
-
-EXTRA_ENV = {
-    'notification-service': dict(MAILHOG_ENV),
-}
+# notification-service không cần entry riêng nữa: MAIL_HOST/PORT/FROM giờ là giá trị Brevo
+# dùng chung mọi environment, đã nằm sẵn trong k8s/notification-service/configmap.yaml (commit).
+EXTRA_ENV = {}
 
 if use_cloud_storage:
     # Cloudflare R2. Credential (R2_ACCOUNT_ID/R2_BUCKET_NAME/R2_ACCESS_KEY_ID/

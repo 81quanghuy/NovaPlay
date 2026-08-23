@@ -31,7 +31,7 @@ public class KafkaServiceImpl {
     private final UserMetrics metrics;
 
     @KafkaListener(topics = TopicName.ACTIVATE_ACCOUNT,
-            containerFactory = "kafkaListenerContainerFactory")
+            containerFactory = "activateAccountKafkaListenerContainerFactory")
     public void handle(UserRegister evt,
                        @Header(name = KafkaHeaders.RECEIVED_TOPIC, required = false) String topic,
                        @Header(name = KafkaHeaders.RECEIVED_PARTITION, required = false) Integer partition,
@@ -58,7 +58,7 @@ public class KafkaServiceImpl {
     }
 
     @KafkaListener(topics = TopicName.SEND_STATUS_MEDIA,
-            containerFactory = "kafkaListenerContainerFactory")
+            containerFactory = "mediaReadyKafkaListenerContainerFactory")
     public void handleMediaReadyEvent(MediaReadyEvent event,
                                       @Header(name = KafkaHeaders.RECEIVED_TOPIC, required = false) String topic,
                                       @Header(name = KafkaHeaders.RECEIVED_PARTITION, required = false) Integer partition,

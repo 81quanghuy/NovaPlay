@@ -7,17 +7,22 @@ dụng, email tiếng Anh gửi cho người dùng Việt — đều xanh trong 
 ## Chuẩn bị
 
 ```bash
-docker compose -f docker-compose/qa/docker-compose.yml up -d mongodb redis kafka-services kafka-ui mailhog
+docker compose -f docker-compose/qa/docker-compose.yml up -d mongodb redis kafka-services kafka-ui
 ./mvnw -q install -N
+export MAIL_USERNAME=<brevo-login-email>  # xem docker-compose/qa/.env.example
+export MAIL_PASSWORD=<brevo-smtp-key>
 ./mvnw spring-boot:run -pl notification-service -Dspring-boot.run.profiles=dev
 ```
+
+Email giờ đi qua Brevo thật (không còn hộp thư giả local) — dùng một địa chỉ nhận mà bạn đọc
+được (Brevo free tier gửi được tới bất kỳ hộp thư nào, không cần verify địa chỉ NHẬN, chỉ cần
+verify địa chỉ FROM đã cấu hình ở `application-dev.yml`/`MAIL_FROM`, mục "Senders" trên app.brevo.com).
 
 Muốn kiểm tra cả đường đi qua gateway thì chạy thêm `api-gateway`.
 
 ```bash
 SVC=http://localhost:8900      # gọi thẳng service
 GW=http://localhost:8072       # qua gateway
-MAILHOG=http://localhost:8025  # hộp thư giả
 KAFKA_UI=http://localhost:8080
 ALICE='-H "X-User-Email: alice@novaplay.vn" -H "X-User-Roles: [ROLE_USER]"'
 BOB='-H "X-User-Email: bob@novaplay.vn" -H "X-User-Roles: [ROLE_USER]"'
@@ -70,11 +75,11 @@ Publish bằng Kafka UI (Topics → Produce Message) hoặc `kafka-console-produ
 
 | # | Topic | Payload | Kỳ vọng |
 |---|---|---|---|
-| 3.1 | `send-email.v1` | `{"messageId":"m1","userId":"u1","email":"alice@novaplay.vn","variables":{"otp":"123456","expireMinutes":"5","locale":"vi-VN"}}` | 1 email ở $MAILHOG, tiêu đề **tiếng Việt**, thân thư có `123456` và "hiệu lực trong 5 phút". **0** document trong Mongo (OTP không vào in-app) |
+| 3.1 | `send-email.v1` | `{"messageId":"m1","userId":"u1","email":"<địa-chỉ-bạn-đọc-được>","variables":{"otp":"123456","expireMinutes":"5","locale":"vi-VN"}}` | 1 email nhận được ở hộp thư đó (hoặc Brevo "Email Activity" nếu chưa kiểm tra được inbox), tiêu đề **tiếng Việt**, thân thư có `123456` và "hiệu lực trong 5 phút". **0** document trong Mongo (OTP không vào in-app) |
 | 3.2 | `send-email.v1` locale en | như trên nhưng `"locale":"en"` | Tiêu đề `Your OTP verification code` |
 | 3.3 | `activate-account.v1` | `{"username":"alice","email":"alice@novaplay.vn"}` | 1 email chào mừng **và** 1 document trong `notifications` |
 | 3.4 | `notification.requested.v1` | `{"messageId":"m2","userEmail":"alice@novaplay.vn","type":"GENERIC","channels":["IN_APP"],"locale":"vi-VN","variables":{"title":"Test"}}` | Chỉ 1 document in-app, không có email |
-| 3.5 | Link trong email đúng cấu hình | mở email OTP ở $MAILHOG | Link trỏ tới `APP_FRONTEND_BASE_URL`, **không** phải `localhost:3000` hardcode |
+| 3.5 | Link trong email đúng cấu hình | mở email OTP đã nhận | Link trỏ tới `APP_FRONTEND_BASE_URL`, **không** phải `localhost:3000` hardcode |
 
 ## 4. Chống trùng và topic chết
 
@@ -84,7 +89,7 @@ Publish bằng Kafka UI (Topics → Produce Message) hoặc `kafka-console-produ
 | 4.2 | Trùng ở kênh in-app | Publish lại payload 3.3 | Vẫn đúng 1 document (`_id` trùng bị Mongo chặn) |
 | 4.3 | Kích hoạt lại cùng email | Publish 3.3 với offset khác | Không có email thứ hai — khoá nghiệp vụ theo email, không theo toạ độ bản ghi |
 | 4.4 | **Payload hỏng vào DLT** | Publish `{"messageId":"bad","email":null,"variables":{}}` lên `send-email.v1` | Message xuất hiện ở `send-email.v1.DLT` trong Kafka UI. Log ERROR `Message rơi vào topic chết`. `notification_kafka_event_dlt_total` tăng. **Không** retry 5 lần (validation là lỗi non-retryable) |
-| 4.5 | **Fail một phần không gửi lại kênh đã thành công** | Dừng MailHog, publish 3.3, đợi retry, bật lại MailHog | Cuối cùng đúng **1** email và **1** document — không phải nhiều bản sao |
+| 4.5 | **Fail một phần không gửi lại kênh đã thành công** | Đổi tạm `SPRING_MAIL_HOST` sang một host không tồn tại (vd `invalid.invalid`) để giả lập SMTP down, publish 3.3, đợi retry, trả `SPRING_MAIL_HOST` về `smtp-relay.brevo.com` rồi restart | Cuối cùng đúng **1** email và **1** document — không phải nhiều bản sao |
 
 ## 5. Vận hành
 

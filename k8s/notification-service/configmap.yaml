@@ -15,8 +15,12 @@ data:
   SERVER_PORT: "8900"
   # Lấy mẫu toàn bộ ở production quá tốn kém; 10% đủ để phát hiện xu hướng.
   TRACING_SAMPLE_RATE: "0.1"
-  MAIL_HOST: "smtp.gmail.com"
+  MAIL_HOST: "smtp-relay.brevo.com"
   MAIL_PORT: "587"
+  # Địa chỉ From hiển thị trên email — PHẢI đã verify (mục "Senders" trên app.brevo.com) trước,
+  # nếu không Brevo từ chối gửi ở tầng API chứ không phải lỗi ở service. Không nhạy cảm (không
+  # phải credential) nên nằm ở ConfigMap chứ không phải Secret.
+  MAIL_FROM: "ngoquanghuy0310@gmail.com"
   # Đường dẫn gốc của frontend, dùng để dựng link xác thực trong email. Sai giá trị này nghĩa
   # là mọi email OTP đều chứa link chết — không có lỗi nào báo ra, chỉ có người dùng không
   # xác thực được tài khoản.

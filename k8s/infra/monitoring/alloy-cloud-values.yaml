@@ -6,7 +6,7 @@
 #
 #   pod /actuator/prometheus  --scrape-->  remote_write  -->  Grafana Cloud Prometheus
 #   stdout của pod            --tail---->  loki.write    -->  Grafana Cloud Loki
-#   OTLP :4318 (OTEL agent)   --receive->  otlphttp      -->  Grafana Cloud Tempo
+#   OTLP :4318 (OTEL agent)   --receive->  otlp (gRPC)   -->  Grafana Cloud Tempo
 #
 # Credential đến từ Secret "grafana-cloud-secrets" trong namespace monitoring, do
 # k8s/infra/scripts/apply-dev-secrets.sh tạo từ các key GRAFANA_CLOUD__* trong dev-secrets.env.
@@ -185,7 +185,7 @@ alloy:
 
       otelcol.processor.batch "default" {
         output {
-          traces = [otelcol.exporter.otlphttp.grafana_cloud.input]
+          traces = [otelcol.exporter.otlp.grafana_cloud.input]
         }
       }
 
@@ -194,7 +194,13 @@ alloy:
         password = sys.env("GRAFANA_CLOUD_TOKEN")
       }
 
-      otelcol.exporter.otlphttp "grafana_cloud" {
+      // otelcol.exporter.otlp (gRPC), KHÔNG PHẢI otlphttp: Tempo của Grafana Cloud không expose
+      // route OTLP/HTTP tại host riêng của nó (thử endpoint kiểu URL + /v1/traces tự nối ra 404
+      // "Unimplemented") — snippet chính thức của Grafana Cloud (mục Tempo → Sending traces via
+      // OTLP, KHÔNG phải mục AWS PrivateLink) dùng đúng component gRPC này. endpoint là host:port
+      // TRẦN, không có scheme http(s)://, không có path — otlp exporter tự bật TLS mặc định nên
+      // không cần khai thêm `tls {}`.
+      otelcol.exporter.otlp "grafana_cloud" {
         client {
           endpoint = sys.env("GRAFANA_CLOUD_OTLP_URL")
           auth     = otelcol.auth.basic.grafana_cloud.handler

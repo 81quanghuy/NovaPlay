@@ -13,18 +13,22 @@ spring:
   kafka:
     bootstrap-servers: localhost:9092
   mail:
-    # Trỏ MailHog (docker run -p 1025:1025 -p 8025:8025 mailhog/mailhog) để xem mail gửi ra mà
-    # không cần tài khoản SMTP thật. Đổi sang máy chủ thật thì phải điền username/password.
-    host: localhost
-    port: 1025
-    username: dev@novaplay.local
-    password:
+    # Brevo SMTP relay — cùng endpoint với prod. Khác SendGrid: username KHÔNG phải literal cố
+    # định mà là email đăng nhập Brevo, và password là "SMTP key" (khác API key) — cả hai đọc
+    # từ biến môi trường MAIL_USERNAME/MAIL_PASSWORD (docker-compose/qa/.env,
+    # k8s/infra/dev-secrets.env, hoặc export tay khi chạy mvnw trực tiếp). Thiếu biến này thì
+    # gửi mail lỗi auth, KHÔNG lỗi lúc khởi động. Cách lấy 2 giá trị này: app.brevo.com -> icon
+    # avatar góc phải -> "SMTP & API" -> tab "SMTP".
+    host: smtp-relay.brevo.com
+    port: 587
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
     properties:
       mail:
         smtp:
-          auth: false
+          auth: true
           starttls:
-            enable: false
+            enable: true
 
 server:
   port: 8900
@@ -35,6 +39,10 @@ application:
     gateway-secret:
       # Tắt ở local để gọi thẳng service khi dev; PROD bắt buộc bật.
       enabled: false
+  mail:
+    # Phải là địa chỉ đã verify (mục "Senders") trên Brevo, nếu không mọi email test đều bị
+    # Brevo từ chối ở tầng API.
+    from: ${MAIL_FROM:dev@novaplay.local}
   frontend:
     base-url: http://localhost:3000
 

@@ -89,7 +89,10 @@ application:
       enabled: true
       value: ${GATEWAY_SHARED_SECRET}
   mail:
-    from: ${MAIL_FROM:${MAIL_USERNAME}}
+    # KHÔNG fallback về MAIL_USERNAME: đó là email đăng nhập Brevo dùng để xác thực SMTP, chưa
+    # chắc là địa chỉ From mong muốn (và có thể không được Brevo cho phép làm From nếu chưa
+    # verify riêng). Bắt buộc điền MAIL_FROM tường minh.
+    from: ${MAIL_FROM}
   frontend:
     base-url: ${APP_FRONTEND_BASE_URL}
 

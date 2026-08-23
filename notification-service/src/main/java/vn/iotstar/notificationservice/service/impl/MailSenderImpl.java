@@ -32,7 +32,10 @@ public class MailSenderImpl implements MailSender {
     private final MessageSource messageSource;
     private final NotificationMetrics metrics;
 
-    @Value("${spring.mail.username}")
+    // Tách khỏi spring.mail.username: đó là danh tính xác thực SMTP (email đăng nhập provider),
+    // không nhất thiết là địa chỉ From mong muốn — provider có thể chặn nếu hai giá trị lệch
+    // nhau và From chưa được verify riêng. From hiển thị phải đọc từ property riêng.
+    @Value("${application.mail.from}")
     private String mailFrom;
 
     @Value("${application.frontend.base-url}")

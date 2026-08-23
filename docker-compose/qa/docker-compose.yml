@@ -133,17 +133,6 @@ services:
       - SPRING_SECURITY_USER_NAME=admin
       - SPRING_SECURITY_USER_PASSWORD=admin
 
-  # Máy chủ SMTP giả cho môi trường QA: nhận mọi email và hiển thị ở web UI thay vì gửi thật.
-  # Không có nó thì notification-service không khởi động nổi kênh email, và tệ hơn là một cấu
-  # hình sai có thể khiến email test bay tới hộp thư người dùng thật.
-  mailhog:
-    image: mailhog/mailhog:latest
-    container_name: mailhog
-    networks: [novaPLay]
-    ports:
-      - "1025:1025"   # SMTP
-      - "8025:8025"   # Web UI
-
   # ===================================================================
   # OBSERVABILITY STACK (Loki, Prometheus, Grafana, etc.)
   # ===================================================================
@@ -450,16 +439,16 @@ services:
     depends_on:
       mongodb: { condition: service_healthy }
       kafka-services: { condition: service_healthy }
-      mailhog: { condition: service_started }
     environment:
       SPRING_APPLICATION_NAME: "notification-service"
       OTEL_SERVICE_NAME: "notification-service"
       SPRING_DATA_MONGODB_URI: "mongodb://mongodb:27017/notification_service?replicaSet=rs0"
       SPRING_DATA_REDIS_HOST: redis
-      # application-dev.yml trỏ SMTP tới localhost:1025; bên trong container đó là chính nó,
-      # không phải dịch vụ mailhog. Email gửi ra xem được ở http://localhost:8025.
-      SPRING_MAIL_HOST: mailhog
-      SPRING_MAIL_PORT: "1025"
+      # application-dev.yml đã trỏ sẵn Brevo (smtp-relay.brevo.com:587) — chỉ còn thiếu login,
+      # SMTP key thật + from-address, lấy từ docker-compose/qa/.env (xem .env.example cùng thư mục).
+      SPRING_MAIL_USERNAME: "${BREVO_SMTP_LOGIN:?Thiếu BREVO_SMTP_LOGIN, xem docker-compose/qa/.env.example}"
+      SPRING_MAIL_PASSWORD: "${BREVO_SMTP_KEY:?Thiếu BREVO_SMTP_KEY, xem docker-compose/qa/.env.example}"
+      APPLICATION_MAIL_FROM: "${MAIL_FROM:-dev@novaplay.local}"
       APPLICATION_FRONTEND_BASE_URL: "${FRONTEND_BASE_URL:-http://localhost:3000}"
 
   api-gateway:

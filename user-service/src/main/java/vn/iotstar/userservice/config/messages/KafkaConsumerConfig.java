@@ -25,6 +25,7 @@ import org.springframework.kafka.support.serializer.JsonDeserializer;
 import org.springframework.kafka.support.serializer.JsonSerializer;
 import vn.iotstar.userservice.util.TopicName;
 import vn.iotstar.userservice.exception.ResourceNotFoundException;
+import vn.iotstar.userservice.common.dto.UserRegister;
 
 import java.util.HashMap;
 import org.springframework.boot.autoconfigure.kafka.KafkaProperties;
@@ -53,13 +54,50 @@ public class KafkaConsumerConfig {
     private static final int TOPIC_PARTITIONS = 3;
     private static final int LISTENER_CONCURRENCY = 3;
 
+    // ---- Consumer factory cho activate-account.v1 ----
+    //
+    // auth-service publish topic này bằng KafkaTemplate<String,String> (StringSerializer thẳng
+    // trên chuỗi JSON đã có sẵn trong outbox, tránh double-encode) — nghĩa là message KHÔNG BAO
+    // GIỜ mang header __TypeId__. Trước đây topic này dùng chung một ConsumerFactory<String,
+    // Object> với send-status-media.v1 (USE_TYPE_INFO_HEADERS=true, default type Object.class):
+    // không có header nên rơi vào nhánh default, Jackson dựng ra LinkedHashMap thay vì
+    // UserRegister, Spring không bind được vào tham số @KafkaListener và ném
+    // MessageConversionException — mọi message activate-account.v1 phía user-service chắc chắn
+    // rơi thẳng vào .DLT. notification-service's KafkaConsumerConfig đã cảnh báo đúng lỗi này
+    // ("không thể dùng chung một ConsumerFactory<String, Object> như user-service"); pattern sửa
+    // ở đây mượn lại y hệt bên đó: một ConsumerFactory riêng, pin cứng target type,
+    // USE_TYPE_INFO_HEADERS=false để không phụ thuộc việc producer có gửi header hay không.
     @Bean
-    public ConsumerFactory<String, Object> registerUserConsumerFactory(
+    public ConsumerFactory<String, UserRegister> activateAccountConsumerFactory(
             @Value("${spring.kafka.bootstrap-servers}") String bootstrap) {
+        var props = new HashMap<String, Object>(kafkaProperties.buildConsumerProperties(null));
+        props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrap);
+        props.put(ConsumerConfig.GROUP_ID_CONFIG, "user-service");
+        props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
+        props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
+        props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, JsonDeserializer.class);
+        props.put(JsonDeserializer.TRUSTED_PACKAGES, "vn.iotstar.userservice.*");
+        props.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, 200);
+        return new DefaultKafkaConsumerFactory<>(
+                props, new StringDeserializer(), new JsonDeserializer<>(UserRegister.class, false));
+    }
 
-        // Seed từ spring.kafka.* trước, override giá trị riêng của service sau. Tham số của
-        // build*Properties là SslBundles và chỉ bị dereference khi có spring.kafka.ssl.bundle —
-        // repo dùng ssl.trust-store-location (PEM) chứ không dùng bundle, nên null là an toàn.
+    @Bean
+    public ConcurrentKafkaListenerContainerFactory<String, UserRegister> activateAccountKafkaListenerContainerFactory(
+            @Qualifier("activateAccountConsumerFactory") ConsumerFactory<String, UserRegister> cf,
+            DeadLetterPublishingRecoverer dltRecoverer) {
+        return listenerContainerFactory(cf, dltRecoverer);
+    }
+
+    // ---- Consumer factory cho send-status-media.v1 ----
+    //
+    // Ngược với activate-account.v1: media-service CÓ gắn header __TypeId__ mang tên logic
+    // "mediaReady" (không phải FQCN, vì mỗi service giữ bản MediaReadyEvent riêng trong package
+    // của mình). Giữ nguyên cơ chế header + TYPE_MAPPINGS này — đây là ví dụ CLAUDE.md dẫn ra cho
+    // cách làm "logical type name" hợp lệ, không phải phần bị lỗi.
+    @Bean
+    public ConsumerFactory<String, Object> mediaReadyConsumerFactory(
+            @Value("${spring.kafka.bootstrap-servers}") String bootstrap) {
         var props = new HashMap<String, Object>(kafkaProperties.buildConsumerProperties(null));
         props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrap);
         props.put(ConsumerConfig.GROUP_ID_CONFIG, "user-service");
@@ -68,23 +106,24 @@ public class KafkaConsumerConfig {
         props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, JsonDeserializer.class);
         props.put(JsonDeserializer.USE_TYPE_INFO_HEADERS, true);
         props.put(JsonDeserializer.TRUSTED_PACKAGES, "vn.iotstar.userservice.*");
-        // media-service ghi tên logic "mediaReady" vào header __TypeId__ thay vì FQCN, vì mỗi
-        // service nay giữ bản MediaReadyEvent riêng trong package của mình. Ánh xạ ngược tên đó
-        // về class cục bộ ở đây; nhờ vậy hai bên đổi cấu trúc package mà không phá hợp đồng wire.
         props.put(JsonDeserializer.TYPE_MAPPINGS,
                 "mediaReady:vn.iotstar.userservice.common.dto.MediaReadyEvent");
-
         props.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, 200);
         return new DefaultKafkaConsumerFactory<>(
                 props, new StringDeserializer(), new JsonDeserializer<>(Object.class, false));
     }
 
     @Bean
-    public ConcurrentKafkaListenerContainerFactory<String, Object> kafkaListenerContainerFactory(
-            @Qualifier("registerUserConsumerFactory") ConsumerFactory<String, Object> cf,
+    public ConcurrentKafkaListenerContainerFactory<String, Object> mediaReadyKafkaListenerContainerFactory(
+            @Qualifier("mediaReadyConsumerFactory") ConsumerFactory<String, Object> cf,
             DeadLetterPublishingRecoverer dltRecoverer) {
+        return listenerContainerFactory(cf, dltRecoverer);
+    }
 
-        var factory = new ConcurrentKafkaListenerContainerFactory<String, Object>();
+    private <T> ConcurrentKafkaListenerContainerFactory<String, T> listenerContainerFactory(
+            ConsumerFactory<String, T> cf, DeadLetterPublishingRecoverer dltRecoverer) {
+
+        var factory = new ConcurrentKafkaListenerContainerFactory<String, T>();
         factory.setConsumerFactory(cf);
         factory.setConcurrency(LISTENER_CONCURRENCY);
         factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.BATCH);
