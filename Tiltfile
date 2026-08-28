@@ -36,6 +36,7 @@ use_monitoring = settings.get('use_monitoring', True)
 use_cloud_kafka = settings.get('use_cloud_kafka', False)
 use_cloud_storage = settings.get('use_cloud_storage', False)
 use_grafana_cloud = settings.get('use_grafana_cloud', False)
+use_cloudflare_tunnel = settings.get('use_cloudflare_tunnel', False)
 dev_scale_down = settings.get('dev_scale_down', True)
 cloud_postgres_url = settings.get('cloud_postgres_url', '')
 cloud_kafka_bootstrap = settings.get('cloud_kafka_bootstrap', '')
@@ -497,3 +498,15 @@ for name, cfg in SERVICES.items():
         port_forwards=port_forwards,
         labels=['app'],
     )
+
+# ---------------------------------------------------------------------------
+# Cloudflare Tunnel: Expose api-gateway ra internet cho Vercel FE
+# ---------------------------------------------------------------------------
+if use_cloudflare_tunnel:
+    k8s_yaml('k8s/infra/cloudflare-tunnel.yaml')
+    k8s_resource(
+        'cloudflare-tunnel',
+        resource_deps=['dev-secrets', 'api-gateway'],
+        labels=['infra'],
+    )
+

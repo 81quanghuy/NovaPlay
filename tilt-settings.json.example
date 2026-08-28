@@ -13,6 +13,9 @@
   "//use_grafana_cloud": "Chỉ có tác dụng khi use_monitoring=true. Bật = KHÔNG cài Prometheus/Grafana/Loki/Tempo trong cụm, chỉ còn Alloy đẩy metrics/logs/traces lên Grafana Cloud (credential: các key GRAFANA_CLOUD__* trong dev-secrets.env). Đây là cách giảm RAM nhiều nhất trên máy local.",
   "use_grafana_cloud": false,
 
+  "//use_cloudflare_tunnel": "Bật = deploy pod cloudflared để expose api-gateway ra internet cho Vercel FE. Token lấy từ Cloudflare Zero Trust và điền vào CLOUDFLARE_TUNNEL__TOKEN trong dev-secrets.env.",
+  "use_cloudflare_tunnel": false,
+
   "//dev_scale_down": "Mặc định true. Ép mọi Deployment về 1 replica và hạ resources.requests xuống trần 250m CPU / 512Mi khi apply qua Tilt (KHÔNG sửa file yaml đã commit, KHÔNG đụng tới limits). Manifest gốc mô tả cụm nhiều node: 5.7 vCPU + 11.5 GiB requests, quá chỗ của một VM Docker Desktop -> pod đứng Pending. Đặt false nếu bạn chạy trên cụm thật.",
   "dev_scale_down": true,
 

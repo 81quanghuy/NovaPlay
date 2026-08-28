@@ -53,7 +53,7 @@ for service_slug in "${!SECRET_KEYS[@]}"; do
     # của 9 service chỉ cho scrape từ namespace có label đó (k8s/infra/monitoring/namespace.yaml),
     # và trên cluster có CNI thi hành NetworkPolicy — k3s dùng kube-router — namespace thiếu label
     # nghĩa là Alloy scrape bị chặn im lặng, Grafana Cloud không có metric nào.
-    kubectl apply -f - >/dev/null <<'NS_EOF'
+    kubectl apply --validate=false -f - >/dev/null <<'NS_EOF'
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -73,7 +73,7 @@ NS_EOF
   done <<< "${SECRET_KEYS[$service_slug]}"
 
   kubectl create secret generic "$secret_name" "${ns_args[@]}" "${args[@]}" \
-    --dry-run=client -o yaml | kubectl apply -f -
+    --dry-run=client -o yaml | kubectl apply --validate=false -f -
 done
 
 # ---------------------------------------------------------------------------
@@ -91,11 +91,11 @@ GATEWAY_CERTS_DIR="$ROOT_DIR/api-gateway/src/main/resources/certs"
 kubectl create secret generic auth-service-jwt-keys \
   --from-file=private.pem="$AUTH_KEYS_DIR/private.pem" \
   --from-file=public.pem="$AUTH_KEYS_DIR/public.pem" \
-  --dry-run=client -o yaml | kubectl apply -f -
+  --dry-run=client -o yaml | kubectl apply --validate=false -f -
 
 kubectl create secret generic api-gateway-jwt-public-key \
   --from-file=public.pem="$GATEWAY_CERTS_DIR/public.pem" \
-  --dry-run=client -o yaml | kubectl apply -f -
+  --dry-run=client -o yaml | kubectl apply --validate=false -f -
 
 # ---------------------------------------------------------------------------
 # CA của Aiven Kafka: một Secret DÙNG CHUNG cho cả 5 service chạm Kafka (auth, media,
@@ -112,7 +112,7 @@ KAFKA_CA_FILE="$ROOT_DIR/k8s/infra/aiven-kafka-ca.pem"
 if [[ -f "$KAFKA_CA_FILE" ]]; then
   kubectl create secret generic aiven-kafka-ca \
     --from-file=ca.pem="$KAFKA_CA_FILE" \
-    --dry-run=client -o yaml | kubectl apply -f -
+    --dry-run=client -o yaml | kubectl apply --validate=false -f -
   echo "Đã apply Secret aiven-kafka-ca (nguồn: $KAFKA_CA_FILE)"
 else
   # Không fail: cụm chạy Kafka in-cluster (use_cloud_kafka=false) không cần CA nào cả, và Pod
