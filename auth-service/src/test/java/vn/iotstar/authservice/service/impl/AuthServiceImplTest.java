@@ -123,6 +123,56 @@ class AuthServiceImplTest {
     }
 
     // =========================================================================
+    // registerAdmin tests
+    // =========================================================================
+    @Nested @DisplayName("registerAdmin()")
+    class RegisterAdminTests {
+
+        @Test @DisplayName("Duplicate email/username → UserAlreadyExistsException")
+        void whenDuplicate_throwsConflict() {
+            UserCreationRequest req = new UserCreationRequest("testadmin", "admin@gmail.com", "StrongP@ss1", "en");
+            when(userRepository.existsByEmailOrUsername(any(), any())).thenReturn(true);
+            assertThrows(UserAlreadyExistsException.class, () -> authService.registerAdmin(req));
+        }
+
+        @Test @DisplayName("Role ADMIN missing → ResourceNotFoundException")
+        void whenRoleMissing_throwsNotFound() {
+            UserCreationRequest req = new UserCreationRequest("newadmin", "newadmin@gmail.com", "StrongP@ss1", "en");
+            when(userRepository.existsByEmailOrUsername(any(), any())).thenReturn(false);
+            when(roleRepository.findByRoleName(RoleName.ADMIN)).thenReturn(Optional.empty());
+            assertThrows(ResourceNotFoundException.class, () -> authService.registerAdmin(req));
+        }
+
+        @Test @DisplayName("Valid request → saves admin user with ADMIN and USER roles")
+        void whenValid_savesAdminUser() {
+            UserCreationRequest req = new UserCreationRequest("newadmin", "newadmin@gmail.com", "StrongP@ss1", "en");
+            Role adminRole = new Role(); adminRole.setRoleName(RoleName.ADMIN);
+            Role userRole = new Role(); userRole.setRoleName(RoleName.USER);
+
+            User dummyAdmin = new User();
+            dummyAdmin.setId(UUID.randomUUID());
+            dummyAdmin.setEmail("newadmin@gmail.com");
+            dummyAdmin.setUsername("newadmin");
+            dummyAdmin.setPassword("$hashed");
+            dummyAdmin.setIsEmailVerified(false);
+            dummyAdmin.setIsActive(true);
+            dummyAdmin.setRoles(Set.of(adminRole, userRole));
+
+            when(userRepository.existsByEmailOrUsername(any(), any())).thenReturn(false);
+            when(roleRepository.findByRoleName(RoleName.ADMIN)).thenReturn(Optional.of(adminRole));
+            when(roleRepository.findByRoleName(RoleName.USER)).thenReturn(Optional.of(userRole));
+            when(passwordEncoder.encode(any())).thenReturn("$hashed");
+            when(userRepository.save(any())).thenReturn(dummyAdmin);
+
+            UserResponse resp = authService.registerAdmin(req);
+            assertNotNull(resp);
+            verify(userRepository).save(argThat(user ->
+                    user.getRoles() != null && user.getRoles().contains(adminRole)
+            ));
+        }
+    }
+
+    // =========================================================================
     // login tests
     // =========================================================================
     @Nested @DisplayName("login()")
@@ -301,6 +351,41 @@ class AuthServiceImplTest {
             when(passwordEncoder.matches(eq("curr"), any())).thenReturn(true);
             assertThrows(BadRequestException.class, () ->
                     authService.changePassword(new ChangePasswordRequest("curr", "New@Pass1", "Different1!"), "test@gmail.com"));
+        }
+    }
+
+    // =========================================================================
+    // updateProfile tests
+    // =========================================================================
+    @Nested @DisplayName("updateProfile()")
+    class UpdateProfileTests {
+
+        @Test @DisplayName("User not found → BadRequestException")
+        void whenUserNotFound_throws() {
+            when(userRepository.findByEmail(any())).thenReturn(Optional.empty());
+            assertThrows(BadRequestException.class, () ->
+                    authService.updateProfile("unknown@gmail.com", new UpdateProfileRequest("newname")));
+        }
+
+        @Test @DisplayName("Username duplicate → UserAlreadyExistsException")
+        void whenUsernameTaken_throwsConflict() {
+            when(userRepository.findByEmail(any())).thenReturn(Optional.of(dummyUser));
+            when(userRepository.existsByUsername("takenname")).thenReturn(true);
+
+            assertThrows(UserAlreadyExistsException.class, () ->
+                    authService.updateProfile("test@gmail.com", new UpdateProfileRequest("takenname")));
+        }
+
+        @Test @DisplayName("Valid username update → updates and saves user")
+        void whenValid_updatesUsername() {
+            when(userRepository.findByEmail(any())).thenReturn(Optional.of(dummyUser));
+            when(userRepository.existsByUsername("brandnewname")).thenReturn(false);
+            when(userRepository.save(any())).thenReturn(dummyUser);
+
+            UserResponse resp = authService.updateProfile("test@gmail.com", new UpdateProfileRequest("brandnewname"));
+            assertNotNull(resp);
+            verify(userRepository).save(dummyUser);
+            assertEquals("brandnewname", dummyUser.getUsername());
         }
     }
 }

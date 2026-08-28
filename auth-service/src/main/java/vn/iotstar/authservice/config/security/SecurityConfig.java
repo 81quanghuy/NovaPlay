@@ -21,6 +21,7 @@ public class SecurityConfig {
     private final GatewayAuthFilter gatewayAuthFilter;
     private static final String[] PUBLIC_ENDPOINTS = {
             "/api/v1/auth/register",
+            "/api/v1/auth/register-admin",
             "/api/v1/auth/login",
             "/api/v1/auth/verify-otp",
             "/api/v1/auth/resend-registration-otp",

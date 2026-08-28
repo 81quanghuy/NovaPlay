@@ -45,6 +45,12 @@ public class UserProfile extends AuditableDocument implements Serializable {
     @Field(USER_NAME_COLUMN)
     private String displayName;
 
+    @Field("phoneNumber")
+    private String phoneNumber;
+
+    @Field("bio")
+    private String bio;
+
     @Field(AVATAR_COLUMN)
     private String avatarUrl;
 

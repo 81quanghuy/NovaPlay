@@ -118,12 +118,14 @@ class UserProfileServiceImplTest {
             when(userProfileRepository.save(any())).thenAnswer(i -> i.getArgument(0));
 
             UpdateUserProfileRequest request = new UpdateUserProfileRequest(
-                    "newhandle", "New Name", "https://cdn/x.png", "vi-VN", true);
+                    "newhandle", "New Name", "New Name", "0987654321", "Bio description", "https://cdn/x.png", "vi-VN", true);
 
             UserProfileDTO result = service.updateProfile(EMAIL, request);
 
             assertThat(existing.getPreferredUsername()).isEqualTo("newhandle");
             assertThat(existing.getDisplayName()).isEqualTo("New Name");
+            assertThat(existing.getPhoneNumber()).isEqualTo("0987654321");
+            assertThat(existing.getBio()).isEqualTo("Bio description");
             assertThat(existing.getAvatarUrl()).isEqualTo("https://cdn/x.png");
             assertThat(existing.getLocale()).isEqualTo("vi-VN");
             assertThat(result).isNotNull();
@@ -148,7 +150,7 @@ class UserProfileServiceImplTest {
             when(userProfileRepository.save(any())).thenAnswer(i -> i.getArgument(0));
 
             service.updateProfile(EMAIL,
-                    new UpdateUserProfileRequest(null, null, null, null, null));
+                    new UpdateUserProfileRequest(null, null, null, null, null, null, null, null));
 
             assertThat(existing.getDisplayName()).isEqualTo("Original Name");
             assertThat(existing.getPlan()).isEqualTo(Plan.MEMBER);
@@ -162,12 +164,12 @@ class UserProfileServiceImplTest {
             when(userProfileRepository.save(any())).thenAnswer(i -> i.getArgument(0));
 
             service.updateProfile(EMAIL,
-                    new UpdateUserProfileRequest(null, null, null, null, true));
+                    new UpdateUserProfileRequest(null, null, null, null, null, null, null, true));
             var firstStamp = existing.getMarketingOptInAt();
             assertThat(firstStamp).isNotNull();
 
             service.updateProfile(EMAIL,
-                    new UpdateUserProfileRequest(null, null, null, null, true));
+                    new UpdateUserProfileRequest(null, null, null, null, null, null, null, true));
             assertThat(existing.getMarketingOptInAt()).isEqualTo(firstStamp);
         }
     }

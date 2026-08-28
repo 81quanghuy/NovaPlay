@@ -24,6 +24,24 @@ public record UpdateUserProfileRequest(
         @Size(max = 150)
         String displayName,
 
+        @Schema(description = "Họ và tên (alias cho displayName)",
+                example = "Huy Nguyễn",
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED)
+        @Size(max = 150)
+        String fullName,
+
+        @Schema(description = "Số điện thoại",
+                example = "0987654321",
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED)
+        @Size(max = 20)
+        String phoneNumber,
+
+        @Schema(description = "Tiểu sử cá nhân",
+                example = "Đam mê điện ảnh...",
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED)
+        @Size(max = 500)
+        String bio,
+
         @Schema(description = "URL ảnh đại diện (CDN/media-service).",
                 example = "https://cdn.novaplay.com/avatars/u-123.png",
                 format = "uri",

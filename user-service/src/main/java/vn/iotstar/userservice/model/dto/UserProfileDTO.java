@@ -16,6 +16,15 @@ public record UserProfileDTO(
         @Schema(description = "Tên hiển thị trên UI.", example = "Huy Nguyễn")
         String displayName,
 
+        @Schema(description = "Họ và tên (alias cho displayName)", example = "Huy Nguyễn")
+        String fullName,
+
+        @Schema(description = "Số điện thoại", example = "0987654321")
+        String phoneNumber,
+
+        @Schema(description = "Tiểu sử cá nhân", example = "Đam mê điện ảnh...")
+        String bio,
+
         @Schema(description = "URL ảnh đại diện.", example = "https://cdn.novaplay.com/avatars/u-123.png")
         String avatarUrl,
 

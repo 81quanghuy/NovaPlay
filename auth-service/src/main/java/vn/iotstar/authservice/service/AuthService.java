@@ -13,6 +13,13 @@ public interface AuthService {
     UserResponse register(UserCreationRequest request);
 
     /**
+     * Handles the business logic for admin user registration.
+     * @param request A DTO containing registration details.
+     * @return A UserResponse with the new admin user's information.
+     */
+    UserResponse registerAdmin(UserCreationRequest request);
+
+    /**
      * Handles the login process using email and password.
      * @param request A DTO containing login credentials.
      * @return an AuthResponse containing the Access and Refresh Tokens.
@@ -64,4 +71,12 @@ public interface AuthService {
      * Resends the registration OTP if the user hasn't verified their account yet.
      */
     void resendRegistrationOtp(@Valid EmailRequest emailRequest, String correlationId);
+
+    /**
+     * Updates the authenticated user's profile information.
+     * @param email The user's email.
+     * @param request The update request DTO.
+     * @return The updated user response.
+     */
+    UserResponse updateProfile(String email, UpdateProfileRequest request);
 }

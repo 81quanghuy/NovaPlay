@@ -322,7 +322,8 @@ application:
     # vì CorsProperties.allowedOrigins là List<String> qua @ConfigurationProperties, không nhận
     # binding tin cậy từ một biến môi trường CSV đơn.
     allowed-origins:
-      - https://novaplay.vn
+      - https://nova-play-fe.vercel.app
+      - http://localhost:5173
   security:
     gateway-secret: ${GATEWAY_SHARED_SECRET}
 

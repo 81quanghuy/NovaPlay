@@ -19,6 +19,8 @@ import org.springframework.web.method.support.HandlerMethodArgumentResolver;
 import org.springframework.web.method.support.ModelAndViewContainer;
 import vn.iotstar.authservice.model.dto.ChangePasswordRequest;
 import vn.iotstar.authservice.model.dto.RefreshTokenRequest;
+import vn.iotstar.authservice.model.dto.UserCreationRequest;
+import vn.iotstar.authservice.model.dto.UserResponse;
 import vn.iotstar.authservice.model.entity.User;
 import vn.iotstar.authservice.service.AuthService;
 import vn.iotstar.authservice.service.OtpService;
@@ -121,5 +123,48 @@ public class AuthControllerTest {
                 .andExpect(status().isOk());
 
         verify(authService, times(1)).changePassword(any(ChangePasswordRequest.class), eq("tester@gmail.com"));
+    }
+
+    // =========================================================================
+    // TC-03: POST /api/v1/auth/register-admin – happy path
+    // =========================================================================
+    @Test
+    void registerAdmin_withValidRequest_returnsCreated() throws Exception {
+        UserCreationRequest req = new UserCreationRequest("admin1", "admin1@gmail.com", "Admin@123456", "en");
+        UserResponse response = new UserResponse(
+                "user-id-123", "admin1", "admin1@gmail.com", true, false, null, Collections.emptySet()
+        );
+        when(authService.registerAdmin(any(UserCreationRequest.class))).thenReturn(response);
+        doNothing().when(otpService).generateAndDispatch(anyString(), anyString(), anyString(), any());
+
+        mockMvc.perform(post("/api/v1/auth/register-admin")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isCreated());
+
+        verify(authService, times(1)).registerAdmin(any(UserCreationRequest.class));
+        verify(otpService, times(1)).generateAndDispatch(eq("user-id-123"), eq("admin1@gmail.com"), eq("en"), any());
+    }
+
+    // =========================================================================
+    // TC-04: PUT /api/v1/auth/me – happy path
+    // =========================================================================
+    @Test
+    void updateProfile_withValidRequest_returnsOk() throws Exception {
+        vn.iotstar.authservice.model.dto.UpdateProfileRequest req =
+                new vn.iotstar.authservice.model.dto.UpdateProfileRequest("newusername");
+        UserResponse response = new UserResponse(
+                "user-id-123", "newusername", "tester@gmail.com", true, true, null, Collections.emptySet()
+        );
+        when(authService.updateProfile(eq("tester@gmail.com"), any(vn.iotstar.authservice.model.dto.UpdateProfileRequest.class)))
+                .thenReturn(response);
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put("/api/v1/auth/me")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isOk());
+
+        verify(authService, times(1))
+                .updateProfile(eq("tester@gmail.com"), any(vn.iotstar.authservice.model.dto.UpdateProfileRequest.class));
     }
 }

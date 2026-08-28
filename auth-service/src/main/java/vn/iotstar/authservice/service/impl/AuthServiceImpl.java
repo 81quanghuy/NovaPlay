@@ -82,6 +82,31 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
+    @Transactional
+    public UserResponse registerAdmin(UserCreationRequest request) {
+        log.info("Registering admin user: email={}, username={}", request.email(), request.username());
+        if (userRepository.existsByEmailOrUsername(request.email(), request.username())) {
+            throw new UserAlreadyExistsException("Username hoặc email đã tồn tại");
+        }
+
+        User newAdmin = UserMapper.toUser(request);
+        newAdmin.setPassword(passwordEncoder.encode(request.password()));
+
+        Role adminRole = roleRepository.findByRoleName(RoleName.ADMIN)
+                .orElseThrow(() -> new ResourceNotFoundException("Role ADMIN not found - DB seed missing"));
+        Role userRole = roleRepository.findByRoleName(RoleName.USER).orElse(null);
+        if (userRole != null) {
+            newAdmin.setRoles(Set.of(adminRole, userRole));
+        } else {
+            newAdmin.setRoles(Set.of(adminRole));
+        }
+
+        User savedAdmin = userRepository.save(newAdmin);
+        authMetrics.getRegisterSuccessCounter().increment();
+        return UserMapper.toUserResponse(savedAdmin);
+    }
+
+    @Override
     public AuthResponse login(LoginRequest request) {
         log.info("Processing login for user: {}", request.emailOrUsername());
         String rateLimitKey = "auth:login:fail:" + request.emailOrUsername().toLowerCase();
@@ -248,5 +273,26 @@ public class AuthServiceImpl implements AuthService {
                 user.getEmail(),
                 emailRequest.locale(),
                 correlationId);
+    }
+
+    @Override
+    @Transactional
+    public UserResponse updateProfile(String email, UpdateProfileRequest request) {
+        log.info("Updating profile for user: {}", email);
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new BadRequestException("User not found"));
+
+        if (request.username() != null && !request.username().isBlank()) {
+            String newUsername = request.username().trim();
+            if (!newUsername.equalsIgnoreCase(user.getUsername())) {
+                if (userRepository.existsByUsername(newUsername)) {
+                    throw new UserAlreadyExistsException("Username đã tồn tại");
+                }
+                user.setUsername(newUsername);
+            }
+        }
+
+        User savedUser = userRepository.save(user);
+        return UserMapper.toUserResponse(savedUser);
     }
 }

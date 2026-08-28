@@ -13,6 +13,9 @@ public class UserProfileMapper {
                 p.getEmail(),
                 p.getPreferredUsername(),
                 p.getDisplayName(),
+                p.getDisplayName(), // fullName
+                p.getPhoneNumber(),
+                p.getBio(),
                 p.getAvatarUrl(),
                 p.getLocale(),
                 p.getPlan() != null ? p.getPlan().name() : null,

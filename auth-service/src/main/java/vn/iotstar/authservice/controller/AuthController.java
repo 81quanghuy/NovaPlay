@@ -46,6 +46,15 @@ public class AuthController {
                 .body(GenericResponse.success(registeredUser, "User registered successfully. Check your email for OTP.", HttpStatus.CREATED.value()));
     }
 
+    @Operation(summary = "Register a new admin account")
+    @PostMapping("/register-admin")
+    public ResponseEntity<GenericResponse> registerAdmin(@Valid @RequestBody UserCreationRequest request) {
+        UserResponse registeredAdmin = authService.registerAdmin(request);
+        otpService.generateAndDispatch(registeredAdmin.id(), registeredAdmin.email(), request.locale(), MDC.get(Constants.TRACE_ID));
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(GenericResponse.success(registeredAdmin, "Admin registered successfully. Check your email for OTP.", HttpStatus.CREATED.value()));
+    }
+
     @Operation(summary = "Verify OTP to activate user account")
     @PostMapping("/verify-otp")
     public ResponseEntity<GenericResponse> verify(@Valid @RequestBody VerifyOtpRequest req) {
@@ -145,6 +154,16 @@ public class AuthController {
     public ResponseEntity<GenericResponse> me(@AuthenticationPrincipal User user) {
         UserResponse profile = UserMapper.toUserResponse(user);
         return ResponseEntity.ok(GenericResponse.success(profile, "User profile retrieved"));
+    }
+
+    @Operation(summary = "Update current authenticated user profile",
+            security = {@SecurityRequirement(name = "bearerAuth")})
+    @PutMapping("/me")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<GenericResponse> updateProfile(@Valid @RequestBody UpdateProfileRequest request,
+                                                         @AuthenticationPrincipal User user) {
+        UserResponse profile = authService.updateProfile(user.getEmail(), request);
+        return ResponseEntity.ok(GenericResponse.success(profile, "User profile updated successfully"));
     }
 
     @Operation(summary = "Introspect token for service-to-service use",

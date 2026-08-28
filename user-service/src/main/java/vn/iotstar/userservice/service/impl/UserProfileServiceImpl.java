@@ -78,6 +78,14 @@ public class UserProfileServiceImpl implements UserProfileService {
         }
         if (request.displayName() != null) {
             profile.setDisplayName(request.displayName());
+        } else if (request.fullName() != null) {
+            profile.setDisplayName(request.fullName());
+        }
+        if (request.phoneNumber() != null) {
+            profile.setPhoneNumber(request.phoneNumber());
+        }
+        if (request.bio() != null) {
+            profile.setBio(request.bio());
         }
         if (request.avatarUrl() != null) {
             profile.setAvatarUrl(request.avatarUrl());
